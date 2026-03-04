@@ -1,0 +1,38 @@
+{
+  "name": "@nexus-core/root",
+  "version": "0.0.0",
+  "private": true,
+  "description": "NexusCore — Distributed AI Agent Orchestration Platform",
+  "workspaces": [
+    "libs/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "nx run-many -t build",
+    "test": "nx run-many -t test",
+    "lint": "nx run-many -t lint",
+    "typecheck": "nx run-many -t typecheck",
+    "dev:core": "nx run @nexus-core/core:dev",
+    "dev:maestro": "nx run @nexus-core/maestro:dev",
+    "dev:web": "nx run @nexus-core/client-web:dev",
+    "dev:cli": "nx run @nexus-core/client-cli:dev",
+    "graph": "nx graph",
+    "clean": "nx run-many -t clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "nx": "^20.4.0",
+    "@nx/js": "^20.4.0",
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "prettier": "^3.4.0",
+    "eslint": "^9.0.0",
+    "@eslint/js": "^9.0.0",
+    "typescript-eslint": "^8.0.0",
+    "tsx": "^4.19.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  }
+}

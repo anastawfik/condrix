@@ -1,0 +1,39 @@
+{
+  "name": "@nexus-core/client-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NexusCore CLI client — rich terminal UI with chat, file tree, terminals, and git",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "nexus": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js",
+    "test": "vitest run",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@nexus-core/protocol": "*",
+    "ink": "^5.1.0",
+    "react": "^19.0.0",
+    "ws": "^8.18.0",
+    "commander": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/ws": "^8.5.0",
+    "vitest": "^3.0.0"
+  }
+}

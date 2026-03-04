@@ -1,0 +1,28 @@
+{
+  "name": "@nexus-core/skills",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Built-in skill definitions for NexusCore agents — language, framework, infrastructure, and analysis skills",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@nexus-core/protocol": "*"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0"
+  }
+}

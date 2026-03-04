@@ -1,0 +1,16 @@
+{
+  "name": "@nexus-core/docs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NexusCore documentation site",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "clean": "rm -rf .vitepress/dist"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.0"
+  }
+}

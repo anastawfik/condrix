@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.base.json",
+  "references": [
+    { "path": "libs/protocol" },
+    { "path": "libs/client-shared" },
+    { "path": "libs/skills" },
+    { "path": "libs/mcp-configs" },
+    { "path": "apps/core" },
+    { "path": "apps/maestro" },
+    { "path": "apps/client-desktop" },
+    { "path": "apps/client-web" },
+    { "path": "apps/client-cli" }
+  ],
+  "files": []
+}

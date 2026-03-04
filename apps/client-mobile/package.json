@@ -1,0 +1,26 @@
+{
+  "name": "@nexus-core/client-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NexusCore mobile client — React Native app for monitoring, chat, and quick actions",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .expo *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@nexus-core/protocol": "*",
+    "@nexus-core/client-shared": "*",
+    "react": "^18.3.0",
+    "react-native": "^0.77.0",
+    "expo": "^52.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0"
+  }
+}
