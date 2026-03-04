@@ -5,215 +5,92 @@
  * All communication between Cores, Clients, and Maestro uses these types.
  */
 
-// ─── Message Envelope ────────────────────────────────────────────────────────
+// ─── Zod Schemas ────────────────────────────────────────────────────────────
 
-export type MessageType = 'request' | 'response' | 'event' | 'stream';
+export * from './schemas/index.js';
 
-export type Namespace = 'core' | 'project' | 'workspace' | 'agent' | 'terminal' | 'file' | 'git';
+// ─── Typed Action/Event Maps & Routing ──────────────────────────────────────
 
-export interface MessageEnvelope<T = unknown> {
-  id: string;
-  type: MessageType;
-  namespace: Namespace;
-  action: string;
-  workspaceId?: string;
+export * from './types/index.js';
+
+// ─── Runtime Helpers ────────────────────────────────────────────────────────
+
+export * from './helpers/index.js';
+
+// ─── Backwards-Compatible Inferred Types ────────────────────────────────────
+// These preserve the original type names from the flat index.ts so that all
+// existing `import type { ... } from '@nexus-core/protocol'` statements
+// continue to work without changes.
+
+import type { z } from 'zod';
+
+import type {
+  MessageTypeSchema,
+  NamespaceSchema,
+  WorkspaceStateSchema,
+  AgentProviderSchema,
+  GitFileStatusSchema,
+  AuthScopeSchema,
+  NotificationChannelSchema,
+  MaestroStateSchema,
+  CoreInfoSchema,
+  ProjectInfoSchema,
+  WorkspaceInfoSchema,
+  AgentMessageSchema,
+  AgentToolCallSchema,
+  TerminalInfoSchema,
+  FileEntrySchema,
+  FileChangeSchema,
+  GitStatusEntrySchema,
+  GitBranchInfoSchema,
+  NotificationSchema,
+  RichMessageSchema,
+  MessageButtonSchema,
+  MessageAttachmentSchema,
+  IncomingMessageSchema,
+  AuthTokenSchema,
+  SkillDefinitionSchema,
+  McpServerConfigSchema,
+  MessageEnvelopeSchema,
+} from './schemas/index.js';
+
+// Enum / union types
+export type MessageType = z.infer<typeof MessageTypeSchema>;
+export type Namespace = z.infer<typeof NamespaceSchema>;
+export type WorkspaceState = z.infer<typeof WorkspaceStateSchema>;
+export type AgentProvider = z.infer<typeof AgentProviderSchema>;
+export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;
+export type AuthScope = z.infer<typeof AuthScopeSchema>;
+export type NotificationChannel = z.infer<typeof NotificationChannelSchema>;
+export type MaestroState = z.infer<typeof MaestroStateSchema>;
+
+// Domain object types
+export type CoreInfo = z.infer<typeof CoreInfoSchema>;
+export type ProjectInfo = z.infer<typeof ProjectInfoSchema>;
+export type WorkspaceInfo = z.infer<typeof WorkspaceInfoSchema>;
+export type AgentMessage = z.infer<typeof AgentMessageSchema>;
+export type AgentToolCall = z.infer<typeof AgentToolCallSchema>;
+export type TerminalInfo = z.infer<typeof TerminalInfoSchema>;
+export type FileEntry = z.infer<typeof FileEntrySchema>;
+export type FileChange = z.infer<typeof FileChangeSchema>;
+export type GitStatusEntry = z.infer<typeof GitStatusEntrySchema>;
+export type GitBranchInfo = z.infer<typeof GitBranchInfoSchema>;
+export type Notification = z.infer<typeof NotificationSchema>;
+export type RichMessage = z.infer<typeof RichMessageSchema>;
+export type MessageButton = z.infer<typeof MessageButtonSchema>;
+export type MessageAttachment = z.infer<typeof MessageAttachmentSchema>;
+export type IncomingMessage = z.infer<typeof IncomingMessageSchema>;
+export type AuthToken = z.infer<typeof AuthTokenSchema>;
+export type SkillDefinition = z.infer<typeof SkillDefinitionSchema>;
+export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
+
+// MessageEnvelope preserves its generic parameter
+export type MessageEnvelope<T = unknown> = Omit<z.infer<typeof MessageEnvelopeSchema>, 'payload'> & {
   payload: T;
-  timestamp: string;
-  correlationId?: string;
-}
+};
 
-// ─── Workspace States ────────────────────────────────────────────────────────
-
-export type WorkspaceState =
-  | 'CREATING'
-  | 'IDLE'
-  | 'ACTIVE'
-  | 'WAITING'
-  | 'SUSPENDED'
-  | 'ERRORED'
-  | 'DESTROYED';
-
-// ─── Core Types ──────────────────────────────────────────────────────────────
-
-export interface CoreInfo {
-  coreId: string;
-  displayName: string;
-  host: string;
-  port: number;
-  status: 'online' | 'offline' | 'degraded';
-  lastHeartbeat: string;
-}
-
-export interface ProjectInfo {
-  id: string;
-  name: string;
-  path: string;
-  workspaces: WorkspaceInfo[];
-}
-
-export interface WorkspaceInfo {
-  id: string;
-  projectId: string;
-  name: string;
-  state: WorkspaceState;
-  branch?: string;
-  agentProvider?: string;
-}
-
-// ─── Agent Types ─────────────────────────────────────────────────────────────
-
-export type AgentProvider = 'claude' | 'openai' | 'local' | 'custom';
-
-export interface AgentMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: string;
-  metadata?: Record<string, unknown>;
-}
-
-export interface AgentToolCall {
-  id: string;
-  name: string;
-  arguments: Record<string, unknown>;
-  result?: unknown;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-}
-
-// ─── Terminal Types ──────────────────────────────────────────────────────────
-
-export interface TerminalInfo {
-  id: string;
-  workspaceId: string;
-  shell: string;
-  cols: number;
-  rows: number;
-  pid?: number;
-}
-
-// ─── File Types ──────────────────────────────────────────────────────────────
-
-export interface FileEntry {
-  path: string;
-  name: string;
-  type: 'file' | 'directory' | 'symlink';
-  size?: number;
-  modifiedAt?: string;
-}
-
-export interface FileChange {
-  path: string;
-  type: 'created' | 'modified' | 'deleted' | 'renamed';
-  oldPath?: string;
-}
-
-// ─── Git Types ───────────────────────────────────────────────────────────────
-
-export type GitFileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked';
-
-export interface GitStatusEntry {
-  path: string;
-  status: GitFileStatus;
-  staged: boolean;
-}
-
-export interface GitBranchInfo {
-  name: string;
-  current: boolean;
-  remote?: string;
-  ahead: number;
-  behind: number;
-}
-
-// ─── Maestro Types ───────────────────────────────────────────────────────────
-
-export type MaestroState = 'INITIALIZING' | 'ACTIVE' | 'DEGRADED' | 'RECOVERING';
-
-export type NotificationChannel = 'whatsapp' | 'telegram' | 'push' | 'web';
-
-export interface Notification {
-  id: string;
-  workspaceId: string;
-  type: 'waiting' | 'error' | 'complete' | 'info';
-  message: string;
-  channel: NotificationChannel;
-  status: 'pending' | 'sent' | 'acknowledged';
-  sentAt?: string;
-  acknowledgedAt?: string;
-}
-
-// ─── Messaging Types ─────────────────────────────────────────────────────────
-
-export interface RichMessage {
-  text: string;
-  buttons?: MessageButton[];
-  codeBlock?: string;
-  attachments?: MessageAttachment[];
-}
-
-export interface MessageButton {
-  id: string;
-  label: string;
-  action: string;
-  payload?: Record<string, unknown>;
-}
-
-export interface MessageAttachment {
-  type: 'file' | 'image' | 'code';
-  name: string;
-  content: string | Buffer;
-  mimeType?: string;
-}
-
-export interface IncomingMessage {
-  chatId: string;
-  senderId: string;
-  text: string;
-  platform: 'whatsapp' | 'telegram';
-  timestamp: string;
-  replyTo?: string;
-}
-
-// ─── Auth Types ──────────────────────────────────────────────────────────────
-
-export type AuthScope =
-  | 'read:files'
-  | 'write:files'
-  | 'exec:terminal'
-  | 'admin:workspace'
-  | 'admin:project'
-  | 'admin:core'
-  | 'chat:agent'
-  | 'chat:maestro';
-
-export interface AuthToken {
-  token: string;
-  scopes: AuthScope[];
-  expiresAt?: string;
-}
-
-// ─── Skill Types ─────────────────────────────────────────────────────────────
-
-export interface SkillDefinition {
-  name: string;
-  version: string;
-  description: string;
-  systemPromptFile: string;
-  tools: string[];
-  mcpServers?: string[];
-  config?: Record<string, unknown>;
-}
-
-// ─── MCP Types ───────────────────────────────────────────────────────────────
-
-export interface McpServerConfig {
-  name: string;
-  command: string;
-  args?: string[];
-  env?: Record<string, string>;
-  scope: 'global' | 'project' | 'workspace';
-}
-
-// ─── Message Adapter Interface ───────────────────────────────────────────────
+// ─── Message Adapter Interface ──────────────────────────────────────────────
+// Kept as a hand-written interface (methods with Promise returns can't be Zod schemas)
 
 export interface MessageAdapter {
   connect(): Promise<void>;
