@@ -1,32 +1,40 @@
 import type { ProjectInfo } from '@nexus-core/protocol';
+import { generateId } from '@nexus-core/protocol';
+import type { EventEmitter } from 'node:events';
+
+import type { CoreDatabase } from '../database.js';
 
 /**
  * Maintains the registry of projects.
  * Projects can be added/removed dynamically without restarting the Core.
  */
 export class ProjectManager {
-  private projects = new Map<string, ProjectInfo>();
+  constructor(
+    private db: CoreDatabase,
+    private emitter: EventEmitter,
+  ) {}
 
-  async addProject(name: string, path: string): Promise<ProjectInfo> {
-    const project: ProjectInfo = {
-      id: `proj_${Date.now()}`,
-      name,
-      path,
-      workspaces: [],
-    };
-    this.projects.set(project.id, project);
+  addProject(name: string, path: string): ProjectInfo {
+    const id = generateId('proj');
+    this.db.insertProject(id, name, path);
+    const project = this.db.getProject(id)!;
+    this.emitter.emit('project:created', project);
     return project;
   }
 
   getProject(id: string): ProjectInfo | undefined {
-    return this.projects.get(id);
+    return this.db.getProject(id);
   }
 
   listProjects(): ProjectInfo[] {
-    return Array.from(this.projects.values());
+    return this.db.listProjects();
   }
 
   removeProject(id: string): boolean {
-    return this.projects.delete(id);
+    const deleted = this.db.deleteProject(id);
+    if (deleted) {
+      this.emitter.emit('project:deleted', { projectId: id });
+    }
+    return deleted;
   }
 }

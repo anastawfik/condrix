@@ -7,6 +7,8 @@ const config = {
   displayName: process.env.NEXUS_CORE_NAME ?? 'NexusCore',
   host: process.env.NEXUS_CORE_HOST ?? '0.0.0.0',
   port: Number(process.env.NEXUS_CORE_PORT ?? 9100),
+  dbPath: process.env.NEXUS_CORE_DB_PATH ?? undefined,
+  devMode: process.env.NEXUS_CORE_DEV_MODE !== 'false',
 };
 
 const runtime = new CoreRuntime(config);
