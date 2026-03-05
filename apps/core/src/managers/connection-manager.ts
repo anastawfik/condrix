@@ -4,6 +4,7 @@ import { generateId } from '@nexus-core/protocol';
 import type { AuthScope } from '@nexus-core/protocol';
 
 import type { MessageRouter } from '../message-router.js';
+import type { AuthManager } from '../auth.js';
 
 const ALL_SCOPES: AuthScope[] = [
   'read:files', 'write:files', 'exec:terminal',
@@ -34,13 +35,15 @@ export class ConnectionManager {
   private sessions = new Map<string, ClientSession>();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private devMode: boolean;
+  private authManager: AuthManager | null;
 
   constructor(
     private router: MessageRouter,
     private emitter: EventEmitter,
-    options?: { devMode?: boolean },
+    options?: { devMode?: boolean; authManager?: AuthManager },
   ) {
     this.devMode = options?.devMode ?? true;
+    this.authManager = options?.authManager ?? null;
   }
 
   async start(host: string, port: number): Promise<void> {
@@ -144,11 +147,46 @@ export class ConnectionManager {
   }
 
   private handleAuth(session: ClientSession, msg: Record<string, unknown>): void {
-    // Dev mode: accept any token
-    session.authenticated = true;
-    session.scopes = [...ALL_SCOPES];
+    const payload = msg.payload as { token?: string } | undefined;
 
-    const payload = msg.payload as Record<string, unknown> | undefined;
+    if (this.devMode) {
+      // Dev mode: accept any token
+      session.authenticated = true;
+      session.scopes = [...ALL_SCOPES];
+    } else if (this.authManager && payload?.token) {
+      // Token mode: validate against AuthManager
+      const result = this.authManager.validateToken(payload.token);
+      if (!result.valid) {
+        this.send(session, {
+          id: '',
+          type: 'response',
+          namespace: 'core',
+          action: 'auth',
+          payload: { authenticated: false, scopes: [] },
+          timestamp: new Date().toISOString(),
+          correlationId: msg.id as string,
+          success: false,
+          error: { code: 'INVALID_TOKEN', message: 'Invalid or expired token' },
+        });
+        return;
+      }
+      session.authenticated = true;
+      session.scopes = result.scopes;
+    } else {
+      this.send(session, {
+        id: '',
+        type: 'response',
+        namespace: 'core',
+        action: 'auth',
+        payload: { authenticated: false, scopes: [] },
+        timestamp: new Date().toISOString(),
+        correlationId: msg.id as string,
+        success: false,
+        error: { code: 'TOKEN_REQUIRED', message: 'Token required for authentication' },
+      });
+      return;
+    }
+
     this.send(session, {
       id: '',
       type: 'response',

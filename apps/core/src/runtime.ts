@@ -6,6 +6,7 @@ import type { CoreInfo, MessageEnvelope } from '@nexus-core/protocol';
 import { createEvent } from '@nexus-core/protocol';
 
 import { CoreDatabase } from './database.js';
+import { AuthManager } from './auth.js';
 import { MessageRouter } from './message-router.js';
 import { ProjectManager } from './managers/project-manager.js';
 import { WorkspaceManager } from './managers/workspace-manager.js';
@@ -40,6 +41,7 @@ export class CoreRuntime {
   private router!: MessageRouter;
 
   // Managers
+  private authManager!: AuthManager;
   private projectManager!: ProjectManager;
   private workspaceManager!: WorkspaceManager;
   private agentManager!: AgentManager;
@@ -65,6 +67,16 @@ export class CoreRuntime {
     this.emitter = new EventEmitter();
     this.emitter.setMaxListeners(50);
 
+    // Init auth manager
+    this.authManager = new AuthManager(this.db.db);
+    const devMode = this.config.devMode ?? true;
+    if (!devMode) {
+      const defaultToken = this.authManager.ensureDefaultToken();
+      if (defaultToken) {
+        console.log(`[Core] Auth token generated (save this!):\n  ${defaultToken.token}`);
+      }
+    }
+
     // Init managers
     this.projectManager = new ProjectManager(this.db, this.emitter);
     this.workspaceManager = new WorkspaceManager(this.db, this.emitter);
@@ -83,7 +95,8 @@ export class CoreRuntime {
 
     // Init connection manager & start WS server
     this.connectionManager = new ConnectionManager(this.router, this.emitter, {
-      devMode: this.config.devMode ?? true,
+      devMode,
+      authManager: this.authManager,
     });
     await this.connectionManager.start(this.config.host, this.config.port);
 

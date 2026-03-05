@@ -1,42 +1,41 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import type { CoreInfo, MessageEnvelope } from '@nexus-core/protocol';
+/**
+ * React hook for Core WebSocket connection state.
+ * Thin wrapper around the connection Zustand store.
+ */
+import { useStore } from 'zustand';
+import { connectionStore, type ConnectionConfig, type ConnectionState } from '../stores/connection-store.js';
+import type { CoreInfo, AuthScope } from '@nexus-core/protocol';
 
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
+export type { ConnectionState, ConnectionConfig as ConnectionOptions };
 
-export interface ConnectionOptions {
-  url: string;
-  token: string;
-  autoReconnect?: boolean;
-  heartbeatInterval?: number;
+export interface UseCoreConnectionReturn {
+  state: ConnectionState;
+  coreInfo: CoreInfo | null;
+  sessionId: string | null;
+  scopes: AuthScope[];
+  error: string | null;
+  connect: (config: ConnectionConfig) => void;
+  disconnect: () => void;
+  send: (message: unknown) => void;
+  request: <T = unknown>(namespace: string, action: string, payload: unknown) => Promise<T>;
 }
 
-/**
- * React hook for managing a WebSocket connection to a NexusCore Core.
- */
-export function useCoreConnection(options: ConnectionOptions) {
-  const [state, setState] = useState<ConnectionState>('disconnected');
-  const [coreInfo, setCoreInfo] = useState<CoreInfo | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+export function useCoreConnection(): UseCoreConnectionReturn {
+  const state = useStore(connectionStore, (s) => s.state);
+  const coreInfo = useStore(connectionStore, (s) => s.coreInfo);
+  const sessionId = useStore(connectionStore, (s) => s.sessionId);
+  const scopes = useStore(connectionStore, (s) => s.scopes);
+  const error = useStore(connectionStore, (s) => s.error);
 
-  const connect = useCallback(() => {
-    setState('connecting');
-    // TODO: Establish WebSocket connection, authenticate, handle state sync
-  }, [options.url, options.token]);
-
-  const disconnect = useCallback(() => {
-    wsRef.current?.close();
-    setState('disconnected');
-  }, []);
-
-  const send = useCallback((message: MessageEnvelope) => {
-    wsRef.current?.send(JSON.stringify(message));
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      wsRef.current?.close();
-    };
-  }, []);
-
-  return { state, coreInfo, connect, disconnect, send };
+  return {
+    state,
+    coreInfo,
+    sessionId,
+    scopes,
+    error,
+    connect: connectionStore.getState().connect,
+    disconnect: connectionStore.getState().disconnect,
+    send: connectionStore.getState().send,
+    request: connectionStore.getState().request,
+  };
 }

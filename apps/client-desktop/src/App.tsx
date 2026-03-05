@@ -1,15 +1,22 @@
-import React from 'react';
+import { useStore } from 'zustand';
+import { CoreConnectionProvider, connectionStore } from '@nexus-core/client-shared';
+import { ConnectionDialog } from './components/connection-dialog.js';
+import { AppLayout } from './components/app-layout.js';
+
+function AppContent() {
+  const state = useStore(connectionStore, (s) => s.state);
+
+  if (state !== 'connected') {
+    return <ConnectionDialog />;
+  }
+
+  return <AppLayout />;
+}
 
 export function App() {
   return (
-    <div id="nexus-desktop">
-      <header>
-        <h1>NexusCore Desktop</h1>
-      </header>
-      <main>
-        {/* TODO: Chat Panel, File Explorer, Code Editor, Terminal, Git Panel */}
-        <p>NexusCore Desktop Client — Under Construction</p>
-      </main>
-    </div>
+    <CoreConnectionProvider>
+      <AppContent />
+    </CoreConnectionProvider>
   );
 }

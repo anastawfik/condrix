@@ -21,7 +21,8 @@
   },
   "dependencies": {
     "@nexus-core/protocol": "*",
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

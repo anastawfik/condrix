@@ -1,26 +1,52 @@
-import { useState } from 'react';
-import type { WorkspaceInfo, AgentMessage } from '@nexus-core/protocol';
-
 /**
- * React hook for managing workspace state and agent interactions.
+ * React hook for workspace state and agent interactions.
+ * Thin wrapper around workspace and chat Zustand stores.
  */
-export function useWorkspace(workspaceId: string | null) {
-  const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
-  const [messages, setMessages] = useState<AgentMessage[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
+import { useStore } from 'zustand';
+import { useEffect } from 'react';
+import type { WorkspaceInfo } from '@nexus-core/protocol';
 
-  const sendMessage = async (_message: string): Promise<void> => {
-    // TODO: Send message to workspace agent via Core connection
-    setIsStreaming(true);
+import { workspaceStore } from '../stores/workspace-store.js';
+import { chatStore, type ChatMessage } from '../stores/chat-store.js';
+
+export interface UseWorkspaceReturn {
+  workspace: WorkspaceInfo | null;
+  messages: ChatMessage[];
+  isStreaming: boolean;
+  sendMessage: (message: string) => Promise<void>;
+  approveAction: (actionId: string) => Promise<void>;
+  rejectAction: (actionId: string) => Promise<void>;
+}
+
+export function useWorkspace(workspaceId: string | null): UseWorkspaceReturn {
+  const workspace = useStore(workspaceStore, (s) => s.currentWorkspace);
+  const messages = useStore(chatStore, (s) => workspaceId ? s.getMessages(workspaceId) : []);
+  const isStreaming = useStore(chatStore, (s) => workspaceId ? s.isStreaming(workspaceId) : false);
+
+  useEffect(() => {
+    if (workspaceId) {
+      chatStore.getState().loadHistory(workspaceId).catch(() => { /* ignore */ });
+    }
+  }, [workspaceId]);
+
+  return {
+    workspace,
+    messages,
+    isStreaming,
+    sendMessage: async (message: string) => {
+      if (workspaceId) {
+        await chatStore.getState().sendMessage(workspaceId, message);
+      }
+    },
+    approveAction: async (actionId: string) => {
+      if (workspaceId) {
+        await chatStore.getState().approveAction(workspaceId, actionId);
+      }
+    },
+    rejectAction: async (actionId: string) => {
+      if (workspaceId) {
+        await chatStore.getState().rejectAction(workspaceId, actionId);
+      }
+    },
   };
-
-  const approveAction = async (_actionId: string): Promise<void> => {
-    // TODO: Approve agent's pending action
-  };
-
-  const rejectAction = async (_actionId: string): Promise<void> => {
-    // TODO: Reject agent's pending action
-  };
-
-  return { workspace, messages, isStreaming, sendMessage, approveAction, rejectAction };
 }
