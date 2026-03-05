@@ -11,6 +11,7 @@ import { MessageRouter } from './message-router.js';
 import { ProjectManager } from './managers/project-manager.js';
 import { WorkspaceManager } from './managers/workspace-manager.js';
 import { AgentManager } from './managers/agent-manager.js';
+import { ClaudeProvider } from './providers/claude-provider.js';
 import { ConnectionManager } from './managers/connection-manager.js';
 import { TerminalManager } from './managers/terminal-manager.js';
 import { FileManager } from './managers/file-manager.js';
@@ -81,6 +82,10 @@ export class CoreRuntime {
     this.projectManager = new ProjectManager(this.db, this.emitter);
     this.workspaceManager = new WorkspaceManager(this.db, this.emitter);
     this.agentManager = new AgentManager(this.db, this.emitter);
+
+    // Load saved settings + register Claude provider
+    this.initClaudeProvider();
+
     this.gitTracker = new GitTracker();
     this.fileManager = new FileManager(this.emitter);
     this.terminalManager = new TerminalManager(this.emitter);
@@ -147,6 +152,32 @@ export class CoreRuntime {
         .listWorkspaces()
         .filter((ws) => ws.state === 'ACTIVE').length,
     }));
+
+    // ── config routes ─────────────────────────────────────────────────────
+    r.register('core', 'config.get', async (payload) => {
+      const p = payload as { key: string };
+      const value = this.db.getSetting(p.key);
+      return { key: p.key, value: this.maskSensitive(p.key, value) };
+    });
+
+    r.register('core', 'config.set', async (payload) => {
+      const p = payload as { key: string; value: unknown };
+      this.db.setSetting(p.key, p.value);
+      this.applySettingChange(p.key, p.value);
+      return { key: p.key, value: this.maskSensitive(p.key, p.value) };
+    });
+
+    r.register('core', 'config.list', async (payload) => {
+      const p = payload as { prefix?: string };
+      const raw = p.prefix
+        ? this.db.getSettingsByPrefix(p.prefix)
+        : this.db.getAllSettings();
+      const settings: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(raw)) {
+        settings[key] = this.maskSensitive(key, value);
+      }
+      return { settings };
+    });
 
     // ── project namespace ────────────────────────────────────────────────────
     r.register('project', 'list', async () => ({
@@ -352,6 +383,74 @@ export class CoreRuntime {
         this.connectionManager.broadcast(event);
       });
     }
+  }
+
+  // ─── Settings / Provider ──────────────────────────────────────────────────
+
+  private initClaudeProvider(): void {
+    // DB settings take priority, env vars as fallback
+    const dbApiKey = this.db.getSetting('model.apiKey') as string | undefined;
+    const dbModel = this.db.getSetting('model.id') as string | undefined;
+    const dbMaxTokens = this.db.getSetting('model.maxTokens') as number | undefined;
+    const dbSystemPrompt = this.db.getSetting('model.systemPrompt') as string | undefined;
+
+    const apiKey = dbApiKey ?? process.env.ANTHROPIC_API_KEY;
+    const model = dbModel ?? process.env.NEXUS_CLAUDE_MODEL;
+    const systemPrompt = dbSystemPrompt ?? process.env.NEXUS_CLAUDE_SYSTEM_PROMPT;
+
+    if (apiKey) {
+      const claude = new ClaudeProvider({
+        apiKey,
+        model,
+        maxTokens: dbMaxTokens,
+        systemPrompt,
+      });
+      this.agentManager.registerProvider(claude);
+      this.agentManager.setDefaultProvider('claude');
+      console.log(`[Core] Claude provider registered (model: ${model ?? 'claude-sonnet-4-5'})`);
+    } else {
+      console.log('[Core] No API key configured — using echo provider');
+    }
+  }
+
+  private applySettingChange(key: string, value: unknown): void {
+    if (!key.startsWith('model.')) return;
+
+    const claude = this.agentManager.getProvider('claude') as ClaudeProvider | undefined;
+
+    if (claude) {
+      // Reconfigure existing provider
+      const configMap: Record<string, string> = {
+        'model.apiKey': 'apiKey',
+        'model.id': 'model',
+        'model.maxTokens': 'maxTokens',
+        'model.systemPrompt': 'systemPrompt',
+      };
+      const configKey = configMap[key];
+      if (configKey) {
+        claude.reconfigure({ [configKey]: value });
+        console.log(`[Core] Claude provider reconfigured: ${key}`);
+      }
+    } else if (key === 'model.apiKey' && value) {
+      // No provider yet — create one with all saved settings
+      const settings = this.db.getSettingsByPrefix('model.');
+      const newClaude = new ClaudeProvider({
+        apiKey: value as string,
+        model: settings['model.id'] as string | undefined,
+        maxTokens: settings['model.maxTokens'] as number | undefined,
+        systemPrompt: settings['model.systemPrompt'] as string | undefined,
+      });
+      this.agentManager.registerProvider(newClaude);
+      this.agentManager.setDefaultProvider('claude');
+      console.log('[Core] Claude provider created from settings');
+    }
+  }
+
+  private maskSensitive(key: string, value: unknown): unknown {
+    if (key === 'model.apiKey' && typeof value === 'string' && value.length > 4) {
+      return '\u2022\u2022\u2022\u2022' + value.slice(-4);
+    }
+    return value;
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

@@ -127,6 +127,71 @@ describe('CoreDatabase', () => {
     });
   });
 
+  describe('settings', () => {
+    it('should set and get a string setting', () => {
+      db.setSetting('model.apiKey', 'sk-ant-test-1234');
+      const value = db.getSetting('model.apiKey');
+      expect(value).toBe('sk-ant-test-1234');
+    });
+
+    it('should set and get a numeric setting', () => {
+      db.setSetting('model.maxTokens', 4096);
+      const value = db.getSetting('model.maxTokens');
+      expect(value).toBe(4096);
+    });
+
+    it('should return undefined for missing setting', () => {
+      const value = db.getSetting('nonexistent.key');
+      expect(value).toBeUndefined();
+    });
+
+    it('should upsert existing setting', () => {
+      db.setSetting('model.id', 'claude-sonnet-4-5');
+      db.setSetting('model.id', 'claude-opus-4-5');
+      const value = db.getSetting('model.id');
+      expect(value).toBe('claude-opus-4-5');
+    });
+
+    it('should get all settings', () => {
+      db.setSetting('model.id', 'claude-sonnet-4-5');
+      db.setSetting('model.maxTokens', 8192);
+      db.setSetting('general.theme', 'dark');
+      const all = db.getAllSettings();
+      expect(Object.keys(all)).toHaveLength(3);
+      expect(all['model.id']).toBe('claude-sonnet-4-5');
+      expect(all['general.theme']).toBe('dark');
+    });
+
+    it('should get settings by prefix', () => {
+      db.setSetting('model.id', 'claude-sonnet-4-5');
+      db.setSetting('model.maxTokens', 8192);
+      db.setSetting('general.theme', 'dark');
+      const modelSettings = db.getSettingsByPrefix('model.');
+      expect(Object.keys(modelSettings)).toHaveLength(2);
+      expect(modelSettings['model.id']).toBe('claude-sonnet-4-5');
+      expect(modelSettings['model.maxTokens']).toBe(8192);
+      expect(modelSettings['general.theme']).toBeUndefined();
+    });
+
+    it('should delete a setting', () => {
+      db.setSetting('model.id', 'claude-sonnet-4-5');
+      const deleted = db.deleteSetting('model.id');
+      expect(deleted).toBe(true);
+      expect(db.getSetting('model.id')).toBeUndefined();
+    });
+
+    it('should return false when deleting non-existent setting', () => {
+      const deleted = db.deleteSetting('nope');
+      expect(deleted).toBe(false);
+    });
+
+    it('should handle complex JSON values', () => {
+      db.setSetting('complex.value', { nested: { array: [1, 2, 3], flag: true } });
+      const value = db.getSetting('complex.value') as Record<string, unknown>;
+      expect(value).toEqual({ nested: { array: [1, 2, 3], flag: true } });
+    });
+  });
+
   describe('events', () => {
     it('should insert events with JSON payload', () => {
       db.insertEvent('project', 'created', { id: 'proj_1', name: 'Test' });

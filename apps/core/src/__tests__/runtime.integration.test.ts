@@ -155,6 +155,79 @@ describe('CoreRuntime Integration', () => {
     expect(destroyRes.success).toBe(true);
   });
 
+  it('should set and get config values', async () => {
+    ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    await waitForOpen(ws);
+
+    // Set a config value
+    const setReq = createRequest('core', 'config.set', {
+      key: 'model.id',
+      value: 'claude-opus-4-5',
+    });
+    const setRes = await sendAndWait(ws, setReq);
+    expect(setRes.success).toBe(true);
+    const setPayload = setRes.payload as { key: string; value: unknown };
+    expect(setPayload.key).toBe('model.id');
+    expect(setPayload.value).toBe('claude-opus-4-5');
+
+    // Get the config value back
+    const getReq = createRequest('core', 'config.get', { key: 'model.id' });
+    const getRes = await sendAndWait(ws, getReq);
+    expect(getRes.success).toBe(true);
+    const getPayload = getRes.payload as { key: string; value: unknown };
+    expect(getPayload.value).toBe('claude-opus-4-5');
+  });
+
+  it('should list config values with prefix filter', async () => {
+    ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    await waitForOpen(ws);
+
+    // Set multiple config values
+    await sendAndWait(ws, createRequest('core', 'config.set', { key: 'model.id', value: 'claude-sonnet-4-5' }));
+    await sendAndWait(ws, createRequest('core', 'config.set', { key: 'model.maxTokens', value: 4096 }));
+    await sendAndWait(ws, createRequest('core', 'config.set', { key: 'general.theme', value: 'dark' }));
+
+    // List all
+    const allReq = createRequest('core', 'config.list', {});
+    const allRes = await sendAndWait(ws, allReq);
+    expect(allRes.success).toBe(true);
+    const allPayload = allRes.payload as { settings: Record<string, unknown> };
+    expect(Object.keys(allPayload.settings).length).toBeGreaterThanOrEqual(3);
+
+    // List with prefix
+    const prefixReq = createRequest('core', 'config.list', { prefix: 'model.' });
+    const prefixRes = await sendAndWait(ws, prefixReq);
+    expect(prefixRes.success).toBe(true);
+    const prefixPayload = prefixRes.payload as { settings: Record<string, unknown> };
+    expect(prefixPayload.settings['model.id']).toBe('claude-sonnet-4-5');
+    expect(prefixPayload.settings['model.maxTokens']).toBe(4096);
+    expect(prefixPayload.settings['general.theme']).toBeUndefined();
+  });
+
+  it('should mask API key in config responses', async () => {
+    ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    await waitForOpen(ws);
+
+    // Set an API key
+    await sendAndWait(ws, createRequest('core', 'config.set', {
+      key: 'model.apiKey',
+      value: 'sk-ant-api03-realkey1234',
+    }));
+
+    // Get should return masked value
+    const getRes = await sendAndWait(ws, createRequest('core', 'config.get', { key: 'model.apiKey' }));
+    expect(getRes.success).toBe(true);
+    const payload = getRes.payload as { key: string; value: string };
+    expect(payload.value).toMatch(/^••••/);
+    expect(payload.value).toContain('1234');
+    expect(payload.value).not.toContain('realkey');
+
+    // List should also mask it
+    const listRes = await sendAndWait(ws, createRequest('core', 'config.list', { prefix: 'model.' }));
+    const listPayload = listRes.payload as { settings: Record<string, unknown> };
+    expect(listPayload.settings['model.apiKey']).toMatch(/^••••/);
+  });
+
   it('should return error for unknown actions', async () => {
     ws = new WebSocket(`ws://127.0.0.1:${port}`);
     await waitForOpen(ws);

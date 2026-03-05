@@ -21,6 +21,8 @@ import type {
   CoreConfigGetResponseSchema,
   CoreConfigSetRequestSchema,
   CoreConfigSetResponseSchema,
+  CoreConfigListRequestSchema,
+  CoreConfigListResponseSchema,
   CoreConnectedEventSchema,
   CoreDisconnectedEventSchema,
   CoreErrorEventSchema,
@@ -130,6 +132,7 @@ export interface CoreActions {
   health: { request: z.infer<typeof CoreHealthRequestSchema>; response: z.infer<typeof CoreHealthResponseSchema> };
   'config.get': { request: z.infer<typeof CoreConfigGetRequestSchema>; response: z.infer<typeof CoreConfigGetResponseSchema> };
   'config.set': { request: z.infer<typeof CoreConfigSetRequestSchema>; response: z.infer<typeof CoreConfigSetResponseSchema> };
+  'config.list': { request: z.infer<typeof CoreConfigListRequestSchema>; response: z.infer<typeof CoreConfigListResponseSchema> };
 }
 
 export interface CoreEvents {

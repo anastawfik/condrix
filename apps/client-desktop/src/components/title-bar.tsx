@@ -1,7 +1,11 @@
 import { useStore } from 'zustand';
 import { connectionStore, workspaceStore } from '@nexus-core/client-shared';
 
-export function TitleBar() {
+interface TitleBarProps {
+  onSettingsOpen?: () => void;
+}
+
+export function TitleBar({ onSettingsOpen }: TitleBarProps) {
   const connectionState = useStore(connectionStore, (s) => s.state);
   const coreInfo = useStore(connectionStore, (s) => s.coreInfo);
   const workspace = useStore(workspaceStore, (s) => s.currentWorkspace);
@@ -32,6 +36,16 @@ export function TitleBar() {
           </span>
         </>
       )}
+
+      <div className="flex-1" />
+
+      <button
+        onClick={onSettingsOpen}
+        className="w-7 h-7 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+        aria-label="Open settings"
+      >
+        &#x2699;
+      </button>
     </div>
   );
 }

@@ -31,6 +31,10 @@ export const CoreConfigSetRequestSchema = z.object({
   value: z.unknown(),
 });
 
+export const CoreConfigListRequestSchema = z.object({
+  prefix: z.string().optional(),
+});
+
 // ─── Responses ──────────────────────────────────────────────────────────────
 
 export const CoreInfoResponseSchema = CoreInfoSchema;
@@ -50,6 +54,10 @@ export const CoreConfigGetResponseSchema = z.object({
 export const CoreConfigSetResponseSchema = z.object({
   key: z.string(),
   value: z.unknown(),
+});
+
+export const CoreConfigListResponseSchema = z.object({
+  settings: z.record(z.string(), z.unknown()),
 });
 
 // ─── Events ─────────────────────────────────────────────────────────────────

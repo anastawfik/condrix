@@ -60,6 +60,12 @@ export class CoreDatabase {
         timestamp  TEXT NOT NULL DEFAULT (datetime('now'))
       );
 
+      CREATE TABLE IF NOT EXISTS settings (
+        key         TEXT PRIMARY KEY,
+        value       TEXT NOT NULL,
+        updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
       CREATE TABLE IF NOT EXISTS agent_state (
         workspace_id  TEXT PRIMARY KEY REFERENCES workspaces(id) ON DELETE CASCADE,
         provider      TEXT NOT NULL,
@@ -237,6 +243,53 @@ export class CoreDatabase {
       model: row.model,
       sessionData: row.session_data ? JSON.parse(row.session_data) : null,
     };
+  }
+
+  // ─── Settings CRUD ─────────────────────────────────────────────────────
+
+  getSetting(key: string): unknown | undefined {
+    const row = this.db
+      .prepare('SELECT value FROM settings WHERE key = ?')
+      .get(key) as { value: string } | undefined;
+    if (!row) return undefined;
+    return JSON.parse(row.value) as unknown;
+  }
+
+  setSetting(key: string, value: unknown): void {
+    this.db
+      .prepare(
+        `INSERT INTO settings (key, value) VALUES (?, ?)
+         ON CONFLICT(key)
+         DO UPDATE SET value = excluded.value, updated_at = datetime('now')`,
+      )
+      .run(key, JSON.stringify(value));
+  }
+
+  getAllSettings(): Record<string, unknown> {
+    const rows = this.db
+      .prepare('SELECT key, value FROM settings ORDER BY key')
+      .all() as { key: string; value: string }[];
+    const result: Record<string, unknown> = {};
+    for (const row of rows) {
+      result[row.key] = JSON.parse(row.value) as unknown;
+    }
+    return result;
+  }
+
+  getSettingsByPrefix(prefix: string): Record<string, unknown> {
+    const rows = this.db
+      .prepare('SELECT key, value FROM settings WHERE key LIKE ? ORDER BY key')
+      .all(`${prefix}%`) as { key: string; value: string }[];
+    const result: Record<string, unknown> = {};
+    for (const row of rows) {
+      result[row.key] = JSON.parse(row.value) as unknown;
+    }
+    return result;
+  }
+
+  deleteSetting(key: string): boolean {
+    const result = this.db.prepare('DELETE FROM settings WHERE key = ?').run(key);
+    return result.changes > 0;
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

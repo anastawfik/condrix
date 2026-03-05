@@ -38,6 +38,7 @@ export class AgentManager {
   private sessions = new Map<string, AgentSession>();
   private workspaceToSession = new Map<string, string>();
   private providers = new Map<string, AgentProviderAdapter>();
+  private defaultProvider = 'echo';
 
   constructor(
     private db: CoreDatabase,
@@ -46,8 +47,20 @@ export class AgentManager {
     this.registerProvider(new EchoProvider());
   }
 
+  /** Set which provider is used for new sessions by default. */
+  setDefaultProvider(name: string): void {
+    if (!this.providers.has(name)) {
+      throw new Error(`Cannot set default provider: "${name}" is not registered`);
+    }
+    this.defaultProvider = name;
+  }
+
   registerProvider(provider: AgentProviderAdapter): void {
     this.providers.set(provider.name, provider);
+  }
+
+  getProvider(name: string): AgentProviderAdapter | undefined {
+    return this.providers.get(name);
   }
 
   createSession(workspaceId: string, providerName: string): string {
@@ -75,10 +88,10 @@ export class AgentManager {
     messageId: string;
     content: string;
   }> {
-    // Auto-create session with echo provider if none exists
+    // Auto-create session with default provider if none exists
     let sessionId = this.workspaceToSession.get(workspaceId);
     if (!sessionId) {
-      sessionId = this.createSession(workspaceId, 'echo');
+      sessionId = this.createSession(workspaceId, this.defaultProvider);
     }
 
     const session = this.sessions.get(sessionId)!;

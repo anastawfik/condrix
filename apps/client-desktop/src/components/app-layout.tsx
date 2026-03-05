@@ -1,13 +1,19 @@
+import { useState } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { TitleBar } from './title-bar.js';
 import { Sidebar } from './sidebar.js';
 import { EditorTabs } from './editor/editor-tabs.js';
 import { TerminalPanel } from './terminal/terminal-panel.js';
+import { SettingsDialog } from './settings/settings-dialog.js';
 
 export function AppLayout() {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   return (
     <div className="flex flex-col h-screen">
-      <TitleBar />
+      <TitleBar onSettingsOpen={() => setSettingsOpen(true)} />
+
+      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
 
       <Group direction="horizontal" className="flex-1 min-h-0">
         {/* Sidebar */}
