@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type ComponentType } from 'react';
 import { ModelSettings } from './model-settings.js';
+import { NetworkSettings } from './network-settings.js';
 import { GeneralSettings } from './general-settings.js';
 import { ThemeSettings } from './theme-settings.js';
 import { NotificationSettings } from './notification-settings.js';
@@ -13,6 +14,7 @@ interface TabDefinition {
 
 const TABS: TabDefinition[] = [
   { id: 'model', label: 'Model', icon: '\u2699', component: ModelSettings },
+  { id: 'network', label: 'Network', icon: '\u21C6', component: NetworkSettings },
   { id: 'general', label: 'General', icon: '\u2630', component: GeneralSettings },
   { id: 'theme', label: 'Theme', icon: '\u263E', component: ThemeSettings },
   { id: 'notifications', label: 'Notifications', icon: '\u266A', component: NotificationSettings },

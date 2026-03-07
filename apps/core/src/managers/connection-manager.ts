@@ -1,4 +1,5 @@
 import { WebSocketServer, WebSocket } from 'ws';
+import type { IncomingMessage } from 'node:http';
 import type { EventEmitter } from 'node:events';
 import { generateId } from '@nexus-core/protocol';
 import type { AuthScope } from '@nexus-core/protocol';
@@ -23,6 +24,7 @@ export interface ClientSession {
   subscribedPatterns: string[];
   workspaceId?: string;
   lastPong: number;
+  isTunneled: boolean;
 }
 
 /**
@@ -36,6 +38,7 @@ export class ConnectionManager {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private devMode: boolean;
   private authManager: AuthManager | null;
+  private externalAccessEnabled = false;
 
   constructor(
     private router: MessageRouter,
@@ -46,6 +49,11 @@ export class ConnectionManager {
     this.authManager = options?.authManager ?? null;
   }
 
+  /** Enable/disable external access (for tunnel connections). */
+  setExternalAccessEnabled(enabled: boolean): void {
+    this.externalAccessEnabled = enabled;
+  }
+
   async start(host: string, port: number): Promise<void> {
     return new Promise((resolve, reject) => {
       this.wss = new WebSocketServer({
@@ -53,14 +61,14 @@ export class ConnectionManager {
         port,
         maxPayload: 1 * 1024 * 1024, // 1 MiB limit
         verifyClient: (info, cb) => {
-          // In dev mode, only allow localhost origins
           const origin = info.origin ?? info.req.headers.origin ?? '';
           const isLocalhost = !origin
             || origin.startsWith('http://localhost')
             || origin.startsWith('http://127.0.0.1')
             || origin.startsWith('http://[::1]');
 
-          if (this.devMode && !isLocalhost) {
+          // In dev mode without external access, only allow localhost
+          if (this.devMode && !isLocalhost && !this.externalAccessEnabled) {
             console.warn(`[ConnectionManager] Rejected connection from non-local origin: ${origin}`);
             cb(false, 403, 'Forbidden: non-localhost origin');
             return;
@@ -79,13 +87,16 @@ export class ConnectionManager {
         reject(err);
       });
 
-      this.wss.on('connection', (ws: WebSocket) => {
-        this.handleConnection(ws);
+      this.wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
+        this.handleConnection(ws, req);
       });
     });
   }
 
-  private handleConnection(ws: WebSocket): void {
+  private handleConnection(ws: WebSocket, req: IncomingMessage): void {
+    // Cloudflare tunnel adds Cf-Connecting-Ip header to forwarded requests
+    const isTunneled = !!req.headers['cf-connecting-ip'];
+
     const session: ClientSession = {
       id: generateId('sess'),
       ws,
@@ -93,10 +104,12 @@ export class ConnectionManager {
       scopes: [],
       subscribedPatterns: [],
       lastPong: Date.now(),
+      isTunneled,
     };
 
-    // In dev mode, auto-authenticate
-    if (this.devMode) {
+    // In dev mode, auto-authenticate direct local connections.
+    // Tunneled connections always require token auth for security.
+    if (this.devMode && !isTunneled) {
       session.authenticated = true;
       session.scopes = [...ALL_SCOPES];
     }

@@ -17,6 +17,7 @@ import { ConnectionManager } from './managers/connection-manager.js';
 import { TerminalManager } from './managers/terminal-manager.js';
 import { FileManager } from './managers/file-manager.js';
 import { GitTracker } from './managers/git-tracker.js';
+import { TunnelManager } from './services/tunnel-manager.js';
 
 export interface CoreConfig {
   coreId: string;
@@ -44,6 +45,7 @@ export class CoreRuntime {
 
   // Services
   private oauthManager!: OAuthTokenManager;
+  private tunnelManager!: TunnelManager;
 
   // Managers
   private authManager!: AuthManager;
@@ -133,14 +135,26 @@ export class CoreRuntime {
     // Wire event broadcasting
     this.wireEventBroadcasting();
 
+    // Init tunnel manager
+    this.tunnelManager = new TunnelManager(this.emitter, this.config.port);
+
     this.running = true;
     console.log(`[Core] ${this.config.displayName} started on ${this.config.host}:${this.config.port}`);
+
+    // Auto-start tunnel if configured
+    const tunnelAutoStart = this.db.getSetting('tunnel.autoStart') as boolean | undefined;
+    if (tunnelAutoStart) {
+      this.autoStartTunnel().catch((err) => {
+        console.warn(`[Core] Tunnel auto-start failed: ${(err as Error).message}`);
+      });
+    }
   }
 
   async stop(): Promise<void> {
     console.log(`[Core] ${this.config.displayName} stopping...`);
 
     // Reverse order shutdown
+    this.tunnelManager?.destroy();
     this.oauthManager?.destroy();
     this.terminalManager?.closeAll();
     await this.fileManager?.closeAll();
@@ -240,6 +254,36 @@ export class CoreRuntime {
         }
       });
       return { url };
+    });
+
+    // ── tunnel routes ────────────────────────────────────────────────────────
+    r.register('core', 'tunnel.status', async () => {
+      return this.tunnelManager.getFullStatus();
+    });
+
+    r.register('core', 'tunnel.start', async (payload) => {
+      const p = payload as { mode?: string; token?: string };
+      const mode = p.mode ?? (this.db.getSetting('tunnel.mode') as string) ?? 'quick';
+      const token = p.token ?? (this.db.getSetting('tunnel.token') as string);
+
+      this.connectionManager.setExternalAccessEnabled(true);
+
+      if (mode === 'named' && token) {
+        await this.tunnelManager.startNamed(token);
+        return { running: true, mode: 'named', url: null };
+      }
+      const url = await this.tunnelManager.startQuick();
+      return { running: true, mode: 'quick', url };
+    });
+
+    r.register('core', 'tunnel.stop', async () => {
+      this.tunnelManager.stop();
+      this.connectionManager.setExternalAccessEnabled(false);
+      return { running: false };
+    });
+
+    r.register('core', 'tunnel.install', async () => {
+      return this.tunnelManager.install();
     });
 
     // ── project namespace ────────────────────────────────────────────────────
@@ -434,6 +478,9 @@ export class CoreRuntime {
       ['terminal:created', 'terminal', 'created'],
       ['file:changed', 'file', 'changed'],
       ['core:oauthComplete', 'core', 'oauthComplete'],
+      ['tunnel:started', 'core', 'tunnelStarted'],
+      ['tunnel:stopped', 'core', 'tunnelStopped'],
+      ['tunnel:error', 'core', 'tunnelError'],
     ];
 
     for (const [emitterEvent, namespace, action] of eventMappings) {
@@ -589,6 +636,7 @@ export class CoreRuntime {
     'model.apiKey',
     'oauth.accessToken',
     'oauth.refreshToken',
+    'tunnel.token',
   ]);
 
   private maskSensitive(key: string, value: unknown): unknown {
@@ -596,6 +644,21 @@ export class CoreRuntime {
       return '\u2022\u2022\u2022\u2022' + value.slice(-4);
     }
     return value;
+  }
+
+  // ─── Tunnel ──────────────────────────────────────────────────────────────
+
+  private async autoStartTunnel(): Promise<void> {
+    const mode = (this.db.getSetting('tunnel.mode') as string) ?? 'quick';
+    const token = this.db.getSetting('tunnel.token') as string | undefined;
+
+    this.connectionManager.setExternalAccessEnabled(true);
+
+    if (mode === 'named' && token) {
+      await this.tunnelManager.startNamed(token);
+    } else {
+      await this.tunnelManager.startQuick();
+    }
   }
 
   // ─── Workspace Context ─────────────────────────────────────────────────────
