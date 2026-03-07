@@ -26,6 +26,15 @@ export interface CoreConfig {
   port: number;
   dbPath?: string;
   devMode?: boolean;
+  /** Settings from CLI args / env vars, applied to DB on startup. */
+  initialSettings?: {
+    apiKey?: string;
+    model?: string;
+    maxTokens?: number;
+    tunnelEnabled?: boolean;
+    tunnelMode?: 'quick' | 'named';
+    tunnelToken?: string;
+  };
 }
 
 /**
@@ -69,6 +78,9 @@ export class CoreRuntime {
     mkdirSync(dbDir, { recursive: true });
     const dbPath = this.config.dbPath ?? join(dbDir, 'core.db');
     this.db = new CoreDatabase({ path: dbPath });
+
+    // Apply initial settings from CLI args / env vars
+    this.applyInitialSettings();
 
     // Init event bus
     this.emitter = new EventEmitter();
@@ -644,6 +656,39 @@ export class CoreRuntime {
       return '\u2022\u2022\u2022\u2022' + value.slice(-4);
     }
     return value;
+  }
+
+  // ─── Initial Settings ────────────────────────────────────────────────────
+
+  private applyInitialSettings(): void {
+    const s = this.config.initialSettings;
+    if (!s) return;
+
+    if (s.apiKey) {
+      this.db.setSetting('model.apiKey', s.apiKey);
+      // If no auth method is set, default to apikey
+      if (!this.db.getSetting('auth.method')) {
+        this.db.setSetting('auth.method', 'apikey');
+      }
+      console.log('[Core] API key configured from CLI/env');
+    }
+    if (s.model) {
+      this.db.setSetting('model.id', s.model);
+      console.log(`[Core] Model set to ${s.model}`);
+    }
+    if (s.maxTokens) {
+      this.db.setSetting('model.maxTokens', s.maxTokens);
+    }
+    if (s.tunnelMode) {
+      this.db.setSetting('tunnel.mode', s.tunnelMode);
+    }
+    if (s.tunnelToken) {
+      this.db.setSetting('tunnel.token', s.tunnelToken);
+    }
+    if (s.tunnelEnabled) {
+      this.db.setSetting('tunnel.autoStart', true);
+      console.log(`[Core] Tunnel auto-start enabled (mode: ${s.tunnelMode ?? 'quick'})`);
+    }
   }
 
   // ─── Tunnel ──────────────────────────────────────────────────────────────

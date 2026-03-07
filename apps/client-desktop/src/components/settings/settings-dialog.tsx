@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, type ComponentType } from 'react';
-import { ModelSettings } from './model-settings.js';
+import { CoreSettingsTab } from './core-settings-tab.js';
 import { GeneralSettings } from './general-settings.js';
-import { NetworkSettings } from './network-settings.js';
 import { ThemeSettings } from './theme-settings.js';
 import { NotificationSettings } from './notification-settings.js';
 
@@ -13,11 +12,10 @@ interface TabDefinition {
 }
 
 const TABS: TabDefinition[] = [
-  { id: 'model', label: 'Model', icon: '\u2699', component: ModelSettings },
-  { id: 'network', label: 'Network', icon: '\u21C6', component: NetworkSettings },
-  { id: 'general', label: 'General', icon: '\u2630', component: GeneralSettings },
+  { id: 'cores', label: 'Cores', icon: '\u2699', component: CoreSettingsTab },
   { id: 'theme', label: 'Theme', icon: '\u263E', component: ThemeSettings },
   { id: 'notifications', label: 'Notifications', icon: '\u266A', component: NotificationSettings },
+  { id: 'general', label: 'General', icon: '\u2630', component: GeneralSettings },
 ];
 
 interface SettingsDialogProps {
@@ -25,8 +23,8 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState('model');
-  const ActiveComponent = TABS.find((t) => t.id === activeTab)?.component ?? ModelSettings;
+  const [activeTab, setActiveTab] = useState('cores');
+  const ActiveComponent = TABS.find((t) => t.id === activeTab)?.component ?? CoreSettingsTab;
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
