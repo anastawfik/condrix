@@ -27,7 +27,8 @@ export class CoreDatabase {
       CREATE TABLE IF NOT EXISTS projects (
         id          TEXT PRIMARY KEY,
         name        TEXT NOT NULL,
-        path        TEXT NOT NULL,
+        path        TEXT NOT NULL DEFAULT '',
+        url         TEXT,
         created_at  TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
       );
@@ -74,33 +75,70 @@ export class CoreDatabase {
         updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
+
+    // Migrations: add columns that may be missing from older schemas
+    this.migrateAddColumn('projects', 'url', 'TEXT');
+    this.migrateAddColumn('projects', 'path', 'TEXT NOT NULL DEFAULT \'\'');
+    this.migrateAddColumn('workspaces', 'work_dir', 'TEXT');
+  }
+
+  private migrateAddColumn(table: string, column: string, type: string): void {
+    const cols = this.db.pragma(`table_info(${table})`) as { name: string }[];
+    if (!cols.some((c) => c.name === column)) {
+      this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    }
   }
 
   // ─── Project CRUD ──────────────────────────────────────────────────────────
 
-  insertProject(id: string, name: string, path: string): void {
+  insertProject(id: string, name: string, path: string, url?: string): void {
     this.db
-      .prepare('INSERT INTO projects (id, name, path) VALUES (?, ?, ?)')
-      .run(id, name, path);
+      .prepare('INSERT INTO projects (id, name, path, url) VALUES (?, ?, ?, ?)')
+      .run(id, name, path, url ?? null);
+  }
+
+  findProjectByPath(path: string): ProjectInfo | undefined {
+    const row = this.db
+      .prepare('SELECT * FROM projects WHERE path = ? AND path != \'\'')
+      .get(path) as { id: string; name: string; path: string; url: string | null } | undefined;
+    if (!row) return undefined;
+    const workspaces = this.listWorkspaces(row.id);
+    return { id: row.id, name: row.name, path: row.path, ...(row.url ? { url: row.url } : {}), workspaces };
+  }
+
+  findProjectByUrl(url: string): ProjectInfo | undefined {
+    const row = this.db
+      .prepare('SELECT * FROM projects WHERE url = ?')
+      .get(url) as { id: string; name: string; path: string; url: string | null } | undefined;
+    if (!row) return undefined;
+    const workspaces = this.listWorkspaces(row.id);
+    return { id: row.id, name: row.name, path: row.path, ...(row.url ? { url: row.url } : {}), workspaces };
+  }
+
+  updateProjectPath(id: string, path: string): void {
+    this.db
+      .prepare("UPDATE projects SET path = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(path, id);
   }
 
   getProject(id: string): ProjectInfo | undefined {
     const row = this.db
       .prepare('SELECT * FROM projects WHERE id = ?')
-      .get(id) as { id: string; name: string; path: string } | undefined;
+      .get(id) as { id: string; name: string; path: string; url: string | null } | undefined;
     if (!row) return undefined;
     const workspaces = this.listWorkspaces(row.id);
-    return { id: row.id, name: row.name, path: row.path, workspaces };
+    return { id: row.id, name: row.name, path: row.path, ...(row.url ? { url: row.url } : {}), workspaces };
   }
 
   listProjects(): ProjectInfo[] {
     const rows = this.db
       .prepare('SELECT * FROM projects ORDER BY created_at')
-      .all() as { id: string; name: string; path: string }[];
+      .all() as { id: string; name: string; path: string; url: string | null }[];
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
       path: row.path,
+      ...(row.url ? { url: row.url } : {}),
       workspaces: this.listWorkspaces(row.id),
     }));
   }
@@ -130,9 +168,7 @@ export class CoreDatabase {
   getWorkspace(id: string): WorkspaceInfo | undefined {
     const row = this.db
       .prepare('SELECT * FROM workspaces WHERE id = ?')
-      .get(id) as
-      | { id: string; project_id: string; name: string; state: WorkspaceState; branch: string | null; agent_provider: string | null }
-      | undefined;
+      .get(id) as WorkspaceRow | undefined;
     if (!row) return undefined;
     return this.toWorkspaceInfo(row);
   }
@@ -152,6 +188,12 @@ export class CoreDatabase {
     this.db
       .prepare("UPDATE workspaces SET state = ?, updated_at = datetime('now') WHERE id = ?")
       .run(state, id);
+  }
+
+  updateWorkspaceWorkDir(id: string, workDir: string): void {
+    this.db
+      .prepare("UPDATE workspaces SET work_dir = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(workDir, id);
   }
 
   deleteWorkspace(id: string): boolean {
@@ -302,6 +344,7 @@ export class CoreDatabase {
       state: row.state,
       ...(row.branch ? { branch: row.branch } : {}),
       ...(row.agent_provider ? { agentProvider: row.agent_provider } : {}),
+      ...(row.work_dir ? { workDir: row.work_dir } : {}),
     };
   }
 
@@ -317,4 +360,5 @@ interface WorkspaceRow {
   state: WorkspaceState;
   branch: string | null;
   agent_provider: string | null;
+  work_dir: string | null;
 }

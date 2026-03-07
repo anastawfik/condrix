@@ -10,7 +10,8 @@
   },
   "references": [
     { "path": "../../libs/protocol" },
-    { "path": "../../libs/client-shared" }
+    { "path": "../../libs/client-shared" },
+    { "path": "../../libs/client-components" }
   ],
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["dist", "node_modules"]

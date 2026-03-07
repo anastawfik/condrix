@@ -42,6 +42,7 @@ export function TerminalTabBar({ terminals, activeTerminalId, onSelect, onCreate
         onClick={onCreate}
         className="p-1 mx-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)]"
         title="New Terminal"
+        aria-label="New Terminal"
       >
         <Plus size={14} />
       </button>

@@ -8,6 +8,7 @@
 // Stores (vanilla Zustand — usable outside React)
 export { connectionStore, createConnectionStore } from './stores/connection-store.js';
 export { coreRegistryStore, createCoreRegistryStore } from './stores/core-registry-store.js';
+export { multiCoreStore, createMultiCoreStore } from './stores/multi-core-store.js';
 export { workspaceStore, createWorkspaceStore } from './stores/workspace-store.js';
 export { chatStore, createChatStore } from './stores/chat-store.js';
 export { fileStore, createFileStore } from './stores/file-store.js';
@@ -30,6 +31,7 @@ export { useSettings } from './hooks/use-settings.js';
 // Types
 export type { ConnectionState, ConnectionConfig, ConnectionStore } from './stores/connection-store.js';
 export type { CoreEntry, CoreRegistryStore } from './stores/core-registry-store.js';
+export type { CoreConnection, MultiCoreStore } from './stores/multi-core-store.js';
 export type { WorkspaceStore } from './stores/workspace-store.js';
 export type { ChatMessage, ToolCall, ChatStore } from './stores/chat-store.js';
 export type { FileNode, OpenFile, FileStore } from './stores/file-store.js';

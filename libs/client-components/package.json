@@ -1,0 +1,43 @@
+{
+  "name": "@nexus-core/client-components",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared UI components and design system for NexusCore clients",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles/theme.css": "./src/styles/theme.css"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@nexus-core/client-shared": "*",
+    "@nexus-core/protocol": "*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "lucide-react": "^0.577.0",
+    "radix-ui": "^1.4.2",
+    "react": "^19.0.0",
+    "react-resizable-panels": "^4.7.1",
+    "tailwind-merge": "^3.3.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "vitest": "^3.0.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}

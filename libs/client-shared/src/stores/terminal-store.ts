@@ -4,7 +4,8 @@
  */
 import { createStore } from 'zustand/vanilla';
 
-import { connectionStore } from './connection-store.js';
+import { multiCoreStore } from './multi-core-store.js';
+import { workspaceStore } from './workspace-store.js';
 
 export interface TerminalSession {
   id: string;
@@ -36,9 +37,10 @@ export const createTerminalStore = () =>
     _outputListeners: new Map(),
 
     createTerminal: async (workspaceId, shell) => {
-      const conn = connectionStore.getState();
-      const result = await conn.request<{ terminalId: string; shell: string }>(
-        'terminal', 'create', { workspaceId, shell },
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) throw new Error('No active Core connection');
+      const result = await multiCoreStore.getState().requestOnCore<{ terminalId: string; shell: string }>(
+        coreId, 'terminal', 'create', { workspaceId, shell },
       );
 
       const session: TerminalSession = {
@@ -57,33 +59,22 @@ export const createTerminalStore = () =>
     },
 
     closeTerminal: async (terminalId) => {
-      const conn = connectionStore.getState();
-      await conn.request('terminal', 'close', { terminalId });
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) throw new Error('No active Core connection');
+      await multiCoreStore.getState().requestOnCore(coreId, 'terminal', 'close', { terminalId });
       removeTerminal(set, get, terminalId);
     },
 
     writeToTerminal: (terminalId, data) => {
-      const conn = connectionStore.getState();
-      conn.send({
-        id: `msg_${Date.now()}`,
-        type: 'request',
-        namespace: 'terminal',
-        action: 'write',
-        payload: { terminalId, data },
-        timestamp: new Date().toISOString(),
-      });
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) return;
+      multiCoreStore.getState().sendOnCore(coreId, 'terminal', 'write', { terminalId, data });
     },
 
     resizeTerminal: (terminalId, cols, rows) => {
-      const conn = connectionStore.getState();
-      conn.send({
-        id: `msg_${Date.now()}`,
-        type: 'request',
-        namespace: 'terminal',
-        action: 'resize',
-        payload: { terminalId, cols, rows },
-        timestamp: new Date().toISOString(),
-      });
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) return;
+      multiCoreStore.getState().sendOnCore(coreId, 'terminal', 'resize', { terminalId, cols, rows });
     },
 
     setActiveTerminal: (terminalId) => set({ activeTerminalId: terminalId }),

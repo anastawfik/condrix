@@ -14,12 +14,14 @@ export const WorkspaceInfoSchema = z.object({
   state: WorkspaceStateSchema,
   branch: z.string().optional(),
   agentProvider: z.string().optional(),
+  workDir: z.string().optional(),
 });
 
 export const ProjectInfoSchema = z.object({
   id: IdSchema,
   name: z.string(),
   path: z.string(),
+  url: z.string().optional(),
   workspaces: z.array(WorkspaceInfoSchema),
 });
 
@@ -29,7 +31,8 @@ export const ProjectListRequestSchema = z.object({});
 
 export const ProjectCreateRequestSchema = z.object({
   name: z.string().min(1),
-  path: z.string().min(1),
+  path: z.string().optional(),
+  url: z.string().optional(),
 });
 
 export const ProjectDeleteRequestSchema = z.object({

@@ -48,7 +48,26 @@ export class ConnectionManager {
 
   async start(host: string, port: number): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.wss = new WebSocketServer({ host, port });
+      this.wss = new WebSocketServer({
+        host,
+        port,
+        maxPayload: 1 * 1024 * 1024, // 1 MiB limit
+        verifyClient: (info, cb) => {
+          // In dev mode, only allow localhost origins
+          const origin = info.origin ?? info.req.headers.origin ?? '';
+          const isLocalhost = !origin
+            || origin.startsWith('http://localhost')
+            || origin.startsWith('http://127.0.0.1')
+            || origin.startsWith('http://[::1]');
+
+          if (this.devMode && !isLocalhost) {
+            console.warn(`[ConnectionManager] Rejected connection from non-local origin: ${origin}`);
+            cb(false, 403, 'Forbidden: non-localhost origin');
+            return;
+          }
+          cb(true);
+        },
+      });
 
       this.wss.on('listening', () => {
         console.log(`[ConnectionManager] WebSocket server listening on ${host}:${port}`);

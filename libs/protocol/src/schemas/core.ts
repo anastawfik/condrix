@@ -16,6 +16,24 @@ export const CoreInfoSchema = z.object({
   lastHeartbeat: TimestampSchema,
 });
 
+// ─── Browse ─────────────────────────────────────────────────────────────────
+
+export const CoreBrowseRequestSchema = z.object({
+  path: z.string().optional(),
+  depth: z.number().int().positive().optional(),
+});
+
+export const CoreBrowseResponseSchema = z.object({
+  path: z.string(),
+  entries: z.array(z.object({
+    path: z.string(),
+    name: z.string(),
+    type: z.enum(['file', 'directory', 'symlink']),
+    size: z.number().optional(),
+    modifiedAt: z.string().optional(),
+  })),
+});
+
 // ─── Requests ───────────────────────────────────────────────────────────────
 
 export const CoreInfoRequestSchema = z.object({});
@@ -58,6 +76,32 @@ export const CoreConfigSetResponseSchema = z.object({
 
 export const CoreConfigListResponseSchema = z.object({
   settings: z.record(z.string(), z.unknown()),
+});
+
+// ─── OAuth Requests ──────────────────────────────────────────────────────────
+
+export const CoreConfigImportOAuthRequestSchema = z.object({});
+
+export const CoreConfigRefreshOAuthRequestSchema = z.object({});
+
+export const CoreConfigOAuthStatusRequestSchema = z.object({});
+
+// ─── OAuth Responses ─────────────────────────────────────────────────────────
+
+export const CoreConfigImportOAuthResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+});
+
+export const CoreConfigRefreshOAuthResponseSchema = z.object({
+  success: z.boolean(),
+  expiresAt: z.string().optional(),
+});
+
+export const CoreConfigOAuthStatusResponseSchema = z.object({
+  authenticated: z.boolean(),
+  method: z.enum(['oauth', 'apikey', 'none']),
+  expiresAt: z.string().optional(),
 });
 
 // ─── Events ─────────────────────────────────────────────────────────────────

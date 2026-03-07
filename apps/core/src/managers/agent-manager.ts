@@ -4,13 +4,22 @@ import type { EventEmitter } from 'node:events';
 
 import type { CoreDatabase } from '../database.js';
 
+/** Callback for streaming responses from an agent provider. */
+export type StreamCallback = (event: { type: 'thinking' | 'text'; delta: string }) => void;
+
 /** Provider abstraction for agent backends. */
 export interface AgentProviderAdapter {
   readonly name: string;
   sendMessage(
     history: AgentMessage[],
     message: string,
-  ): Promise<{ content: string }>;
+    onStream?: StreamCallback,
+  ): Promise<{ content: string; thinking?: string }>;
+}
+
+/** Builds workspace context (system prompt with codebase info). */
+export interface WorkspaceContextProvider {
+  buildContext(workspaceId: string): Promise<string | null>;
 }
 
 /** Echo provider for Phase 1 — returns the user's message prefixed with [Echo]. */
@@ -39,12 +48,18 @@ export class AgentManager {
   private workspaceToSession = new Map<string, string>();
   private providers = new Map<string, AgentProviderAdapter>();
   private defaultProvider = 'echo';
+  private contextProvider: WorkspaceContextProvider | null = null;
 
   constructor(
     private db: CoreDatabase,
     private emitter: EventEmitter,
   ) {
     this.registerProvider(new EchoProvider());
+  }
+
+  /** Set the workspace context provider for injecting codebase context. */
+  setContextProvider(provider: WorkspaceContextProvider): void {
+    this.contextProvider = provider;
   }
 
   /** Set which provider is used for new sessions by default. */
@@ -87,6 +102,7 @@ export class AgentManager {
   async sendMessage(workspaceId: string, message: string): Promise<{
     messageId: string;
     content: string;
+    thinking?: string;
   }> {
     // Auto-create session with default provider if none exists
     let sessionId = this.workspaceToSession.get(workspaceId);
@@ -109,8 +125,32 @@ export class AgentManager {
       timestamp: h.timestamp,
     }));
 
-    // Send to provider
-    const result = await session.provider.sendMessage(agentHistory, message);
+    // Inject workspace context as a system message at the start of history
+    if (this.contextProvider) {
+      try {
+        const context = await this.contextProvider.buildContext(workspaceId);
+        if (context) {
+          agentHistory.unshift({
+            role: 'system',
+            content: context,
+            timestamp,
+          });
+        }
+      } catch (err) {
+        console.warn('[AgentManager] Failed to build workspace context:', err);
+      }
+    }
+
+    // Stream callback: emit events for real-time UI updates
+    const onStream: StreamCallback = (event) => {
+      this.emitter.emit(`agent:${event.type}Delta`, {
+        workspaceId,
+        delta: event.delta,
+      });
+    };
+
+    // Send to provider with streaming
+    const result = await session.provider.sendMessage(agentHistory, message, onStream);
 
     // Persist assistant message
     const assistantMsgId = generateId('msg');
@@ -118,12 +158,14 @@ export class AgentManager {
     this.db.insertConversation(assistantMsgId, workspaceId, 'assistant', result.content, assistantTimestamp);
 
     this.emitter.emit('agent:message', {
+      workspaceId,
       role: 'assistant' as const,
       content: result.content,
+      thinking: result.thinking,
       timestamp: assistantTimestamp,
     });
 
-    return { messageId: assistantMsgId, content: result.content };
+    return { messageId: assistantMsgId, content: result.content, thinking: result.thinking };
   }
 
   getHistory(

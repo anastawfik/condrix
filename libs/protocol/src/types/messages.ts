@@ -17,12 +17,20 @@ import type {
   CoreInfoResponseSchema,
   CoreHealthRequestSchema,
   CoreHealthResponseSchema,
+  CoreBrowseRequestSchema,
+  CoreBrowseResponseSchema,
   CoreConfigGetRequestSchema,
   CoreConfigGetResponseSchema,
   CoreConfigSetRequestSchema,
   CoreConfigSetResponseSchema,
   CoreConfigListRequestSchema,
   CoreConfigListResponseSchema,
+  CoreConfigImportOAuthRequestSchema,
+  CoreConfigImportOAuthResponseSchema,
+  CoreConfigRefreshOAuthRequestSchema,
+  CoreConfigRefreshOAuthResponseSchema,
+  CoreConfigOAuthStatusRequestSchema,
+  CoreConfigOAuthStatusResponseSchema,
   CoreConnectedEventSchema,
   CoreDisconnectedEventSchema,
   CoreErrorEventSchema,
@@ -130,9 +138,13 @@ export type ErrorPayload = z.infer<typeof ErrorPayloadSchema>;
 export interface CoreActions {
   info: { request: z.infer<typeof CoreInfoRequestSchema>; response: z.infer<typeof CoreInfoResponseSchema> };
   health: { request: z.infer<typeof CoreHealthRequestSchema>; response: z.infer<typeof CoreHealthResponseSchema> };
+  browse: { request: z.infer<typeof CoreBrowseRequestSchema>; response: z.infer<typeof CoreBrowseResponseSchema> };
   'config.get': { request: z.infer<typeof CoreConfigGetRequestSchema>; response: z.infer<typeof CoreConfigGetResponseSchema> };
   'config.set': { request: z.infer<typeof CoreConfigSetRequestSchema>; response: z.infer<typeof CoreConfigSetResponseSchema> };
   'config.list': { request: z.infer<typeof CoreConfigListRequestSchema>; response: z.infer<typeof CoreConfigListResponseSchema> };
+  'config.importOAuth': { request: z.infer<typeof CoreConfigImportOAuthRequestSchema>; response: z.infer<typeof CoreConfigImportOAuthResponseSchema> };
+  'config.refreshOAuth': { request: z.infer<typeof CoreConfigRefreshOAuthRequestSchema>; response: z.infer<typeof CoreConfigRefreshOAuthResponseSchema> };
+  'config.oauthStatus': { request: z.infer<typeof CoreConfigOAuthStatusRequestSchema>; response: z.infer<typeof CoreConfigOAuthStatusResponseSchema> };
 }
 
 export interface CoreEvents {

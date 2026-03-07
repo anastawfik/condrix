@@ -4,7 +4,8 @@
  */
 import { createStore } from 'zustand/vanilla';
 
-import { connectionStore } from './connection-store.js';
+import { multiCoreStore } from './multi-core-store.js';
+import { workspaceStore } from './workspace-store.js';
 
 export interface FileNode {
   name: string;
@@ -59,11 +60,12 @@ export const createFileStore = () =>
     treeLoading: false,
 
     fetchTree: async (workspaceId, path) => {
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) return [];
       set({ treeLoading: true });
       try {
-        const conn = connectionStore.getState();
-        const result = await conn.request<{ entries: FileNode[] }>(
-          'file', 'tree', { workspaceId, path, depth: 1 },
+        const result = await multiCoreStore.getState().requestOnCore<{ entries: FileNode[] }>(
+          coreId, 'file', 'tree', { workspaceId, path, depth: 1 },
         );
         if (!path) {
           set({ tree: result.entries });
@@ -97,9 +99,10 @@ export const createFileStore = () =>
         return;
       }
 
-      const conn = connectionStore.getState();
-      const result = await conn.request<{ path: string; content: string }>(
-        'file', 'read', { workspaceId, path },
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) throw new Error('No active Core connection');
+      const result = await multiCoreStore.getState().requestOnCore<{ path: string; content: string }>(
+        coreId, 'file', 'read', { workspaceId, path },
       );
 
       const name = path.split('/').pop() ?? path;
@@ -130,8 +133,9 @@ export const createFileStore = () =>
     setActiveFile: (path) => set({ activeFilePath: path }),
 
     saveFile: async (workspaceId, path, content) => {
-      const conn = connectionStore.getState();
-      await conn.request('file', 'write', { workspaceId, path, content });
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) throw new Error('No active Core connection');
+      await multiCoreStore.getState().requestOnCore(coreId, 'file', 'write', { workspaceId, path, content });
       set((s) => ({
         openFiles: s.openFiles.map((f) =>
           f.path === path ? { ...f, content, dirty: false } : f,

@@ -1,4 +1,4 @@
-import { useState, type ComponentType } from 'react';
+import { useState, useEffect, useRef, type ComponentType } from 'react';
 import { ModelSettings } from './model-settings.js';
 import { GeneralSettings } from './general-settings.js';
 import { ThemeSettings } from './theme-settings.js';
@@ -25,14 +25,50 @@ interface SettingsDialogProps {
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState('model');
   const ActiveComponent = TABS.find((t) => t.id === activeTab)?.component ?? ModelSettings;
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    dialogRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onClose}
+      role="presentation"
+    >
       <div
-        className="flex w-[640px] h-[480px] rounded-lg overflow-hidden bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
+        tabIndex={-1}
+        className="flex w-[640px] max-w-[95vw] h-[480px] max-h-[90vh] rounded-lg overflow-hidden bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Left sidebar tabs */}
         <div className="w-44 shrink-0 border-r border-[var(--border-color)] bg-[var(--bg-primary)] py-3">
           <div className="px-4 pb-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
             Settings
@@ -53,7 +89,6 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           ))}
         </div>
 
-        {/* Right content area */}
         <div className="flex-1 overflow-y-auto">
           <div className="flex items-center justify-end p-2">
             <button

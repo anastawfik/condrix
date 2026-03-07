@@ -1,8 +1,13 @@
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { mkdirSync, existsSync, cpSync } from 'node:fs';
 import type { WorkspaceInfo, WorkspaceState } from '@nexus-core/protocol';
 import { generateId } from '@nexus-core/protocol';
+import { simpleGit } from 'simple-git';
 import type { EventEmitter } from 'node:events';
 
 import type { CoreDatabase } from '../database.js';
+import type { ProjectManager } from './project-manager.js';
 
 const VALID_TRANSITIONS: Record<WorkspaceState, WorkspaceState[]> = {
   CREATING: ['IDLE', 'ERRORED', 'DESTROYED'],
@@ -14,30 +19,175 @@ const VALID_TRANSITIONS: Record<WorkspaceState, WorkspaceState[]> = {
   DESTROYED: [],
 };
 
+/** Clone operation timeout (5 minutes). */
+const CLONE_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** Slugify a workspace name for use in branch names. */
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 /**
  * Manages workspace lifecycle within a project.
  * Each workspace encapsulates an isolated environment with its own agent session,
  * terminal pool, file watcher, and git tracker.
+ *
+ * Workspaces are cloned copies of the project repo, stored under
+ * `~/.nexuscore/workspaces/<workspace-id>/`.
  */
 export class WorkspaceManager {
+  private projectManager: ProjectManager | null = null;
+
   constructor(
     private db: CoreDatabase,
     private emitter: EventEmitter,
   ) {}
 
-  createWorkspace(
+  /** Set project manager reference (called after both are constructed). */
+  setProjectManager(pm: ProjectManager): void {
+    this.projectManager = pm;
+  }
+
+  async createWorkspace(
     projectId: string,
     name: string,
     branch?: string,
     agentProvider?: string,
-  ): WorkspaceInfo {
+  ): Promise<WorkspaceInfo> {
     const id = generateId('ws');
-    this.db.insertWorkspace(id, projectId, name, 'CREATING', branch, agentProvider);
-    // Transition to IDLE immediately (real init will be async in future)
+    const branchName = branch ?? `nexus/${slugify(name)}`;
+    this.db.insertWorkspace(id, projectId, name, 'CREATING', branchName, agentProvider);
+
+    try {
+      const workDir = await this.setupWorkspaceDir(id, projectId, branchName);
+      this.db.updateWorkspaceWorkDir(id, workDir);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[WorkspaceManager] Failed to setup workspace: ${message}`);
+      this.db.updateWorkspaceState(id, 'ERRORED');
+      const workspace = this.db.getWorkspace(id)!;
+      this.emitter.emit('workspace:created', workspace);
+      return workspace;
+    }
+
     this.db.updateWorkspaceState(id, 'IDLE');
     const workspace = this.db.getWorkspace(id)!;
     this.emitter.emit('workspace:created', workspace);
     return workspace;
+  }
+
+  /**
+   * Set up an isolated workspace directory. Handles three cases:
+   * 1. Remote URL: clone from URL
+   * 2. Local git repo: clone from local path
+   * 3. Local non-git directory: copy files
+   */
+  private async setupWorkspaceDir(
+    workspaceId: string,
+    projectId: string,
+    branchName: string,
+  ): Promise<string> {
+    const project = this.db.getProject(projectId);
+    if (!project) {
+      throw new Error(`Project ${projectId} not found`);
+    }
+
+    const workDir = join(homedir(), '.nexuscore', 'workspaces', workspaceId);
+    mkdirSync(workDir, { recursive: true });
+
+    // Case 1: Remote URL
+    if (project.url) {
+      console.log(`[WorkspaceManager] Cloning URL ${project.url} → ${workDir}`);
+      await this.cloneWithTimeout(project.url, workDir);
+      await this.createWorkspaceBranch(workDir, branchName);
+      return workDir;
+    }
+
+    // Case 2 & 3: Local path
+    if (!project.path) {
+      throw new Error(`Project ${projectId} has neither a path nor a URL`);
+    }
+
+    if (!existsSync(project.path)) {
+      throw new Error(`Project path does not exist: ${project.path}`);
+    }
+
+    // Check if it's a git repo
+    const isGitRepo = existsSync(join(project.path, '.git'));
+
+    if (isGitRepo) {
+      console.log(`[WorkspaceManager] Cloning local repo ${project.path} → ${workDir}`);
+      await this.cloneWithTimeout(project.path, workDir);
+      await this.createWorkspaceBranch(workDir, branchName);
+    } else {
+      // Non-git directory: copy files and init a new git repo
+      console.log(`[WorkspaceManager] Copying directory ${project.path} → ${workDir}`);
+      cpSync(project.path, workDir, { recursive: true });
+
+      const git = simpleGit(workDir);
+      await git.init();
+      await git.add('.');
+      await git.commit('Initial workspace snapshot');
+      await git.checkoutLocalBranch(branchName);
+    }
+
+    return workDir;
+  }
+
+  /**
+   * Clone a repo with a timeout to avoid hanging on network issues.
+   */
+  private async cloneWithTimeout(source: string, dest: string): Promise<void> {
+    const git = simpleGit({ timeout: { block: CLONE_TIMEOUT_MS } });
+    await git.clone(source, dest);
+  }
+
+  /**
+   * Create a workspace branch from the latest default branch.
+   */
+  private async createWorkspaceBranch(workDir: string, branchName: string): Promise<void> {
+    const git = simpleGit(workDir);
+    await git.fetch('origin');
+
+    const defaultBranch = await this.detectDefaultBranch(git);
+    console.log(`[WorkspaceManager] Creating branch ${branchName} from origin/${defaultBranch}`);
+    await git.checkout(['-b', branchName, `origin/${defaultBranch}`]);
+  }
+
+  /**
+   * Detect the default branch name by checking which of main/master exists
+   * on the remote.
+   */
+  private async detectDefaultBranch(git: ReturnType<typeof simpleGit>): Promise<string> {
+    try {
+      const remoteInfo = await git.remote(['show', 'origin']);
+      if (remoteInfo) {
+        const match = /HEAD branch:\s*(\S+)/.exec(remoteInfo);
+        if (match) {
+          return match[1];
+        }
+      }
+    } catch {
+      // Fallback: check for common branch names
+    }
+
+    const branches = await git.branch(['-r']);
+    if (branches.all.includes('origin/main')) return 'main';
+    if (branches.all.includes('origin/master')) return 'master';
+
+    const firstRemote = branches.all.find((b) => b.startsWith('origin/'));
+    if (firstRemote) return firstRemote.replace('origin/', '');
+
+    throw new Error('Could not detect default branch');
+  }
+
+  /** Get the working directory path for a workspace. */
+  getWorkspacePath(workspaceId: string): string | undefined {
+    const workspace = this.db.getWorkspace(workspaceId);
+    return workspace?.workDir;
   }
 
   getWorkspace(id: string): WorkspaceInfo | undefined {
@@ -51,6 +201,11 @@ export class WorkspaceManager {
   transitionState(id: string, newState: WorkspaceState): WorkspaceInfo {
     const workspace = this.db.getWorkspace(id);
     if (!workspace) throw new Error(`Workspace ${id} not found`);
+
+    // Idempotent — same state is a no-op
+    if (workspace.state === newState) {
+      return workspace;
+    }
 
     const allowed = VALID_TRANSITIONS[workspace.state];
     if (!allowed.includes(newState)) {

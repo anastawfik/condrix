@@ -15,6 +15,7 @@
     "dev:core": "nx run @nexus-core/core:dev",
     "dev:maestro": "nx run @nexus-core/maestro:dev",
     "dev:web": "nx run @nexus-core/client-web:dev",
+    "dev:desktop": "nx run @nexus-core/client-desktop:dev",
     "dev:cli": "nx run @nexus-core/client-cli:dev",
     "graph": "nx graph",
     "clean": "nx run-many -t clean && rm -rf node_modules"

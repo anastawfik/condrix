@@ -15,7 +15,7 @@ export const MessageButtonSchema = z.object({
 export const MessageAttachmentSchema = z.object({
   type: z.enum(['file', 'image', 'code']),
   name: z.string(),
-  content: z.union([z.string(), z.instanceof(Buffer)]),
+  content: z.union([z.string(), z.instanceof(Uint8Array)]),
   mimeType: z.string().optional(),
 });
 

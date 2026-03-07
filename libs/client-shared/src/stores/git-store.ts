@@ -4,7 +4,8 @@
  */
 import { createStore } from 'zustand/vanilla';
 
-import { connectionStore } from './connection-store.js';
+import { multiCoreStore } from './multi-core-store.js';
+import { workspaceStore } from './workspace-store.js';
 
 export interface GitFileChange {
   path: string;
@@ -36,13 +37,14 @@ export const createGitStore = () =>
     loading: false,
 
     fetchStatus: async (workspaceId) => {
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) return;
       set({ loading: true });
       try {
-        const conn = connectionStore.getState();
-        const result = await conn.request<{
+        const result = await multiCoreStore.getState().requestOnCore<{
           branch: string;
           files: { path: string; index: string; working_dir: string }[];
-        }>('git', 'status', { workspaceId });
+        }>(coreId, 'git', 'status', { workspaceId });
 
         const staged: GitFileChange[] = [];
         const unstaged: GitFileChange[] = [];
@@ -63,21 +65,24 @@ export const createGitStore = () =>
     },
 
     fetchDiff: async (workspaceId, path, staged) => {
-      const conn = connectionStore.getState();
-      const result = await conn.request<{ diff: string }>(
-        'git', 'diff', { workspaceId, path, staged },
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) return;
+      const result = await multiCoreStore.getState().requestOnCore<{ diff: string }>(
+        coreId, 'git', 'diff', { workspaceId, path, staged },
       );
       set({ diffContent: result.diff, diffPath: path ?? null });
     },
 
     stageFiles: async (workspaceId, paths) => {
-      const conn = connectionStore.getState();
-      await conn.request('git', 'stage', { workspaceId, paths });
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) return;
+      await multiCoreStore.getState().requestOnCore(coreId, 'git', 'stage', { workspaceId, paths });
     },
 
     commit: async (workspaceId, message) => {
-      const conn = connectionStore.getState();
-      await conn.request('git', 'commit', { workspaceId, message });
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) return;
+      await multiCoreStore.getState().requestOnCore(coreId, 'git', 'commit', { workspaceId, message });
     },
   }));
 

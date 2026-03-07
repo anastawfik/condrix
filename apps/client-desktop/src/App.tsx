@@ -1,22 +1,48 @@
-import { useStore } from 'zustand';
-import { CoreConnectionProvider, connectionStore } from '@nexus-core/client-shared';
-import { ConnectionDialog } from './components/connection-dialog.js';
-import { AppLayout } from './components/app-layout.js';
+import { useState } from 'react';
+import { Group, Panel, Separator } from 'react-resizable-panels';
+import { AppLayout, TitleBar, TooltipProvider } from '@nexus-core/client-components';
+import { Sidebar } from './components/sidebar.js';
+import { EditorTabs } from './components/editor/editor-tabs.js';
+import { TerminalPanel } from './components/terminal/terminal-panel.js';
+import { SettingsDialog } from './components/settings/settings-dialog.js';
 
-function AppContent() {
-  const state = useStore(connectionStore, (s) => s.state);
+function DesktopTitleBar() {
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  if (state !== 'connected') {
-    return <ConnectionDialog />;
-  }
+  return (
+    <>
+      <TitleBar onSettingsOpen={() => setSettingsOpen(true)} />
+      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+    </>
+  );
+}
 
-  return <AppLayout />;
+function CenterPanel(_workspaceId: string) {
+  return <EditorTabs />;
+}
+
+function RightPanel(_workspaceId: string) {
+  return (
+    <Group orientation="vertical" className="h-full">
+      <Panel defaultSize="50%" minSize="100px" className="min-h-0">
+        <Sidebar />
+      </Panel>
+      <Separator className="h-[1px] bg-[var(--border-color)] hover:bg-[var(--accent-blue)] transition-colors" />
+      <Panel defaultSize="50%" minSize="80px" collapsible className="min-h-0">
+        <TerminalPanel />
+      </Panel>
+    </Group>
+  );
 }
 
 export function App() {
   return (
-    <CoreConnectionProvider>
-      <AppContent />
-    </CoreConnectionProvider>
+    <TooltipProvider delayDuration={300}>
+      <AppLayout
+        renderTitleBar={() => <DesktopTitleBar />}
+        renderCenter={(wsId) => CenterPanel(wsId)}
+        renderRight={(wsId) => RightPanel(wsId)}
+      />
+    </TooltipProvider>
   );
 }

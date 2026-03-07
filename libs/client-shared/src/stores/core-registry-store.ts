@@ -10,6 +10,7 @@ export interface CoreEntry {
   url: string;
   token?: string;
   lastConnected?: string;
+  autoConnect?: boolean;
 }
 
 export interface CoreRegistryStore {

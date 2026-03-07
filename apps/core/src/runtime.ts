@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import type { CoreInfo, MessageEnvelope } from '@nexus-core/protocol';
 import { createEvent } from '@nexus-core/protocol';
@@ -10,8 +10,9 @@ import { AuthManager } from './auth.js';
 import { MessageRouter } from './message-router.js';
 import { ProjectManager } from './managers/project-manager.js';
 import { WorkspaceManager } from './managers/workspace-manager.js';
-import { AgentManager } from './managers/agent-manager.js';
+import { AgentManager, type WorkspaceContextProvider } from './managers/agent-manager.js';
 import { ClaudeProvider } from './providers/claude-provider.js';
+import { OAuthTokenManager } from './services/oauth-token-manager.js';
 import { ConnectionManager } from './managers/connection-manager.js';
 import { TerminalManager } from './managers/terminal-manager.js';
 import { FileManager } from './managers/file-manager.js';
@@ -40,6 +41,9 @@ export class CoreRuntime {
   private db!: CoreDatabase;
   private emitter!: EventEmitter;
   private router!: MessageRouter;
+
+  // Services
+  private oauthManager!: OAuthTokenManager;
 
   // Managers
   private authManager!: AuthManager;
@@ -81,10 +85,28 @@ export class CoreRuntime {
     // Init managers
     this.projectManager = new ProjectManager(this.db, this.emitter);
     this.workspaceManager = new WorkspaceManager(this.db, this.emitter);
+    this.workspaceManager.setProjectManager(this.projectManager);
     this.agentManager = new AgentManager(this.db, this.emitter);
 
-    // Load saved settings + register Claude provider
-    this.initClaudeProvider();
+    // Init OAuth token manager + Claude provider
+    this.oauthManager = new OAuthTokenManager(this.db);
+    this.oauthManager.onTokenRefreshed = (accessToken) => {
+      const claude = this.agentManager.getProvider('claude') as ClaudeProvider | undefined;
+      if (claude) {
+        claude.reconfigure({ authToken: accessToken });
+        console.log('[Core] Claude provider reconfigured with refreshed OAuth token');
+      } else {
+        // No provider yet — create one with the new token
+        this.reinitClaudeProvider();
+      }
+    };
+    this.oauthManager.onLoginComplete = (result) => {
+      if (result.success) {
+        this.reinitClaudeProvider();
+      }
+      this.emitter.emit('core:oauthComplete', result);
+    };
+    await this.initClaudeProvider();
 
     this.gitTracker = new GitTracker();
     this.fileManager = new FileManager(this.emitter);
@@ -93,6 +115,9 @@ export class CoreRuntime {
     // Init async managers
     await this.terminalManager.init();
     await this.fileManager.init();
+
+    // Wire workspace context into agent manager
+    this.agentManager.setContextProvider(this.createContextProvider());
 
     // Init router & register routes
     this.router = new MessageRouter();
@@ -116,6 +141,7 @@ export class CoreRuntime {
     console.log(`[Core] ${this.config.displayName} stopping...`);
 
     // Reverse order shutdown
+    this.oauthManager?.destroy();
     this.terminalManager?.closeAll();
     await this.fileManager?.closeAll();
     await this.connectionManager?.stop();
@@ -153,6 +179,13 @@ export class CoreRuntime {
         .filter((ws) => ws.state === 'ACTIVE').length,
     }));
 
+    r.register('core', 'browse', async (payload) => {
+      const p = payload as { path?: string; depth?: number };
+      const browsePath = p.path ?? homedir();
+      const entries = await this.fileManager.browseDirectory(browsePath, p.depth ?? 1);
+      return { path: resolve(browsePath).replace(/\\/g, '/'), entries };
+    });
+
     // ── config routes ─────────────────────────────────────────────────────
     r.register('core', 'config.get', async (payload) => {
       const p = payload as { key: string };
@@ -179,14 +212,44 @@ export class CoreRuntime {
       return { settings };
     });
 
+    // ── OAuth routes ───────────────────────────────────────────────────────
+    r.register('core', 'config.importOAuth', async () => {
+      return this.oauthManager.importFromClaudeCode();
+    });
+
+    r.register('core', 'config.refreshOAuth', async () => {
+      try {
+        await this.oauthManager.refreshAccessToken();
+        const status = this.oauthManager.getStatus();
+        return { success: true, expiresAt: status.expiresAt };
+      } catch (err) {
+        return { success: false, expiresAt: undefined };
+      }
+    });
+
+    r.register('core', 'config.oauthStatus', async () => {
+      return this.oauthManager.getStatus();
+    });
+
+    r.register('core', 'oauth.login', async () => {
+      const { url, completion } = await this.oauthManager.startBrowserLogin();
+      // Handle the completion asynchronously — don't block the response
+      completion.then((result) => {
+        if (this.oauthManager.onLoginComplete) {
+          this.oauthManager.onLoginComplete(result);
+        }
+      });
+      return { url };
+    });
+
     // ── project namespace ────────────────────────────────────────────────────
     r.register('project', 'list', async () => ({
       projects: this.projectManager.listProjects(),
     }));
 
     r.register('project', 'create', async (payload) => {
-      const p = payload as { name: string; path: string };
-      return this.projectManager.addProject(p.name, p.path);
+      const p = payload as { name: string; path?: string; url?: string };
+      return this.projectManager.addProject(p.name, p.path ?? '', p.url);
     });
 
     r.register('project', 'delete', async (payload) => {
@@ -198,7 +261,7 @@ export class CoreRuntime {
     // ── workspace namespace ──────────────────────────────────────────────────
     r.register('workspace', 'create', async (payload) => {
       const p = payload as { projectId: string; name: string; branch?: string; agentProvider?: string };
-      return this.workspaceManager.createWorkspace(p.projectId, p.name, p.branch, p.agentProvider);
+      return await this.workspaceManager.createWorkspace(p.projectId, p.name, p.branch, p.agentProvider);
     });
 
     r.register('workspace', 'list', async (payload) => {
@@ -370,6 +433,7 @@ export class CoreRuntime {
       ['terminal:exit', 'terminal', 'exit'],
       ['terminal:created', 'terminal', 'created'],
       ['file:changed', 'file', 'changed'],
+      ['core:oauthComplete', 'core', 'oauthComplete'],
     ];
 
     for (const [emitterEvent, namespace, action] of eventMappings) {
@@ -383,21 +447,59 @@ export class CoreRuntime {
         this.connectionManager.broadcast(event);
       });
     }
+
+    // Streaming events — broadcast only, don't persist to DB
+    const streamEvents: [string, string, string][] = [
+      ['agent:thinkingDelta', 'agent', 'thinkingDelta'],
+      ['agent:textDelta', 'agent', 'textDelta'],
+    ];
+    for (const [emitterEvent, namespace, action] of streamEvents) {
+      this.emitter.on(emitterEvent, (payload: unknown) => {
+        const event = createEvent(
+          namespace as Parameters<typeof createEvent>[0],
+          action as never,
+          payload as never,
+        );
+        this.connectionManager.broadcast(event);
+      });
+    }
   }
 
   // ─── Settings / Provider ──────────────────────────────────────────────────
 
-  private initClaudeProvider(): void {
+  private async initClaudeProvider(): Promise<void> {
     // DB settings take priority, env vars as fallback
     const dbApiKey = this.db.getSetting('model.apiKey') as string | undefined;
     const dbModel = this.db.getSetting('model.id') as string | undefined;
     const dbMaxTokens = this.db.getSetting('model.maxTokens') as number | undefined;
     const dbSystemPrompt = this.db.getSetting('model.systemPrompt') as string | undefined;
+    const dbAuthMethod = this.db.getSetting('auth.method') as string | undefined;
 
-    const apiKey = dbApiKey ?? process.env.ANTHROPIC_API_KEY;
     const model = dbModel ?? process.env.NEXUS_CLAUDE_MODEL;
     const systemPrompt = dbSystemPrompt ?? process.env.NEXUS_CLAUDE_SYSTEM_PROMPT;
+    const apiKey = dbApiKey ?? process.env.ANTHROPIC_API_KEY;
 
+    // OAuth takes precedence when auth.method is 'oauth'
+    if (dbAuthMethod === 'oauth') {
+      // Get a valid access token (refreshes if expired)
+      const accessToken = await this.oauthManager.getAccessToken();
+      if (accessToken) {
+        const claude = new ClaudeProvider({
+          authToken: accessToken,
+          apiKey, // fallback if OAuth fails
+          model,
+          maxTokens: dbMaxTokens,
+          systemPrompt,
+        });
+        this.agentManager.registerProvider(claude);
+        this.agentManager.setDefaultProvider('claude');
+        console.log(`[Core] Claude provider registered via OAuth (model: ${model ?? 'claude-sonnet-4-5'})`);
+        return;
+      }
+      console.warn('[Core] OAuth configured but no valid token available — trying API key');
+    }
+
+    // API key authentication
     if (apiKey) {
       const claude = new ClaudeProvider({
         apiKey,
@@ -409,11 +511,33 @@ export class CoreRuntime {
       this.agentManager.setDefaultProvider('claude');
       console.log(`[Core] Claude provider registered (model: ${model ?? 'claude-sonnet-4-5'})`);
     } else {
-      console.log('[Core] No API key configured — using echo provider');
+      console.log('[Core] No authentication configured — using echo provider');
+      console.log('[Core] Sign in via Settings → Model → "Sign in with Claude" or set an API key');
     }
   }
 
   private applySettingChange(key: string, value: unknown): void {
+    // Handle auth method switch
+    if (key === 'auth.method') {
+      this.reinitClaudeProvider();
+      return;
+    }
+
+    // Handle OAuth token changes
+    if (key.startsWith('oauth.')) {
+      // Provider will be reconfigured via onTokenRefreshed callback or reinit
+      if (key === 'oauth.accessToken') {
+        const claude = this.agentManager.getProvider('claude') as ClaudeProvider | undefined;
+        const authMethod = this.db.getSetting('auth.method') as string | undefined;
+        if (authMethod === 'oauth' && claude && value) {
+          claude.reconfigure({ authToken: value as string });
+          console.log('[Core] Claude provider reconfigured with new OAuth token');
+        }
+      }
+      return;
+    }
+
+    // Handle model.* settings
     if (!key.startsWith('model.')) return;
 
     const claude = this.agentManager.getProvider('claude') as ClaudeProvider | undefined;
@@ -433,24 +557,107 @@ export class CoreRuntime {
       }
     } else if (key === 'model.apiKey' && value) {
       // No provider yet — create one with all saved settings
-      const settings = this.db.getSettingsByPrefix('model.');
-      const newClaude = new ClaudeProvider({
-        apiKey: value as string,
-        model: settings['model.id'] as string | undefined,
-        maxTokens: settings['model.maxTokens'] as number | undefined,
-        systemPrompt: settings['model.systemPrompt'] as string | undefined,
-      });
-      this.agentManager.registerProvider(newClaude);
-      this.agentManager.setDefaultProvider('claude');
-      console.log('[Core] Claude provider created from settings');
+      this.reinitClaudeProvider();
     }
   }
 
+  /** Re-initialize the Claude provider from current DB settings (used on auth method switch / login). */
+  private reinitClaudeProvider(): void {
+    const settings = this.db.getSettingsByPrefix('model.');
+    const authMethod = (this.db.getSetting('auth.method') as string) ?? 'apikey';
+    const accessToken = this.db.getSetting('oauth.accessToken') as string | undefined;
+
+    const model = settings['model.id'] as string | undefined;
+    const maxTokens = settings['model.maxTokens'] as number | undefined;
+    const systemPrompt = settings['model.systemPrompt'] as string | undefined;
+
+    const apiKey = (settings['model.apiKey'] as string | undefined) ?? process.env.ANTHROPIC_API_KEY;
+    if (authMethod === 'oauth' && accessToken) {
+      const claude = new ClaudeProvider({ authToken: accessToken, apiKey, model, maxTokens, systemPrompt });
+      this.agentManager.registerProvider(claude);
+      this.agentManager.setDefaultProvider('claude');
+      console.log('[Core] Claude provider (re)created with OAuth');
+    } else if (apiKey) {
+      const claude = new ClaudeProvider({ apiKey, model, maxTokens, systemPrompt });
+      this.agentManager.registerProvider(claude);
+      this.agentManager.setDefaultProvider('claude');
+      console.log('[Core] Claude provider (re)created with API key');
+    }
+  }
+
+  private static readonly SENSITIVE_KEYS = new Set([
+    'model.apiKey',
+    'oauth.accessToken',
+    'oauth.refreshToken',
+  ]);
+
   private maskSensitive(key: string, value: unknown): unknown {
-    if (key === 'model.apiKey' && typeof value === 'string' && value.length > 4) {
+    if (CoreRuntime.SENSITIVE_KEYS.has(key) && typeof value === 'string' && value.length > 4) {
       return '\u2022\u2022\u2022\u2022' + value.slice(-4);
     }
     return value;
+  }
+
+  // ─── Workspace Context ─────────────────────────────────────────────────────
+
+  private createContextProvider(): WorkspaceContextProvider {
+    const runtime = this;
+    return {
+      async buildContext(workspaceId: string): Promise<string | null> {
+        const workspace = runtime.workspaceManager.getWorkspace(workspaceId);
+        if (!workspace) return null;
+
+        const project = runtime.projectManager.getProject(workspace.projectId);
+        if (!project) return null;
+
+        const workDir = workspace.workDir ?? project.path;
+        if (!workDir) return null;
+
+        const parts: string[] = [];
+        parts.push(`# Workspace Context`);
+        parts.push(`Project: ${project.name}`);
+        parts.push(`Branch: ${workspace.branch ?? 'unknown'}`);
+        parts.push(`Working directory: ${workDir}`);
+
+        // Build directory tree (depth 3 for a useful overview)
+        try {
+          const entries = await runtime.fileManager.listDirectory(workDir, 3);
+          if (entries.length > 0) {
+            parts.push('');
+            parts.push('## File Tree');
+            parts.push('```');
+            for (const entry of entries) {
+              const prefix = entry.type === 'directory' ? '\u{1F4C1} ' : '  ';
+              parts.push(`${prefix}${entry.path}`);
+            }
+            parts.push('```');
+          }
+        } catch {
+          // Directory listing may fail — non-critical
+        }
+
+        // Try to include key config files for additional context
+        const keyFiles = ['package.json', 'CLAUDE.md', 'README.md'];
+        for (const filename of keyFiles) {
+          try {
+            const content = await runtime.fileManager.readFileContent(
+              join(workDir, filename),
+            );
+            if (content && content.length < 4000) {
+              parts.push('');
+              parts.push(`## ${filename}`);
+              parts.push('```');
+              parts.push(content.trim());
+              parts.push('```');
+            }
+          } catch {
+            // File doesn't exist — skip
+          }
+        }
+
+        return parts.join('\n');
+      },
+    };
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -459,6 +666,12 @@ export class CoreRuntime {
     const workspace = this.workspaceManager.getWorkspace(workspaceId);
     if (!workspace) throw new Error(`Workspace ${workspaceId} not found`);
 
+    // Prefer workspace's own cloned directory
+    if (workspace.workDir) {
+      return workspace.workDir;
+    }
+
+    // Fallback to project path for backward compatibility
     const project = this.projectManager.getProject(workspace.projectId);
     if (!project) throw new Error(`Project ${workspace.projectId} not found`);
 

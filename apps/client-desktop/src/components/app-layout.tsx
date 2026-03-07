@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { TitleBar } from './title-bar.js';
+import { TitleBar } from '@nexus-core/client-components';
+import { workspaceStore } from '@nexus-core/client-shared';
 import { Sidebar } from './sidebar.js';
 import { EditorTabs } from './editor/editor-tabs.js';
 import { TerminalPanel } from './terminal/terminal-panel.js';
@@ -9,9 +10,17 @@ import { SettingsDialog } from './settings/settings-dialog.js';
 export function AppLayout() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  const handleBackToProjects = () => {
+    workspaceStore.getState().setCurrentWorkspace(null);
+    workspaceStore.getState().setCurrentProject(null);
+  };
+
   return (
     <div className="flex flex-col h-screen">
-      <TitleBar onSettingsOpen={() => setSettingsOpen(true)} />
+      <TitleBar
+        onSettingsOpen={() => setSettingsOpen(true)}
+        onBackToProjects={handleBackToProjects}
+      />
 
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
 

@@ -11,7 +11,7 @@ import { AuthManager } from './auth.js';
 const config = {
   coreId: process.env.NEXUS_CORE_ID ?? 'core-default',
   displayName: process.env.NEXUS_CORE_NAME ?? 'NexusCore',
-  host: process.env.NEXUS_CORE_HOST ?? '0.0.0.0',
+  host: process.env.NEXUS_CORE_HOST ?? '127.0.0.1',
   port: Number(process.env.NEXUS_CORE_PORT ?? 9100),
   dbPath: process.env.NEXUS_CORE_DB_PATH ?? undefined,
   devMode: process.env.NEXUS_CORE_DEV_MODE !== 'false',

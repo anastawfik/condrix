@@ -43,6 +43,7 @@ export function GitPanel() {
           onClick={refresh}
           disabled={loading}
           className="p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)]"
+          aria-label="Refresh git status"
         >
           <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
         </button>
@@ -63,6 +64,7 @@ export function GitPanel() {
             disabled={!commitMsg.trim() || staged.length === 0}
             className="p-1 rounded bg-[var(--accent-blue)] text-white disabled:opacity-50"
             title="Commit (Ctrl+Enter)"
+            aria-label="Commit changes"
           >
             <Check size={14} />
           </button>

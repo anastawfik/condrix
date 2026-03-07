@@ -1,5 +1,5 @@
 import { readFile, writeFile, readdir, stat, mkdir } from 'node:fs/promises';
-import { join, basename, relative } from 'node:path';
+import { join, basename, relative, resolve } from 'node:path';
 import type { FileEntry, FileChange } from '@nexus-core/protocol';
 import type { EventEmitter } from 'node:events';
 
@@ -81,6 +81,54 @@ export class FileManager {
       if (dir) await mkdir(dir, { recursive: true });
     }
     await writeFile(filePath, content, 'utf-8');
+  }
+
+  /**
+   * Browse a directory without ignore patterns — for filesystem folder picker.
+   * Sorts directories first, then files, alphabetically.
+   */
+  async browseDirectory(dirPath: string, depth = 1): Promise<FileEntry[]> {
+    const resolved = resolve(dirPath);
+    const entries: FileEntry[] = [];
+
+    try {
+      const items = await readdir(resolved, { withFileTypes: true });
+      const dirs: FileEntry[] = [];
+      const files: FileEntry[] = [];
+
+      for (const item of items) {
+        const fullPath = join(resolved, item.name);
+        const entry: FileEntry = {
+          path: fullPath.replace(/\\/g, '/'),
+          name: item.name,
+          type: item.isDirectory() ? 'directory' : item.isSymbolicLink() ? 'symlink' : 'file',
+        };
+
+        if (item.isFile()) {
+          try {
+            const st = await stat(fullPath);
+            entry.size = st.size;
+            entry.modifiedAt = st.mtime.toISOString();
+          } catch {
+            // stat may fail
+          }
+        }
+
+        if (item.isDirectory()) {
+          dirs.push(entry);
+        } else {
+          files.push(entry);
+        }
+      }
+
+      dirs.sort((a, b) => a.name.localeCompare(b.name));
+      files.sort((a, b) => a.name.localeCompare(b.name));
+      entries.push(...dirs, ...files);
+    } catch {
+      // directory not accessible
+    }
+
+    return entries;
   }
 
   async listDirectory(dirPath: string, depth = 1): Promise<FileEntry[]> {
