@@ -42,6 +42,9 @@ export { AddProjectDialog, type AddProjectDialogProps } from './add-project-dial
 export { AddCoreDialog, type AddCoreDialogProps } from './add-core-dialog.js';
 export { TitleBar, type TitleBarProps } from './title-bar.js';
 
+// Settings components
+export { CoreSettingsTab } from './core-settings-tab.js';
+
 // Legacy — kept for backward compat until all consumers migrate
 export { WorkspaceSidebar, type WorkspaceSidebarProps } from './workspace-sidebar.js';
 

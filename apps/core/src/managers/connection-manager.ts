@@ -181,8 +181,8 @@ export class ConnectionManager {
   private handleAuth(session: ClientSession, msg: Record<string, unknown>): void {
     const payload = msg.payload as { token?: string } | undefined;
 
-    if (this.devMode) {
-      // Dev mode: accept any token
+    if (this.devMode && !session.isTunneled) {
+      // Dev mode: accept any token for local connections
       session.authenticated = true;
       session.scopes = [...ALL_SCOPES];
     } else if (this.authManager && payload?.token) {

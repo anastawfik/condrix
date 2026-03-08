@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Monitor, Globe } from 'lucide-react';
+import { Monitor, Globe, Cloud } from 'lucide-react';
 import { coreRegistryStore, multiCoreStore } from '@nexus-core/client-shared';
 import { Dialog } from './dialog.js';
 import { Button } from './button.js';
@@ -19,6 +19,10 @@ export function AddCoreDialog({ open, onClose }: AddCoreDialogProps) {
   const [remotePort, setRemotePort] = useState('9100');
   const [remoteToken, setRemoteToken] = useState('');
   const [remoteName, setRemoteName] = useState('');
+  // Tunnel tab
+  const [tunnelUrl, setTunnelUrl] = useState('');
+  const [tunnelToken, setTunnelToken] = useState('');
+  const [tunnelName, setTunnelName] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -66,12 +70,57 @@ export function AddCoreDialog({ open, onClose }: AddCoreDialogProps) {
     }
   };
 
+  const handleConnectTunnel = async () => {
+    if (!tunnelUrl || !tunnelToken) return;
+    setLoading(true);
+    setError('');
+    try {
+      // Convert https:// to wss:// for WebSocket over Cloudflare tunnel
+      let wsUrl = tunnelUrl.trim().replace(/\/+$/, '');
+      if (wsUrl.startsWith('https://')) {
+        wsUrl = 'wss://' + wsUrl.slice('https://'.length);
+      } else if (wsUrl.startsWith('http://')) {
+        wsUrl = 'ws://' + wsUrl.slice('http://'.length);
+      } else if (!wsUrl.startsWith('wss://') && !wsUrl.startsWith('ws://')) {
+        wsUrl = 'wss://' + wsUrl;
+      }
+
+      // Derive display name from URL hostname
+      let displayName = tunnelName;
+      if (!displayName) {
+        try {
+          const parsed = new URL(wsUrl.replace('wss://', 'https://').replace('ws://', 'http://'));
+          displayName = parsed.hostname;
+        } catch {
+          displayName = wsUrl;
+        }
+      }
+
+      const entry = coreRegistryStore.getState().addCore({
+        name: displayName,
+        url: wsUrl,
+        token: tunnelToken,
+        autoConnect: true,
+      });
+      multiCoreStore.getState().connectCore(entry);
+      onClose();
+      resetForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Connection failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setLocalPort('9100');
     setRemoteHost('');
     setRemotePort('9100');
     setRemoteToken('');
     setRemoteName('');
+    setTunnelUrl('');
+    setTunnelToken('');
+    setTunnelName('');
     setError('');
   };
 
@@ -81,6 +130,7 @@ export function AddCoreDialog({ open, onClose }: AddCoreDialogProps) {
         <TabList className="px-4">
           <Tab id="local" icon={<Monitor size={12} />}>Local</Tab>
           <Tab id="remote" icon={<Globe size={12} />}>Remote</Tab>
+          <Tab id="tunnel" icon={<Cloud size={12} />}>Tunnel</Tab>
         </TabList>
 
         <TabPanel id="local" className="p-4 space-y-3">
@@ -103,6 +153,9 @@ export function AddCoreDialog({ open, onClose }: AddCoreDialogProps) {
         </TabPanel>
 
         <TabPanel id="remote" className="p-4 space-y-3">
+          <p className="text-[11px] text-[var(--text-secondary)]">
+            Connect to a Core on your local network.
+          </p>
           <div>
             <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Host</label>
             <Input
@@ -143,6 +196,50 @@ export function AddCoreDialog({ open, onClose }: AddCoreDialogProps) {
           {error && <p className="text-[11px] text-[var(--accent-red)]">{error}</p>}
           <Button size="sm" onClick={handleConnectRemote} disabled={loading || !remoteHost} className="w-full">
             {loading ? 'Connecting...' : 'Connect'}
+          </Button>
+        </TabPanel>
+
+        <TabPanel id="tunnel" className="p-4 space-y-3">
+          <p className="text-[11px] text-[var(--text-secondary)]">
+            Connect to a Core exposed via Cloudflare Tunnel.
+          </p>
+          <div>
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Tunnel URL</label>
+            <Input
+              value={tunnelUrl}
+              onChange={(e) => setTunnelUrl(e.target.value)}
+              placeholder="https://abc-xyz.trycloudflare.com"
+              inputSize="sm"
+            />
+            <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">
+              Paste the URL shown in the Core's tunnel settings.
+            </p>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Auth Token</label>
+            <Input
+              value={tunnelToken}
+              onChange={(e) => setTunnelToken(e.target.value)}
+              placeholder="Generated on the Core machine"
+              inputSize="sm"
+              type="password"
+            />
+            <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">
+              Generate with <code className="text-[var(--accent-orange)]">nexus-core --generate-token</code> on the Core machine.
+            </p>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Display Name</label>
+            <Input
+              value={tunnelName}
+              onChange={(e) => setTunnelName(e.target.value)}
+              placeholder="Remote Server"
+              inputSize="sm"
+            />
+          </div>
+          {error && <p className="text-[11px] text-[var(--accent-red)]">{error}</p>}
+          <Button size="sm" onClick={handleConnectTunnel} disabled={loading || !tunnelUrl || !tunnelToken} className="w-full">
+            {loading ? 'Connecting...' : 'Connect via Tunnel'}
           </Button>
         </TabPanel>
       </Tabs>
