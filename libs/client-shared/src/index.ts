@@ -10,7 +10,7 @@ export { connectionStore, createConnectionStore } from './stores/connection-stor
 export { coreRegistryStore, createCoreRegistryStore } from './stores/core-registry-store.js';
 export { multiCoreStore, createMultiCoreStore } from './stores/multi-core-store.js';
 export { workspaceStore, createWorkspaceStore } from './stores/workspace-store.js';
-export { chatStore, createChatStore } from './stores/chat-store.js';
+export { chatStore, createChatStore, initChatSync } from './stores/chat-store.js';
 export { fileStore, createFileStore } from './stores/file-store.js';
 export { terminalStore, createTerminalStore } from './stores/terminal-store.js';
 export { gitStore, createGitStore } from './stores/git-store.js';

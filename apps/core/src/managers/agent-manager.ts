@@ -117,6 +117,15 @@ export class AgentManager {
     const userMsgId = generateId('msg');
     this.db.insertConversation(userMsgId, workspaceId, 'user', message, timestamp);
 
+    // Broadcast user message so other clients see it
+    this.emitter.emit('agent:message', {
+      workspaceId,
+      messageId: userMsgId,
+      role: 'user' as const,
+      content: message,
+      timestamp,
+    });
+
     // Get history for context
     const history = this.db.getConversationHistory(workspaceId);
     const agentHistory: AgentMessage[] = history.map((h) => ({

@@ -46,6 +46,8 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
   // New workspace inline form
   const [addingWorkspaceFor, setAddingWorkspaceFor] = useState<string | null>(null);
   const [wsName, setWsName] = useState('');
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+  const [wsError, setWsError] = useState<string | null>(null);
 
   const fetchProjects = useCallback(async (coreId: string) => {
     try {
@@ -117,20 +119,31 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
 
   const handleCreateWorkspace = async (projectId: string, coreId: string) => {
     if (!wsName.trim()) return;
-    setLoading(true);
+    setCreatingWorkspace(true);
+    setWsError(null);
     try {
       const ws = await workspaceStore.getState().createWorkspace(projectId, wsName.trim(), undefined, coreId);
+
+      // Check if the workspace was created in ERRORED state (clone failure)
+      if (ws.state === 'ERRORED') {
+        setWsError('Failed to set up workspace directory. Check Core logs.');
+        fetchProjects(coreId);
+        return;
+      }
+
       await workspaceStore.getState().enterWorkspace(ws.id, coreId);
       multiCoreStore.getState().setActiveCoreId(coreId);
       setWsName('');
       setAddingWorkspaceFor(null);
-      // Refresh projects for this core
+      setWsError(null);
       fetchProjects(coreId);
       onWorkspaceSelected?.();
     } catch (err) {
-      console.error('[Sidebar] Failed to create workspace:', err);
+      const message = err instanceof Error ? err.message : 'Failed to create workspace';
+      setWsError(message);
+      fetchProjects(coreId);
     } finally {
-      setLoading(false);
+      setCreatingWorkspace(false);
     }
   };
 
@@ -296,12 +309,23 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
                                   placeholder="Workspace name"
                                   inputSize="sm"
                                   autoFocus
-                                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateWorkspace(project.id, coreId); }}
+                                  disabled={creatingWorkspace}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' && !creatingWorkspace) handleCreateWorkspace(project.id, coreId); }}
                                 />
-                                <div className="flex gap-1.5 justify-end">
-                                  <Button variant="ghost" size="sm" onClick={() => setAddingWorkspaceFor(null)}>Cancel</Button>
-                                  <Button size="sm" onClick={() => handleCreateWorkspace(project.id, coreId)} disabled={loading || !wsName.trim()}>Create</Button>
-                                </div>
+                                {wsError && (
+                                  <p className="text-[10px] text-[var(--accent-red)]">{wsError}</p>
+                                )}
+                                {creatingWorkspace ? (
+                                  <div className="flex items-center gap-2 py-1">
+                                    <span className="w-3 h-3 border-2 border-[var(--accent-blue)] border-t-transparent rounded-full animate-spin" />
+                                    <span className="text-[10px] text-[var(--text-muted)]">Cloning repository...</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex gap-1.5 justify-end">
+                                    <Button variant="ghost" size="sm" onClick={() => { setAddingWorkspaceFor(null); setWsError(null); }}>Cancel</Button>
+                                    <Button size="sm" onClick={() => handleCreateWorkspace(project.id, coreId)} disabled={!wsName.trim()}>Create</Button>
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <button

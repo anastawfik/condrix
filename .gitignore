@@ -44,6 +44,12 @@ packages/client-mobile/.expo/
 packages/client-mobile/android/
 packages/client-mobile/ios/
 
+# Playwright
+.playwright-mcp/
+
+# Screenshots
+*.png
+
 # Misc
 *.tgz
 .cache/
