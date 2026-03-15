@@ -28,6 +28,9 @@
       "dependsOn": ["^build"],
       "inputs": ["default", "^default"],
       "cache": true
+    },
+    "dev": {
+      "dependsOn": ["^build"]
     }
   },
   "defaultBase": "main",
