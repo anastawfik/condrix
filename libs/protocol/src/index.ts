@@ -76,6 +76,43 @@ export type FileChange = z.infer<typeof FileChangeSchema>;
 export type GitStatusEntry = z.infer<typeof GitStatusEntrySchema>;
 export type GitBranchInfo = z.infer<typeof GitBranchInfoSchema>;
 export type Notification = z.infer<typeof NotificationSchema>;
+
+// Maestro types
+import type {
+  MaestroLoginRequestSchema,
+  MaestroLoginResponseSchema,
+  MaestroAuthRequestSchema,
+  MaestroAuthResponseSchema,
+  MaestroCoreRegisterRequestSchema,
+  MaestroCoreRegisterResponseSchema,
+  MaestroCoreListResponseSchema,
+  MaestroAiConfigGetResponseSchema,
+  MaestroAiConfigSetRequestSchema,
+  MaestroAiConfigSetResponseSchema,
+  MaestroUserCreateRequestSchema,
+  MaestroUserCreateResponseSchema,
+  MaestroUserListResponseSchema,
+  MaestroTotpSetupResponseSchema,
+  MaestroCoreOnlineEventSchema,
+  MaestroCoreOfflineEventSchema,
+} from './schemas/index.js';
+
+export type MaestroLoginRequest = z.infer<typeof MaestroLoginRequestSchema>;
+export type MaestroLoginResponse = z.infer<typeof MaestroLoginResponseSchema>;
+export type MaestroAuthRequest = z.infer<typeof MaestroAuthRequestSchema>;
+export type MaestroAuthResponse = z.infer<typeof MaestroAuthResponseSchema>;
+export type MaestroCoreRegisterRequest = z.infer<typeof MaestroCoreRegisterRequestSchema>;
+export type MaestroCoreRegisterResponse = z.infer<typeof MaestroCoreRegisterResponseSchema>;
+export type MaestroCoreListResponse = z.infer<typeof MaestroCoreListResponseSchema>;
+export type MaestroAiConfigGetResponse = z.infer<typeof MaestroAiConfigGetResponseSchema>;
+export type MaestroAiConfigSetRequest = z.infer<typeof MaestroAiConfigSetRequestSchema>;
+export type MaestroAiConfigSetResponse = z.infer<typeof MaestroAiConfigSetResponseSchema>;
+export type MaestroUserCreateRequest = z.infer<typeof MaestroUserCreateRequestSchema>;
+export type MaestroUserCreateResponse = z.infer<typeof MaestroUserCreateResponseSchema>;
+export type MaestroUserListResponse = z.infer<typeof MaestroUserListResponseSchema>;
+export type MaestroTotpSetupResponse = z.infer<typeof MaestroTotpSetupResponseSchema>;
+export type MaestroCoreOnlineEvent = z.infer<typeof MaestroCoreOnlineEventSchema>;
+export type MaestroCoreOfflineEvent = z.infer<typeof MaestroCoreOfflineEventSchema>;
 export type RichMessage = z.infer<typeof RichMessageSchema>;
 export type MessageButton = z.infer<typeof MessageButtonSchema>;
 export type MessageAttachment = z.infer<typeof MessageAttachmentSchema>;

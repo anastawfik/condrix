@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef, type ComponentType } from 'react';
-import { CoreSettingsTab } from './core-settings-tab.js';
+import { useState, useEffect, useRef, useMemo, type ComponentType } from 'react';
 import { GeneralSettings } from './general-settings.js';
 import { ThemeSettings } from './theme-settings.js';
 import { NotificationSettings } from './notification-settings.js';
+import { CoresSettingsTab, AiSettingsTab, AuthenticationSettingsTab } from '@nexus-core/client-components';
+import { maestroStore } from '@nexus-core/client-shared';
+import type { MaestroConnectionState } from '@nexus-core/client-shared';
 
 interface TabDefinition {
   id: string;
@@ -11,12 +13,17 @@ interface TabDefinition {
   component: ComponentType;
 }
 
-const TABS: TabDefinition[] = [
-  { id: 'cores', label: 'Cores', icon: '\u2699', component: CoreSettingsTab },
+const STATIC_TABS: TabDefinition[] = [
+  { id: 'cores', label: 'Cores', icon: '\u26A1', component: CoresSettingsTab },
+  { id: 'ai', label: 'AI', icon: '\u2728', component: AiSettingsTab },
   { id: 'theme', label: 'Theme', icon: '\u263E', component: ThemeSettings },
   { id: 'notifications', label: 'Notifications', icon: '\u266A', component: NotificationSettings },
   { id: 'general', label: 'General', icon: '\u2630', component: GeneralSettings },
 ];
+
+const AUTH_TAB: TabDefinition = {
+  id: 'authentication', label: 'Account', icon: '\uD83D\uDD12', component: AuthenticationSettingsTab,
+};
 
 interface SettingsDialogProps {
   onClose: () => void;
@@ -24,7 +31,26 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState('cores');
-  const ActiveComponent = TABS.find((t) => t.id === activeTab)?.component ?? CoreSettingsTab;
+  const [maestroState, setMaestroState] = useState<MaestroConnectionState>(
+    () => maestroStore.getState().state,
+  );
+
+  useEffect(() => {
+    const unsub = maestroStore.subscribe((s) => setMaestroState(s.state));
+    return unsub;
+  }, []);
+
+  const tabs = useMemo(() => {
+    if (maestroState === 'connected') {
+      const result = [...STATIC_TABS];
+      const aiIdx = result.findIndex((t) => t.id === 'ai');
+      result.splice(aiIdx + 1, 0, AUTH_TAB);
+      return result;
+    }
+    return STATIC_TABS;
+  }, [maestroState]);
+
+  const ActiveComponent = tabs.find((t) => t.id === activeTab)?.component ?? CoresSettingsTab;
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,7 +99,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           <div className="px-4 pb-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
             Settings
           </div>
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}

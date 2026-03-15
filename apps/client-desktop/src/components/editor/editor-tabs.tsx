@@ -1,17 +1,47 @@
 import { useStore } from 'zustand';
 import { MessageSquare } from 'lucide-react';
 import { workspaceStore, useFileContent } from '@nexus-core/client-shared';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { EditorTab } from './editor-tab.js';
 import { CodeEditor } from './code-editor.js';
 import { ChatPanel } from '../chat/chat-panel.js';
 
 type ActiveView = 'chat' | 'editor';
 
+/** localStorage key for persisted UI state */
+const UI_STATE_KEY = 'nexus-ui-state';
+
 export function EditorTabs() {
   const workspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);
   const { openFiles, activeFilePath, setActiveFile, closeFile } = useFileContent(workspaceId);
-  const [activeView, setActiveView] = useState<ActiveView>('chat');
+
+  // Restore activeView from localStorage, default to 'chat'
+  const [activeView, setActiveView] = useState<ActiveView>(() => {
+    try {
+      const saved = localStorage.getItem(UI_STATE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.activeView === 'chat' || parsed.activeView === 'editor') return parsed.activeView;
+      }
+    } catch { /* ignore */ }
+    return 'chat';
+  });
+
+  // Auto-switch to editor view when a file becomes active (e.g. clicked in explorer)
+  useEffect(() => {
+    if (activeFilePath) {
+      setActiveView('editor');
+    }
+  }, [activeFilePath]);
+
+  // Persist activeView to localStorage
+  useEffect(() => {
+    try {
+      const existing = JSON.parse(localStorage.getItem(UI_STATE_KEY) ?? '{}');
+      existing.activeView = activeView;
+      localStorage.setItem(UI_STATE_KEY, JSON.stringify(existing));
+    } catch { /* ignore */ }
+  }, [activeView]);
 
   const handleFileSelect = (path: string) => {
     setActiveFile(path);

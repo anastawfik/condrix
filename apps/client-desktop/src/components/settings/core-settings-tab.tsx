@@ -1,1 +1,1 @@
-export { CoreSettingsTab } from '@nexus-core/client-components';
+export { CoresSettingsTab } from '@nexus-core/client-components';

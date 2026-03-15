@@ -74,6 +74,14 @@ export class CoreDatabase {
         session_data  TEXT,
         updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
       );
+
+      CREATE TABLE IF NOT EXISTS workspace_config (
+        workspace_id  TEXT NOT NULL,
+        key           TEXT NOT NULL,
+        value         TEXT NOT NULL,
+        updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (workspace_id, key)
+      );
     `);
 
     // Migrations: add columns that may be missing from older schemas
@@ -331,6 +339,36 @@ export class CoreDatabase {
 
   deleteSetting(key: string): boolean {
     const result = this.db.prepare('DELETE FROM settings WHERE key = ?').run(key);
+    return result.changes > 0;
+  }
+
+  // ─── Workspace Config ─────────────────────────────────────────────────────
+
+  getWorkspaceConfig(workspaceId: string): Record<string, string> {
+    const rows = this.db
+      .prepare('SELECT key, value FROM workspace_config WHERE workspace_id = ?')
+      .all(workspaceId) as { key: string; value: string }[];
+    const result: Record<string, string> = {};
+    for (const row of rows) {
+      result[row.key] = row.value;
+    }
+    return result;
+  }
+
+  setWorkspaceConfig(workspaceId: string, key: string, value: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO workspace_config (workspace_id, key, value) VALUES (?, ?, ?)
+         ON CONFLICT(workspace_id, key)
+         DO UPDATE SET value = excluded.value, updated_at = datetime('now')`,
+      )
+      .run(workspaceId, key, value);
+  }
+
+  deleteWorkspaceConfig(workspaceId: string, key: string): boolean {
+    const result = this.db
+      .prepare('DELETE FROM workspace_config WHERE workspace_id = ? AND key = ?')
+      .run(workspaceId, key);
     return result.changes > 0;
   }
 

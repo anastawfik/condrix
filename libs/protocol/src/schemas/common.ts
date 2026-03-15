@@ -15,6 +15,7 @@ export const NamespaceSchema = z.enum([
   'terminal',
   'file',
   'git',
+  'maestro',
 ]);
 
 // ─── ID Primitives ──────────────────────────────────────────────────────────

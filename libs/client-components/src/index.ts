@@ -39,11 +39,19 @@ export { AppLayout, type AppLayoutProps } from './app-layout.js';
 export { CoreTreeSidebar, type CoreTreeSidebarProps } from './core-tree-sidebar.js';
 export { FolderBrowser, type FolderBrowserProps } from './folder-browser.js';
 export { AddProjectDialog, type AddProjectDialogProps } from './add-project-dialog.js';
-export { AddCoreDialog, type AddCoreDialogProps } from './add-core-dialog.js';
 export { TitleBar, type TitleBarProps } from './title-bar.js';
 
 // Settings components
-export { CoreSettingsTab } from './core-settings-tab.js';
+export { CoresSettingsTab } from './cores-settings-tab.js';
+export { AiSettingsTab } from './ai-settings-tab.js';
+export { AuthenticationSettingsTab } from './authentication-settings-tab.js';
+export { MaestroLoginDialog, type MaestroLoginDialogProps } from './maestro-login-dialog.js';
+
+// Reusable settings sub-components
+export { AuthConfigSection, type AuthConfigSectionProps } from './auth-config-section.js';
+export { CoreCard, type CoreCardProps } from './core-card.js';
+export { CoreAddForm, type CoreAddFormProps } from './core-add-form.js';
+export { CollapsibleSection, type CollapsibleSectionProps } from './collapsible-section.js';
 
 // Legacy — kept for backward compat until all consumers migrate
 export { WorkspaceSidebar, type WorkspaceSidebarProps } from './workspace-sidebar.js';

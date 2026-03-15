@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { AppLayout, TitleBar, TooltipProvider } from '@nexus-core/client-components';
+import { AppLayout, TitleBar, TooltipProvider, MaestroLoginDialog } from '@nexus-core/client-components';
+import { maestroStore, multiCoreStore, workspaceStore, fileStore, getSavedUIState } from '@nexus-core/client-shared';
+import type { MaestroConnectionState } from '@nexus-core/client-shared';
 import { Sidebar } from './components/sidebar.js';
 import { EditorTabs } from './components/editor/editor-tabs.js';
 import { TerminalPanel } from './components/terminal/terminal-panel.js';
@@ -8,10 +10,21 @@ import { SettingsDialog } from './components/settings/settings-dialog.js';
 
 function WebTitleBar() {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [maestroState, setMaestroState] = useState<MaestroConnectionState>(
+    () => maestroStore.getState().state,
+  );
+
+  useEffect(() => {
+    const unsub = maestroStore.subscribe((s) => setMaestroState(s.state));
+    return unsub;
+  }, []);
 
   return (
     <>
-      <TitleBar onSettingsOpen={() => setSettingsOpen(true)} />
+      <TitleBar
+        onSettingsOpen={() => setSettingsOpen(true)}
+        maestroConnected={maestroState === 'connected'}
+      />
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
     </>
   );
@@ -36,12 +49,64 @@ function RightPanel(_workspaceId: string) {
 }
 
 export function App() {
+  const [showLogin, setShowLogin] = useState(false);
+  const restoredRef = useRef(false);
+
+  // Restore UI state from localStorage on mount
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+
+    const saved = getSavedUIState();
+    if (!saved.activeCoreId || !saved.currentWorkspaceId) return;
+
+    const doRestore = (coreId: string, workspaceId: string, projectId?: string) => {
+      multiCoreStore.getState().setActiveCoreId(coreId);
+
+      if (projectId) {
+        workspaceStore.getState().setCurrentProject(projectId);
+      }
+
+      workspaceStore.getState().enterWorkspace(workspaceId, coreId)
+        .then(() => fileStore.getState().restoreUIState(workspaceId))
+        .catch(() => { /* workspace may no longer exist */ });
+    };
+
+    // Check if Core is already connected
+    const conn = multiCoreStore.getState().connections.get(saved.activeCoreId);
+    if (conn?.connState === 'connected') {
+      doRestore(saved.activeCoreId, saved.currentWorkspaceId, saved.currentProjectId);
+      return;
+    }
+
+    // Wait for the Core to connect
+    let cleaned = false;
+    const unsub = multiCoreStore.subscribe((state) => {
+      if (cleaned) return;
+      const c = state.connections.get(saved.activeCoreId!);
+      if (c?.connState === 'connected') {
+        cleaned = true;
+        unsub();
+        doRestore(saved.activeCoreId!, saved.currentWorkspaceId!, saved.currentProjectId);
+      }
+    });
+
+    // Give up after 10s
+    const timer = setTimeout(() => { cleaned = true; unsub(); }, 10_000);
+    return () => { cleaned = true; unsub(); clearTimeout(timer); };
+  }, []);
+
   return (
     <TooltipProvider delayDuration={300}>
       <AppLayout
         renderTitleBar={() => <WebTitleBar />}
         renderCenter={(wsId) => CenterPanel(wsId)}
         renderRight={(wsId) => RightPanel(wsId)}
+      />
+      <MaestroLoginDialog
+        open={showLogin}
+        onClose={() => setShowLogin(false)}
+        onDirectConnect={() => setShowLogin(false)}
       />
     </TooltipProvider>
   );

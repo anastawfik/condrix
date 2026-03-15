@@ -3,13 +3,13 @@ import { useStore } from 'zustand';
 import { RefreshCw, GitBranch, Check } from 'lucide-react';
 import { workspaceStore, useGitStatus } from '@nexus-core/client-shared';
 import { ChangedFileList } from './changed-file-list.js';
-import { DiffViewer } from './diff-viewer.js';
 
 export function GitPanel() {
   const workspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);
   const {
-    branch, staged, unstaged, diffContent, diffPath,
-    loading, refresh, fetchDiff, stageFiles, commit,
+    branch, staged, unstaged,
+    loading, refresh, stageFiles, unstageFiles, commit,
+    openDiffTab,
   } = useGitStatus(workspaceId);
 
   const [commitMsg, setCommitMsg] = useState('');
@@ -73,20 +73,19 @@ export function GitPanel() {
         <ChangedFileList
           title="Staged Changes"
           files={staged}
-          onSelect={(path) => fetchDiff(path, true)}
+          onStageToggle={(path) => unstageFiles([path])}
+          onSelect={(path) => openDiffTab(path, true)}
         />
         <ChangedFileList
           title="Changes"
           files={unstaged}
           onStageToggle={(path) => stageFiles([path])}
-          onSelect={(path) => fetchDiff(path)}
+          onSelect={(path) => openDiffTab(path, false)}
         />
 
         {staged.length === 0 && unstaged.length === 0 && !loading && (
           <p className="px-3 py-4 text-xs text-[var(--text-muted)] text-center">No changes</p>
         )}
-
-        {diffContent && <DiffViewer diff={diffContent} path={diffPath} />}
       </div>
     </div>
   );

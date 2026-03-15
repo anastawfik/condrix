@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useStore } from 'zustand';
 import { ChevronDown, ChevronRight, FolderOpen, Plus, Server, Layers, Trash2, RotateCw } from 'lucide-react';
-import { multiCoreStore, workspaceStore, coreRegistryStore } from '@nexus-core/client-shared';
+import { multiCoreStore, workspaceStore, coreRegistryStore, maestroStore } from '@nexus-core/client-shared';
+import type { MaestroConnectionState } from '@nexus-core/client-shared';
 import type { ProjectInfo, WorkspaceInfo } from '@nexus-core/protocol';
 import { cn } from './lib/utils.js';
 import { Button } from './button.js';
 import { Input } from './input.js';
 import { AddProjectDialog } from './add-project-dialog.js';
-import { AddCoreDialog } from './add-core-dialog.js';
 
 const STATE_DOT_COLOR: Record<string, string> = {
   CREATING: 'bg-[var(--accent-blue)]',
@@ -24,23 +24,72 @@ const CONN_DOT: Record<string, string> = {
   connecting: 'bg-[var(--accent-yellow)]',
   reconnecting: 'bg-[var(--accent-yellow)]',
   disconnected: 'bg-[var(--accent-red)]',
+  online: 'bg-[var(--accent-green)]',
+  offline: 'bg-[var(--text-muted)]',
 };
+
+/** Unified representation of a Core in the sidebar tree. */
+interface SidebarCore {
+  /** The ID used for requestOnCore calls. */
+  coreId: string;
+  name: string;
+  status: string;
+}
 
 export interface CoreTreeSidebarProps {
   onWorkspaceSelected?: () => void;
 }
 
 export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
+  const maestroState = useStore(maestroStore, (s) => s.state);
+
+  if (maestroState === 'connected') {
+    return <MaestroSidebarTree onWorkspaceSelected={onWorkspaceSelected} />;
+  }
+  return <DirectSidebarTree onWorkspaceSelected={onWorkspaceSelected} />;
+}
+
+/* ─── Direct Mode Sidebar ──────────────────────────────────────────────── */
+
+function DirectSidebarTree({ onWorkspaceSelected }: { onWorkspaceSelected?: () => void }) {
   const connections = useStore(multiCoreStore, (s) => s.connections);
-  const activeCoreId = useStore(multiCoreStore, (s) => s.activeCoreId);
-  const currentWorkspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);
   const registryCores = useStore(coreRegistryStore, (s) => s.cores);
+
+  // Build sidebar cores from direct connections
+  const sidebarCores: SidebarCore[] = Array.from(connections.entries()).map(([coreId, conn]) => ({
+    coreId,
+    name: registryCores.find((c) => c.id === coreId)?.name ?? coreId,
+    status: conn.connState,
+  }));
+
+  return <SidebarTree cores={sidebarCores} onWorkspaceSelected={onWorkspaceSelected} />;
+}
+
+/* ─── Maestro Mode Sidebar ─────────────────────────────────────────────── */
+
+function MaestroSidebarTree({ onWorkspaceSelected }: { onWorkspaceSelected?: () => void }) {
+  const maestroCores = useStore(maestroStore, (s) => s.maestroCores);
+
+  // Build sidebar cores from Maestro-registered cores
+  // Use mc.id (DB row ID) — Maestro relay routes by DB ID, not logical coreId
+  const sidebarCores: SidebarCore[] = maestroCores.map((mc) => ({
+    coreId: mc.id,
+    name: mc.displayName,
+    status: mc.status, // 'online' | 'offline'
+  }));
+
+  return <SidebarTree cores={sidebarCores} onWorkspaceSelected={onWorkspaceSelected} />;
+}
+
+/* ─── Shared Sidebar Tree ──────────────────────────────────────────────── */
+
+function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onWorkspaceSelected?: () => void }) {
+  const currentWorkspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);
 
   const [expandedCores, setExpandedCores] = useState<Set<string>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [coreProjects, setCoreProjects] = useState<Map<string, ProjectInfo[]>>(new Map());
   const [addProjectCoreId, setAddProjectCoreId] = useState<string | null>(null);
-  const [addCoreOpen, setAddCoreOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // New workspace inline form
@@ -48,6 +97,10 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
   const [wsName, setWsName] = useState('');
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
+
+  const isOnline = useCallback((status: string) => {
+    return status === 'connected' || status === 'online';
+  }, []);
 
   const fetchProjects = useCallback(async (coreId: string) => {
     try {
@@ -181,15 +234,15 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
     }
   };
 
-  // Auto-expand and fetch projects when cores become connected
+  // Auto-expand and fetch projects for online cores
   useEffect(() => {
-    for (const [coreId, conn] of connections) {
-      if (conn.connState === 'connected' && !coreProjects.has(coreId)) {
-        setExpandedCores((prev) => new Set(prev).add(coreId));
-        fetchProjects(coreId);
+    for (const core of cores) {
+      if (isOnline(core.status) && !coreProjects.has(core.coreId)) {
+        setExpandedCores((prev) => new Set(prev).add(core.coreId));
+        fetchProjects(core.coreId);
       }
     }
-  }, [connections, fetchProjects]);
+  }, [cores, fetchProjects, isOnline]);
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-secondary)] text-xs select-none">
@@ -200,26 +253,29 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
 
       {/* Tree */}
       <div className="flex-1 overflow-y-auto py-1">
-        {Array.from(connections.entries()).map(([coreId, conn]) => {
-          const connState = conn.connState;
-          const coreName = registryCores.find((c) => c.id === coreId)?.name ?? coreId;
-          const projects = coreProjects.get(coreId) ?? [];
-          const isExpanded = expandedCores.has(coreId);
+        {cores.map((core) => {
+          const projects = coreProjects.get(core.coreId) ?? [];
+          const isExpanded = expandedCores.has(core.coreId);
+          const online = isOnline(core.status);
 
           return (
-            <div key={coreId}>
+            <div key={core.coreId}>
               {/* Level 0: Core node */}
               <button
-                onClick={() => toggleCore(coreId)}
-                className="flex items-center gap-1.5 w-full pl-2 pr-2 py-1.5 hover:bg-[var(--bg-hover)] transition-colors"
+                onClick={online ? () => toggleCore(core.coreId) : undefined}
+                disabled={!online}
+                className={cn(
+                  'flex items-center gap-1.5 w-full pl-2 pr-2 py-1.5 transition-colors',
+                  online ? 'hover:bg-[var(--bg-hover)]' : 'opacity-50',
+                )}
               >
                 {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                <span className={cn('w-2 h-2 rounded-full shrink-0', CONN_DOT[connState] ?? CONN_DOT.disconnected)} />
+                <span className={cn('w-2 h-2 rounded-full shrink-0', CONN_DOT[core.status] ?? CONN_DOT.disconnected)} />
                 <Server size={12} className="text-[var(--text-secondary)]" />
-                <span className="truncate font-medium text-[var(--text-primary)]">{coreName}</span>
+                <span className="truncate font-medium text-[var(--text-primary)]">{core.name}</span>
               </button>
 
-              {isExpanded && (
+              {isExpanded && online && (
                 <>
                   {projects.map((project) => {
                     const projectExpanded = expandedProjects.has(project.id);
@@ -238,7 +294,7 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
                             <span className="truncate text-[var(--text-primary)]">{project.name}</span>
                           </button>
                           <button
-                            onClick={() => handleDeleteProject(project.id, coreId)}
+                            onClick={() => handleDeleteProject(project.id, core.coreId)}
                             className="hidden group-hover:flex p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--accent-red)] shrink-0"
                             title="Delete project"
                             aria-label="Delete project"
@@ -267,7 +323,7 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
                                   )}
                                 >
                                   <button
-                                    onClick={canEnter ? () => handleSelectWorkspace(ws, coreId) : undefined}
+                                    onClick={canEnter ? () => handleSelectWorkspace(ws, core.coreId) : undefined}
                                     disabled={loading || !canEnter}
                                     className="flex items-center gap-2 flex-1 min-w-0 text-left"
                                   >
@@ -279,7 +335,7 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
                                   <div className="hidden group-hover/ws:flex items-center gap-0.5 shrink-0">
                                     {ws.state === 'ERRORED' && (
                                       <button
-                                        onClick={() => handleRetryWorkspace(ws, coreId)}
+                                        onClick={() => handleRetryWorkspace(ws, core.coreId)}
                                         className="p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--accent-blue)]"
                                         title="Retry"
                                         aria-label="Retry workspace"
@@ -288,7 +344,7 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
                                       </button>
                                     )}
                                     <button
-                                      onClick={() => handleDestroyWorkspace(ws.id, coreId)}
+                                      onClick={() => handleDestroyWorkspace(ws.id, core.coreId)}
                                       className="p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--accent-red)]"
                                       title="Delete workspace"
                                       aria-label="Delete workspace"
@@ -310,7 +366,7 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
                                   inputSize="sm"
                                   autoFocus
                                   disabled={creatingWorkspace}
-                                  onKeyDown={(e) => { if (e.key === 'Enter' && !creatingWorkspace) handleCreateWorkspace(project.id, coreId); }}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' && !creatingWorkspace) handleCreateWorkspace(project.id, core.coreId); }}
                                 />
                                 {wsError && (
                                   <p className="text-[10px] text-[var(--accent-red)]">{wsError}</p>
@@ -323,7 +379,7 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
                                 ) : (
                                   <div className="flex gap-1.5 justify-end">
                                     <Button variant="ghost" size="sm" onClick={() => { setAddingWorkspaceFor(null); setWsError(null); }}>Cancel</Button>
-                                    <Button size="sm" onClick={() => handleCreateWorkspace(project.id, coreId)} disabled={!wsName.trim()}>Create</Button>
+                                    <Button size="sm" onClick={() => handleCreateWorkspace(project.id, core.coreId)} disabled={!wsName.trim()}>Create</Button>
                                   </div>
                                 )}
                               </div>
@@ -344,7 +400,7 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
 
                   {/* Add project (level 1) */}
                   <button
-                    onClick={() => setAddProjectCoreId(coreId)}
+                    onClick={() => setAddProjectCoreId(core.coreId)}
                     className="flex items-center gap-1.5 w-full pl-6 pr-2 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
                   >
                     <Plus size={10} />
@@ -356,7 +412,7 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
           );
         })}
 
-        {connections.size === 0 && (
+        {cores.length === 0 && (
           <div className="flex flex-col items-center justify-center h-32 text-[var(--text-muted)]">
             <Layers size={24} className="mb-2" />
             <span className="text-[11px]">No Cores connected</span>
@@ -364,19 +420,7 @@ export function CoreTreeSidebar({ onWorkspaceSelected }: CoreTreeSidebarProps) {
         )}
       </div>
 
-      {/* Add Core button */}
-      <div className="border-t border-[var(--border-color)] p-2">
-        <button
-          onClick={() => setAddCoreOpen(true)}
-          className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
-        >
-          <Plus size={12} />
-          Add Core
-        </button>
-      </div>
-
       {/* Dialogs */}
-      <AddCoreDialog open={addCoreOpen} onClose={() => setAddCoreOpen(false)} />
       {addProjectCoreId && (
         <AddProjectDialog
           coreId={addProjectCoreId}

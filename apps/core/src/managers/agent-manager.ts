@@ -3,9 +3,14 @@ import { generateId } from '@nexus-core/protocol';
 import type { EventEmitter } from 'node:events';
 
 import type { CoreDatabase } from '../database.js';
+import type { ToolResult } from '../tools/tool-executor.js';
+import { ToolExecutor } from '../tools/tool-executor.js';
 
 /** Callback for streaming responses from an agent provider. */
 export type StreamCallback = (event: { type: 'thinking' | 'text'; delta: string }) => void;
+
+/** Callback for executing a tool during an agentic loop. */
+export type ToolExecutorFn = (toolName: string, input: Record<string, unknown>) => Promise<ToolResult>;
 
 /** Provider abstraction for agent backends. */
 export interface AgentProviderAdapter {
@@ -14,12 +19,18 @@ export interface AgentProviderAdapter {
     history: AgentMessage[],
     message: string,
     onStream?: StreamCallback,
+    toolExecutor?: ToolExecutorFn,
   ): Promise<{ content: string; thinking?: string }>;
 }
 
 /** Builds workspace context (system prompt with codebase info). */
 export interface WorkspaceContextProvider {
   buildContext(workspaceId: string): Promise<string | null>;
+}
+
+/** Resolves the workspace directory path for tool execution. */
+export interface WorkspacePathResolver {
+  getWorkspacePath(workspaceId: string): string | undefined;
 }
 
 /** Echo provider for Phase 1 — returns the user's message prefixed with [Echo]. */
@@ -49,6 +60,7 @@ export class AgentManager {
   private providers = new Map<string, AgentProviderAdapter>();
   private defaultProvider = 'echo';
   private contextProvider: WorkspaceContextProvider | null = null;
+  private pathResolver: WorkspacePathResolver | null = null;
 
   constructor(
     private db: CoreDatabase,
@@ -60,6 +72,11 @@ export class AgentManager {
   /** Set the workspace context provider for injecting codebase context. */
   setContextProvider(provider: WorkspaceContextProvider): void {
     this.contextProvider = provider;
+  }
+
+  /** Set the workspace path resolver for tool execution. */
+  setPathResolver(resolver: WorkspacePathResolver): void {
+    this.pathResolver = resolver;
   }
 
   /** Set which provider is used for new sessions by default. */
@@ -158,8 +175,56 @@ export class AgentManager {
       });
     };
 
-    // Send to provider with streaming
-    const result = await session.provider.sendMessage(agentHistory, message, onStream);
+    // Build tool executor if we have a path resolver
+    let toolExecutor: ToolExecutorFn | undefined;
+    if (this.pathResolver) {
+      const wsPath = this.pathResolver.getWorkspacePath(workspaceId);
+      if (wsPath) {
+        const executor = new ToolExecutor(wsPath);
+        toolExecutor = (name, input) => executor.execute(name, input);
+      }
+    }
+
+    // Apply workspace-level config overrides (model, systemPrompt, maxTokens)
+    const wsConfig = this.db.getWorkspaceConfig(workspaceId);
+    let providerReconfigured = false;
+    const originalConfig: Record<string, unknown> = {};
+
+    if (Object.keys(wsConfig).length > 0 && 'reconfigure' in session.provider) {
+      const provider = session.provider as AgentProviderAdapter & {
+        reconfigure: (config: Record<string, unknown>) => void;
+      };
+      // Save original values to restore after this call
+      if (wsConfig.model) {
+        originalConfig.model = (provider as unknown as { model: string }).model;
+        provider.reconfigure({ model: wsConfig.model });
+        providerReconfigured = true;
+      }
+      if (wsConfig.systemPrompt) {
+        originalConfig.systemPrompt = (provider as unknown as { systemPrompt: string | undefined }).systemPrompt;
+        provider.reconfigure({ systemPrompt: wsConfig.systemPrompt });
+        providerReconfigured = true;
+      }
+      if (wsConfig.maxTokens) {
+        originalConfig.maxTokens = (provider as unknown as { maxTokens: number }).maxTokens;
+        provider.reconfigure({ maxTokens: Number(wsConfig.maxTokens) });
+        providerReconfigured = true;
+      }
+    }
+
+    // Send to provider with streaming and tool execution
+    let result: { content: string; thinking?: string };
+    try {
+      result = await session.provider.sendMessage(agentHistory, message, onStream, toolExecutor);
+    } finally {
+      // Restore original provider config after the call
+      if (providerReconfigured && 'reconfigure' in session.provider) {
+        const provider = session.provider as AgentProviderAdapter & {
+          reconfigure: (config: Record<string, unknown>) => void;
+        };
+        provider.reconfigure(originalConfig);
+      }
+    }
 
     // Persist assistant message
     const assistantMsgId = generateId('msg');

@@ -78,13 +78,11 @@ export const createChatStore = () =>
       // Don't double-subscribe
       if (get()._broadcastUnsubs.has(coreId)) return;
 
-      const conn = multiCoreStore.getState().getConnection(coreId);
-      if (!conn) return;
-
-      const store = conn.store.getState();
+      const sub = (pattern: string, listener: (event: import('@nexus-core/protocol').MessageEnvelope) => void) =>
+        multiCoreStore.getState().subscribeOnCore(coreId, pattern, listener);
 
       // Subscribe to agent:message — both user and assistant messages broadcast by Core
-      const unsubMessage = store.subscribe('agent:message', (event) => {
+      const unsubMessage = sub('agent:message', (event) => {
         const payload = event.payload as {
           workspaceId: string;
           messageId?: string;
@@ -146,7 +144,7 @@ export const createChatStore = () =>
       });
 
       // Subscribe to streaming deltas for other clients' requests
-      const unsubThinking = store.subscribe('agent:thinkingDelta', (event) => {
+      const unsubThinking = sub('agent:thinkingDelta', (event) => {
         const payload = event.payload as { workspaceId: string; delta: string };
 
         // If we have our own streaming placeholder, the sendMessage handler handles this
@@ -182,7 +180,7 @@ export const createChatStore = () =>
         }
       });
 
-      const unsubText = store.subscribe('agent:textDelta', (event) => {
+      const unsubText = sub('agent:textDelta', (event) => {
         const payload = event.payload as { workspaceId: string; delta: string };
 
         if (get()._streamingPlaceholders.has(payload.workspaceId)) return;
@@ -278,11 +276,8 @@ export const createChatStore = () =>
         return { streamingWorkspaces: newStreaming };
       });
 
-      // Subscribe to streaming events
-      const conn = multiCoreStore.getState().getConnection(coreId);
-      if (!conn) throw new Error(`No connection for core ${coreId}`);
-
-      const unsubThinking = conn.store.getState().subscribe('agent:thinkingDelta', (event) => {
+      // Subscribe to streaming events (works in both direct and Maestro mode)
+      const unsubThinking = multiCoreStore.getState().subscribeOnCore(coreId, 'agent:thinkingDelta', (event) => {
         const payload = event.payload as { workspaceId: string; delta: string };
         if (payload.workspaceId !== workspaceId) return;
         updateMessage(set, get, workspaceId, placeholderId, (msg) => ({
@@ -291,7 +286,7 @@ export const createChatStore = () =>
         }));
       });
 
-      const unsubText = conn.store.getState().subscribe('agent:textDelta', (event) => {
+      const unsubText = multiCoreStore.getState().subscribeOnCore(coreId, 'agent:textDelta', (event) => {
         const payload = event.payload as { workspaceId: string; delta: string };
         if (payload.workspaceId !== workspaceId) return;
         updateMessage(set, get, workspaceId, placeholderId, (msg) => ({
@@ -301,11 +296,11 @@ export const createChatStore = () =>
       });
 
       try {
-        const result = await conn.store.getState().request<{
+        const result = await multiCoreStore.getState().requestOnCore<{
           messageId: string;
           content: string;
           thinking?: string;
-        }>('agent', 'chat', { workspaceId, message }, 300_000);
+        }>(coreId, 'agent', 'chat', { workspaceId, message }, 300_000);
 
         // Track the final message ID so we don't duplicate from broadcast
         get()._ownMessageIds.add(result.messageId);

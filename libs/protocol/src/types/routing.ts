@@ -16,6 +16,8 @@ import type {
   FileEvents,
   GitActions,
   GitEvents,
+  MaestroActions,
+  MaestroEvents,
 } from './messages.js';
 
 // ─── Namespace → Action Map ─────────────────────────────────────────────────
@@ -28,6 +30,7 @@ export interface NamespaceActionMap {
   terminal: TerminalActions;
   file: FileActions;
   git: GitActions;
+  maestro: MaestroActions;
 }
 
 // ─── Namespace → Event Map ──────────────────────────────────────────────────
@@ -40,6 +43,7 @@ export interface NamespaceEventMap {
   terminal: TerminalEvents;
   file: FileEvents;
   git: GitEvents;
+  maestro: MaestroEvents;
 }
 
 // ─── Typed Extractors ───────────────────────────────────────────────────────

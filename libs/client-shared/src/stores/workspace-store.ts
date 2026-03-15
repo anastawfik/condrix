@@ -8,6 +8,24 @@ import type { WorkspaceInfo, ProjectInfo } from '@nexus-core/protocol';
 
 import { multiCoreStore } from './multi-core-store.js';
 
+const UI_STATE_KEY = 'nexus-ui-state';
+
+function saveWorkspaceUIState(coreId: string | null, projectId: string | null, workspaceId: string | null): void {
+  try {
+    const existing = JSON.parse(localStorage.getItem(UI_STATE_KEY) ?? '{}');
+    existing.activeCoreId = coreId;
+    existing.currentProjectId = projectId;
+    existing.currentWorkspaceId = workspaceId;
+    localStorage.setItem(UI_STATE_KEY, JSON.stringify(existing));
+  } catch { /* ignore */ }
+}
+
+export function getSavedUIState(): { activeCoreId?: string; currentProjectId?: string; currentWorkspaceId?: string; activeView?: string } {
+  try {
+    return JSON.parse(localStorage.getItem(UI_STATE_KEY) ?? '{}');
+  } catch { return {}; }
+}
+
 /** Helper: get coreId to use — explicit or active. */
 function resolveCoreId(explicit?: string): string {
   const coreId = explicit ?? multiCoreStore.getState().activeCoreId;
@@ -73,6 +91,7 @@ export const createWorkspaceStore = () =>
 
     setCurrentProject: (projectId) => {
       set({ currentProjectId: projectId });
+      saveWorkspaceUIState(get().currentCoreId, projectId, get().currentWorkspaceId);
     },
 
     fetchWorkspaces: async (projectId?, coreId?) => {
@@ -89,11 +108,13 @@ export const createWorkspaceStore = () =>
 
     setCurrentWorkspace: (workspaceId, coreId?) => {
       const ws = workspaceId ? get().workspaces.find((w) => w.id === workspaceId) ?? null : null;
+      const resolvedCoreId = coreId ?? get().currentCoreId;
       set({
         currentWorkspaceId: workspaceId,
         currentWorkspace: ws,
-        currentCoreId: coreId ?? get().currentCoreId,
+        currentCoreId: resolvedCoreId,
       });
+      saveWorkspaceUIState(resolvedCoreId, get().currentProjectId, workspaceId);
     },
 
     createWorkspace: async (projectId, name, branch?, coreId?) => {
@@ -104,12 +125,14 @@ export const createWorkspaceStore = () =>
 
     enterWorkspace: async (workspaceId, coreId?) => {
       const ws = await request<WorkspaceInfo>('workspace', 'enter', { workspaceId }, coreId);
+      const resolvedCoreId = coreId ?? resolveCoreId(coreId);
       set((s) => ({
         currentWorkspaceId: workspaceId,
         currentWorkspace: ws,
-        currentCoreId: coreId ?? resolveCoreId(coreId),
+        currentCoreId: resolvedCoreId,
         workspaces: s.workspaces.map((w) => (w.id === workspaceId ? ws : w)),
       }));
+      saveWorkspaceUIState(resolvedCoreId, get().currentProjectId, workspaceId);
     },
 
     suspendWorkspace: async (workspaceId, coreId?) => {
@@ -139,3 +162,11 @@ export const createWorkspaceStore = () =>
   }));
 
 export const workspaceStore = createWorkspaceStore();
+
+// Save workspace UI state on page unload as safety net
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    const { currentCoreId, currentProjectId, currentWorkspaceId } = workspaceStore.getState();
+    saveWorkspaceUIState(currentCoreId, currentProjectId, currentWorkspaceId);
+  });
+}

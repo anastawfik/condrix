@@ -3,6 +3,7 @@
  * Tracks terminal sessions and their output buffers.
  */
 import { createStore } from 'zustand/vanilla';
+import type { MessageEnvelope } from '@nexus-core/protocol';
 
 import { multiCoreStore } from './multi-core-store.js';
 import { workspaceStore } from './workspace-store.js';
@@ -120,3 +121,57 @@ function removeTerminal(
 }
 
 export const terminalStore = createTerminalStore();
+
+/**
+ * Auto-subscribe to terminal output/exit events whenever a Core connects.
+ * Call once at app startup (mirrors initChatSync pattern).
+ */
+export function initTerminalSync(): () => void {
+  const connectedCores = new Set<string>();
+  const unsubs = new Map<string, Array<() => void>>();
+
+  const unsub = multiCoreStore.subscribe((state) => {
+    // Subscribe to newly connected cores
+    for (const [coreId, conn] of state.connections) {
+      if (conn.connState === 'connected' && !connectedCores.has(coreId)) {
+        connectedCores.add(coreId);
+
+        const coreUnsubs: Array<() => void> = [];
+
+        coreUnsubs.push(
+          multiCoreStore.getState().subscribeOnCore(coreId, 'terminal:output', (event: MessageEnvelope) => {
+            const payload = event.payload as { terminalId: string; data: string };
+            if (payload.terminalId) {
+              terminalStore.getState().handleOutputEvent(payload.terminalId, payload.data);
+            }
+          }),
+        );
+
+        coreUnsubs.push(
+          multiCoreStore.getState().subscribeOnCore(coreId, 'terminal:exit', (event: MessageEnvelope) => {
+            const payload = event.payload as { terminalId: string };
+            if (payload.terminalId) {
+              terminalStore.getState().handleExitEvent(payload.terminalId);
+            }
+          }),
+        );
+
+        unsubs.set(coreId, coreUnsubs);
+      }
+    }
+
+    // Unsubscribe from disconnected cores
+    for (const coreId of connectedCores) {
+      if (!state.connections.has(coreId)) {
+        connectedCores.delete(coreId);
+        const coreUnsubs = unsubs.get(coreId);
+        if (coreUnsubs) {
+          for (const u of coreUnsubs) u();
+          unsubs.delete(coreId);
+        }
+      }
+    }
+  });
+
+  return unsub;
+}

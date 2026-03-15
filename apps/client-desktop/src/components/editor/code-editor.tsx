@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import { useStore } from 'zustand';
 import { workspaceStore, useFileContent } from '@nexus-core/client-shared';
@@ -19,6 +19,22 @@ export function CodeEditor() {
     }
   }, [activeFile, saveFile]);
 
+  // Ref to avoid stale closure in Monaco command
+  const handleSaveRef = useRef(handleSave);
+  handleSaveRef.current = handleSave;
+
+  // Global Ctrl+S handler — catches saves when focus is outside Monaco
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveRef.current();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   if (!activeFile) {
     return (
       <div className="flex items-center justify-center h-full bg-[var(--bg-primary)] text-[var(--text-muted)] text-sm">
@@ -34,8 +50,7 @@ export function CodeEditor() {
       value={activeFile.content}
       onChange={handleChange}
       onMount={(editor) => {
-        // Ctrl+S to save
-        editor.addCommand(2097, () => handleSave()); // Monaco.KeyMod.CtrlCmd | Monaco.KeyCode.KeyS
+        editor.addCommand(2097, () => handleSaveRef.current());
       }}
       options={{
         fontSize: 13,

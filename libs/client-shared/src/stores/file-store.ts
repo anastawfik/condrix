@@ -39,6 +39,7 @@ export interface FileStore {
   saveFile: (workspaceId: string, path: string, content: string) => Promise<void>;
   updateFileContent: (path: string, content: string) => void;
   getActiveFile: () => OpenFile | undefined;
+  restoreUIState: (workspaceId: string) => Promise<void>;
 }
 
 function detectLanguage(path: string): string {
@@ -50,6 +51,21 @@ function detectLanguage(path: string): string {
     toml: 'toml', sh: 'shell', bash: 'shell', sql: 'sql', graphql: 'graphql',
   };
   return map[ext] ?? 'plaintext';
+}
+
+const UI_STATE_KEY = 'nexus-ui-state';
+let saveDebounce: ReturnType<typeof setTimeout> | null = null;
+
+function saveFileUIState(openFiles: OpenFile[], activeFilePath: string | null): void {
+  if (saveDebounce) clearTimeout(saveDebounce);
+  saveDebounce = setTimeout(() => {
+    try {
+      const existing = JSON.parse(localStorage.getItem(UI_STATE_KEY) ?? '{}');
+      existing.openFiles = openFiles.map((f) => f.path);
+      existing.activeFilePath = activeFilePath;
+      localStorage.setItem(UI_STATE_KEY, JSON.stringify(existing));
+    } catch { /* ignore */ }
+  }, 1000);
 }
 
 export const createFileStore = () =>
@@ -118,6 +134,7 @@ export const createFileStore = () =>
         openFiles: [...s.openFiles, file],
         activeFilePath: path,
       }));
+      saveFileUIState(get().openFiles, path);
     },
 
     closeFile: (path) => {
@@ -128,9 +145,13 @@ export const createFileStore = () =>
           : s.activeFilePath;
         return { openFiles: newFiles, activeFilePath: newActive };
       });
+      saveFileUIState(get().openFiles, get().activeFilePath);
     },
 
-    setActiveFile: (path) => set({ activeFilePath: path }),
+    setActiveFile: (path) => {
+      set({ activeFilePath: path });
+      saveFileUIState(get().openFiles, path);
+    },
 
     saveFile: async (workspaceId, path, content) => {
       const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
@@ -155,6 +176,26 @@ export const createFileStore = () =>
       const { openFiles, activeFilePath } = get();
       return openFiles.find((f) => f.path === activeFilePath);
     },
+
+    restoreUIState: async (workspaceId) => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(UI_STATE_KEY) ?? '{}');
+        const paths: string[] = saved.openFiles ?? [];
+        const activePath: string | null = saved.activeFilePath ?? null;
+
+        // Open each saved file (sequentially to avoid race conditions)
+        for (const path of paths) {
+          try {
+            await get().openFile(workspaceId, path);
+          } catch { /* file may no longer exist */ }
+        }
+
+        // Restore active file selection
+        if (activePath && get().openFiles.some((f) => f.path === activePath)) {
+          set({ activeFilePath: activePath });
+        }
+      } catch { /* ignore corrupt state */ }
+    },
   }));
 
 function updateNode(nodes: FileNode[], path: string, updates: Partial<FileNode>): FileNode[] {
@@ -170,3 +211,16 @@ function updateNode(nodes: FileNode[], path: string, updates: Partial<FileNode>)
 }
 
 export const fileStore = createFileStore();
+
+// Save UI state on page unload as safety net
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    const { openFiles, activeFilePath } = fileStore.getState();
+    try {
+      const existing = JSON.parse(localStorage.getItem(UI_STATE_KEY) ?? '{}');
+      existing.openFiles = openFiles.map((f) => f.path);
+      existing.activeFilePath = activeFilePath;
+      localStorage.setItem(UI_STATE_KEY, JSON.stringify(existing));
+    } catch { /* ignore */ }
+  });
+}

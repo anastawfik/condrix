@@ -5,8 +5,10 @@
 import { createStore } from 'zustand/vanilla';
 import type { CoreInfo } from '@nexus-core/protocol';
 
+import type { MessageEnvelope } from '@nexus-core/protocol';
 import { createConnectionStore, type ConnectionStore, type ConnectionState } from './connection-store.js';
 import { coreRegistryStore, type CoreEntry } from './core-registry-store.js';
+import { maestroStore } from './maestro-store.js';
 
 export interface CoreConnection {
   id: string;
@@ -25,7 +27,8 @@ export interface MultiCoreStore {
   setActiveCoreId: (coreId: string | null) => void;
   getConnection: (coreId: string) => CoreConnection | undefined;
   getActiveConnection: () => CoreConnection | undefined;
-  requestOnCore: <T = unknown>(coreId: string, ns: string, action: string, payload: unknown) => Promise<T>;
+  requestOnCore: <T = unknown>(coreId: string, ns: string, action: string, payload: unknown, timeout?: number) => Promise<T>;
+  subscribeOnCore: (coreId: string, pattern: string, listener: (event: MessageEnvelope) => void) => () => void;
   sendOnCore: (coreId: string, ns: string, action: string, payload: unknown) => void;
   autoConnectAll: () => void;
 }
@@ -117,13 +120,41 @@ export const createMultiCoreStore = () =>
       return connections.get(activeCoreId);
     },
 
-    requestOnCore: async <T = unknown>(coreId: string, ns: string, action: string, payload: unknown): Promise<T> => {
+    requestOnCore: async <T = unknown>(coreId: string, ns: string, action: string, payload: unknown, timeout?: number): Promise<T> => {
+      // Maestro mode: route through Maestro if connected
+      const maestro = maestroStore.getState();
+      if (maestro.state === 'connected') {
+        return maestro.request<T>(ns, action, payload, timeout, coreId);
+      }
+
+      // Direct mode: use direct Core WebSocket
       const conn = get().connections.get(coreId);
       if (!conn) throw new Error(`No connection for core ${coreId}`);
-      return conn.store.getState().request<T>(ns, action, payload);
+      return conn.store.getState().request<T>(ns, action, payload, timeout);
+    },
+
+    subscribeOnCore: (coreId, pattern, listener) => {
+      // Maestro mode: subscribe through Maestro relay
+      const maestro = maestroStore.getState();
+      if (maestro.state === 'connected') {
+        return maestro.subscribe(pattern, listener);
+      }
+
+      // Direct mode: subscribe on direct Core connection
+      const conn = get().connections.get(coreId);
+      if (!conn) return () => {};
+      return conn.store.getState().subscribe(pattern, listener);
     },
 
     sendOnCore: (coreId, ns, action, payload) => {
+      // Maestro mode
+      const maestro = maestroStore.getState();
+      if (maestro.state === 'connected') {
+        maestro.sendOnCore(coreId, ns, action, payload);
+        return;
+      }
+
+      // Direct mode
       const conn = get().connections.get(coreId);
       if (!conn) throw new Error(`No connection for core ${coreId}`);
       conn.store.getState().send({

@@ -1,12 +1,13 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { initChatSync } from '@nexus-core/client-shared';
+import { initChatSync, initTerminalSync } from '@nexus-core/client-shared';
 
 import { App } from './App.js';
 import './styles/global.css';
 
-// Enable multi-client chat sync (broadcasts agent events across clients)
+// Enable multi-client sync (broadcasts events across clients)
 initChatSync();
+initTerminalSync();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

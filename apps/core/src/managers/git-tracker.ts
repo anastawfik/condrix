@@ -124,6 +124,12 @@ export class GitTracker {
     return paths;
   }
 
+  async unstage(repoPath: string, paths: string[]): Promise<string[]> {
+    const git = this.getGit(repoPath);
+    await git.reset(['--', ...paths]);
+    return paths;
+  }
+
   async commit(repoPath: string, message: string): Promise<{ hash: string; message: string }> {
     const git = this.getGit(repoPath);
     const result = await git.commit(message);

@@ -1,9 +1,9 @@
 import { EventEmitter } from 'node:events';
-import { homedir } from 'node:os';
+import { homedir, platform } from 'node:os';
 import { join, resolve } from 'node:path';
 import { mkdirSync } from 'node:fs';
 import type { CoreInfo, MessageEnvelope } from '@nexus-core/protocol';
-import { createEvent } from '@nexus-core/protocol';
+import { createEvent, generateMessageId } from '@nexus-core/protocol';
 
 import { CoreDatabase } from './database.js';
 import { AuthManager } from './auth.js';
@@ -18,6 +18,7 @@ import { TerminalManager } from './managers/terminal-manager.js';
 import { FileManager } from './managers/file-manager.js';
 import { GitTracker } from './managers/git-tracker.js';
 import { TunnelManager } from './services/tunnel-manager.js';
+import { MaestroConnector } from './services/maestro-connector.js';
 
 export interface CoreConfig {
   coreId: string;
@@ -55,6 +56,7 @@ export class CoreRuntime {
   // Services
   private oauthManager!: OAuthTokenManager;
   private tunnelManager!: TunnelManager;
+  private maestroConnector: MaestroConnector | null = null;
 
   // Managers
   private authManager!: AuthManager;
@@ -118,7 +120,14 @@ export class CoreRuntime {
       if (result.success) {
         this.reinitClaudeProvider();
       }
-      this.emitter.emit('core:oauthComplete', result);
+      // Include tokens in the event so clients can distribute them
+      const accessToken = this.db.getSetting('oauth.accessToken') as string | undefined;
+      const refreshToken = this.db.getSetting('oauth.refreshToken') as string | undefined;
+      const expiresAt = this.db.getSetting('oauth.expiresAt') as string | undefined;
+      this.emitter.emit('core:oauthComplete', {
+        ...result,
+        ...(result.success ? { accessToken, refreshToken, expiresAt } : {}),
+      });
     };
     await this.initClaudeProvider();
 
@@ -130,8 +139,9 @@ export class CoreRuntime {
     await this.terminalManager.init();
     await this.fileManager.init();
 
-    // Wire workspace context into agent manager
+    // Wire workspace context and tool execution into agent manager
     this.agentManager.setContextProvider(this.createContextProvider());
+    this.agentManager.setPathResolver(this.workspaceManager);
 
     // Init router & register routes
     this.router = new MessageRouter();
@@ -160,12 +170,16 @@ export class CoreRuntime {
         console.warn(`[Core] Tunnel auto-start failed: ${(err as Error).message}`);
       });
     }
+
+    // Connect to Maestro if configured
+    this.initMaestroConnector();
   }
 
   async stop(): Promise<void> {
     console.log(`[Core] ${this.config.displayName} stopping...`);
 
     // Reverse order shutdown
+    this.maestroConnector?.destroy();
     this.tunnelManager?.destroy();
     this.oauthManager?.destroy();
     this.terminalManager?.closeAll();
@@ -207,9 +221,20 @@ export class CoreRuntime {
 
     r.register('core', 'browse', async (payload) => {
       const p = payload as { path?: string; depth?: number };
-      const browsePath = p.path ?? homedir();
-      const entries = await this.fileManager.browseDirectory(browsePath, p.depth ?? 1);
-      return { path: resolve(browsePath).replace(/\\/g, '/'), entries };
+
+      // No path given: on Windows show drive letters, on Unix show home directory
+      if (!p.path) {
+        if (platform() === 'win32') {
+          const entries = await this.fileManager.listDrives();
+          return { path: '', entries };
+        }
+        const home = homedir();
+        const entries = await this.fileManager.browseDirectory(home, p.depth ?? 1);
+        return { path: resolve(home).replace(/\\/g, '/'), entries };
+      }
+
+      const entries = await this.fileManager.browseDirectory(p.path, p.depth ?? 1);
+      return { path: resolve(p.path).replace(/\\/g, '/'), entries };
     });
 
     // ── config routes ─────────────────────────────────────────────────────
@@ -327,7 +352,15 @@ export class CoreRuntime {
 
     r.register('workspace', 'enter', async (payload) => {
       const p = payload as { workspaceId: string };
-      return this.workspaceManager.transitionState(p.workspaceId, 'ACTIVE');
+      const ws = this.workspaceManager.transitionState(p.workspaceId, 'ACTIVE');
+
+      // Auto-watch workspace directory for file changes
+      const rootPath = this.resolveWorkspacePath(p.workspaceId);
+      this.fileManager.watchDirectory(rootPath, p.workspaceId).catch((err) => {
+        console.warn(`[Core] Failed to watch workspace directory: ${err}`);
+      });
+
+      return ws;
     });
 
     r.register('workspace', 'suspend', async (payload) => {
@@ -345,6 +378,23 @@ export class CoreRuntime {
       const p = payload as { workspaceId: string };
       const destroyed = this.workspaceManager.destroyWorkspace(p.workspaceId);
       return { workspaceId: p.workspaceId, destroyed };
+    });
+
+    r.register('workspace', 'config.get', async (payload) => {
+      const p = payload as { workspaceId: string };
+      const config = this.db.getWorkspaceConfig(p.workspaceId);
+      return {
+        workspaceId: p.workspaceId,
+        model: config.model,
+        systemPrompt: config.systemPrompt,
+        maxTokens: config.maxTokens ? Number(config.maxTokens) : undefined,
+      };
+    });
+
+    r.register('workspace', 'config.set', async (payload) => {
+      const p = payload as { workspaceId: string; key: string; value: string };
+      this.db.setWorkspaceConfig(p.workspaceId, p.key, p.value);
+      return { workspaceId: p.workspaceId, key: p.key, updated: true };
     });
 
     // ── agent namespace ──────────────────────────────────────────────────────
@@ -462,6 +512,13 @@ export class CoreRuntime {
       return { staged };
     });
 
+    r.register('git', 'unstage', async (payload) => {
+      const p = payload as { workspaceId: string; paths: string[] };
+      const repoPath = this.resolveWorkspacePath(p.workspaceId);
+      const unstaged = await this.gitTracker.unstage(repoPath, p.paths);
+      return { unstaged };
+    });
+
     r.register('git', 'commit', async (payload) => {
       const p = payload as { workspaceId: string; message: string };
       const repoPath = this.resolveWorkspacePath(p.workspaceId);
@@ -549,6 +606,7 @@ export class CoreRuntime {
           model,
           maxTokens: dbMaxTokens,
           systemPrompt,
+          tokenRefresher: () => this.oauthManager.refreshAccessToken(),
         });
         this.agentManager.registerProvider(claude);
         this.agentManager.setDefaultProvider('claude');
@@ -593,6 +651,14 @@ export class CoreRuntime {
           console.log('[Core] Claude provider reconfigured with new OAuth token');
         }
       }
+      return;
+    }
+
+    // Handle maestro.* settings — reconnect to Maestro
+    if (key === 'maestro.url' || key === 'maestro.token') {
+      this.maestroConnector?.destroy();
+      this.maestroConnector = null;
+      this.initMaestroConnector();
       return;
     }
 
@@ -649,6 +715,7 @@ export class CoreRuntime {
     'oauth.accessToken',
     'oauth.refreshToken',
     'tunnel.token',
+    'maestro.token',
   ]);
 
   private maskSensitive(key: string, value: unknown): unknown {
@@ -703,6 +770,78 @@ export class CoreRuntime {
       await this.tunnelManager.startNamed(token);
     } else {
       await this.tunnelManager.startQuick();
+    }
+  }
+
+  // ─── Maestro Connector ───────────────────────────────────────────────────
+
+  private initMaestroConnector(): void {
+    const maestroUrl =
+      (this.db.getSetting('maestro.url') as string | undefined) ??
+      process.env.NEXUS_MAESTRO_URL;
+    const maestroToken =
+      (this.db.getSetting('maestro.token') as string | undefined) ??
+      process.env.NEXUS_MAESTRO_TOKEN;
+
+    if (!maestroUrl || !maestroToken) return;
+
+    this.maestroConnector = new MaestroConnector(this.emitter);
+
+    // Handle incoming relayed requests from Maestro
+    this.maestroConnector.onMessage = (msg) => {
+      if (msg.type === 'request') {
+        // Use the router's dispatch method with a reply callback
+        const raw = JSON.stringify(msg);
+        this.router.dispatch(raw, (response) => {
+          this.maestroConnector?.sendResponse(response);
+        });
+      }
+    };
+
+    this.maestroConnector.connect({
+      url: maestroUrl,
+      accessToken: maestroToken,
+      coreId: this.config.coreId,
+      displayName: this.config.displayName,
+    });
+
+    // Forward events to Maestro
+    this.wireMaestroEventForwarding();
+  }
+
+  private wireMaestroEventForwarding(): void {
+    if (!this.maestroConnector) return;
+
+    const connector = this.maestroConnector;
+
+    // Forward key events to Maestro for client relay
+    const forwardEvents: [string, string, string][] = [
+      ['project:created', 'project', 'created'],
+      ['project:deleted', 'project', 'deleted'],
+      ['workspace:created', 'workspace', 'created'],
+      ['workspace:stateChanged', 'workspace', 'stateChanged'],
+      ['workspace:destroyed', 'workspace', 'destroyed'],
+      ['agent:message', 'agent', 'message'],
+      ['terminal:output', 'terminal', 'output'],
+      ['terminal:exit', 'terminal', 'exit'],
+      ['terminal:created', 'terminal', 'created'],
+      ['file:changed', 'file', 'changed'],
+      ['agent:thinkingDelta', 'agent', 'thinkingDelta'],
+      ['agent:textDelta', 'agent', 'textDelta'],
+    ];
+
+    for (const [emitterEvent, namespace, action] of forwardEvents) {
+      this.emitter.on(emitterEvent, (payload: unknown) => {
+        if (!connector.connected) return;
+        connector.send({
+          id: generateMessageId(),
+          type: 'event',
+          namespace,
+          action,
+          payload,
+          timestamp: new Date().toISOString(),
+        });
+      });
     }
   }
 

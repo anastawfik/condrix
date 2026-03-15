@@ -1,4 +1,4 @@
-import { readFile, writeFile, readdir, stat, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, readdir, stat, mkdir, access } from 'node:fs/promises';
 import { join, basename, relative, resolve } from 'node:path';
 import type { FileEntry, FileChange } from '@nexus-core/protocol';
 import type { EventEmitter } from 'node:events';
@@ -54,11 +54,19 @@ export class FileManager {
       const change: FileChange = { path: String(filePath), type: 'created' };
       this.notifyChange(change, workspaceId);
     });
+    watcher.on('addDir', (filePath: unknown) => {
+      const change: FileChange = { path: String(filePath), type: 'created' };
+      this.notifyChange(change, workspaceId);
+    });
     watcher.on('change', (filePath: unknown) => {
       const change: FileChange = { path: String(filePath), type: 'modified' };
       this.notifyChange(change, workspaceId);
     });
     watcher.on('unlink', (filePath: unknown) => {
+      const change: FileChange = { path: String(filePath), type: 'deleted' };
+      this.notifyChange(change, workspaceId);
+    });
+    watcher.on('unlinkDir', (filePath: unknown) => {
       const change: FileChange = { path: String(filePath), type: 'deleted' };
       this.notifyChange(change, workspaceId);
     });
@@ -81,6 +89,26 @@ export class FileManager {
       if (dir) await mkdir(dir, { recursive: true });
     }
     await writeFile(filePath, content, 'utf-8');
+  }
+
+  /**
+   * List available drive letters on Windows.
+   * Returns entries like [{ path: 'C:/', name: 'C:', type: 'directory' }, ...].
+   */
+  async listDrives(): Promise<FileEntry[]> {
+    const drives: FileEntry[] = [];
+    const checks = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(async (letter) => {
+      const drivePath = `${letter}:\\`;
+      try {
+        await access(drivePath);
+        drives.push({ path: `${letter}:/`, name: `${letter}:`, type: 'directory' });
+      } catch {
+        // drive doesn't exist
+      }
+    });
+    await Promise.all(checks);
+    drives.sort((a, b) => a.name.localeCompare(b.name));
+    return drives;
   }
 
   /**

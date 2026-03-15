@@ -22,6 +22,7 @@ export const MessageEnvelopeSchema = z.object({
 
 export const RequestEnvelopeSchema = MessageEnvelopeSchema.extend({
   type: z.literal('request'),
+  targetCoreId: z.string().optional(),
 });
 
 export const ResponseEnvelopeSchema = MessageEnvelopeSchema.extend({
@@ -38,6 +39,7 @@ export const ResponseEnvelopeSchema = MessageEnvelopeSchema.extend({
 
 export const EventEnvelopeSchema = MessageEnvelopeSchema.extend({
   type: z.literal('event'),
+  sourceCoreId: z.string().optional(),
 });
 
 // ─── Streaming ──────────────────────────────────────────────────────────────

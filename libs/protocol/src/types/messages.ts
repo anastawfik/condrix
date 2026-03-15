@@ -121,6 +121,38 @@ import type {
   GitBranchResponseSchema,
   GitStatusChangedEventSchema,
   GitCommittedEventSchema,
+  // Maestro
+  MaestroLoginRequestSchema,
+  MaestroLoginResponseSchema,
+  MaestroAuthRequestSchema,
+  MaestroAuthResponseSchema,
+  MaestroCoreRegisterRequestSchema,
+  MaestroCoreRegisterResponseSchema,
+  MaestroCoreRemoveRequestSchema,
+  MaestroCoreRemoveResponseSchema,
+  MaestroCoreRenameRequestSchema,
+  MaestroCoreRenameResponseSchema,
+  MaestroCoreListRequestSchema,
+  MaestroCoreListResponseSchema,
+  MaestroAiConfigGetRequestSchema,
+  MaestroAiConfigGetResponseSchema,
+  MaestroAiConfigSetRequestSchema,
+  MaestroAiConfigSetResponseSchema,
+  MaestroUserCreateRequestSchema,
+  MaestroUserCreateResponseSchema,
+  MaestroUserListRequestSchema,
+  MaestroUserListResponseSchema,
+  MaestroUserDeleteRequestSchema,
+  MaestroUserDeleteResponseSchema,
+  MaestroUserResetPasswordRequestSchema,
+  MaestroUserResetPasswordResponseSchema,
+  MaestroTotpSetupRequestSchema,
+  MaestroTotpSetupResponseSchema,
+  MaestroTotpEnableRequestSchema,
+  MaestroTotpEnableResponseSchema,
+  MaestroCoreOnlineEventSchema,
+  MaestroCoreOfflineEventSchema,
+  MaestroAiConfigUpdatedEventSchema,
 } from '../schemas/index.js';
 
 // ─── Envelope Types ─────────────────────────────────────────────────────────
@@ -237,4 +269,29 @@ export interface GitActions {
 export interface GitEvents {
   statusChanged: z.infer<typeof GitStatusChangedEventSchema>;
   committed: z.infer<typeof GitCommittedEventSchema>;
+}
+
+// ─── Maestro ─────────────────────────────────────────────────────────────
+
+export interface MaestroActions {
+  login: { request: z.infer<typeof MaestroLoginRequestSchema>; response: z.infer<typeof MaestroLoginResponseSchema> };
+  auth: { request: z.infer<typeof MaestroAuthRequestSchema>; response: z.infer<typeof MaestroAuthResponseSchema> };
+  'cores.register': { request: z.infer<typeof MaestroCoreRegisterRequestSchema>; response: z.infer<typeof MaestroCoreRegisterResponseSchema> };
+  'cores.remove': { request: z.infer<typeof MaestroCoreRemoveRequestSchema>; response: z.infer<typeof MaestroCoreRemoveResponseSchema> };
+  'cores.rename': { request: z.infer<typeof MaestroCoreRenameRequestSchema>; response: z.infer<typeof MaestroCoreRenameResponseSchema> };
+  'cores.list': { request: z.infer<typeof MaestroCoreListRequestSchema>; response: z.infer<typeof MaestroCoreListResponseSchema> };
+  'ai.config.get': { request: z.infer<typeof MaestroAiConfigGetRequestSchema>; response: z.infer<typeof MaestroAiConfigGetResponseSchema> };
+  'ai.config.set': { request: z.infer<typeof MaestroAiConfigSetRequestSchema>; response: z.infer<typeof MaestroAiConfigSetResponseSchema> };
+  'users.create': { request: z.infer<typeof MaestroUserCreateRequestSchema>; response: z.infer<typeof MaestroUserCreateResponseSchema> };
+  'users.list': { request: z.infer<typeof MaestroUserListRequestSchema>; response: z.infer<typeof MaestroUserListResponseSchema> };
+  'users.delete': { request: z.infer<typeof MaestroUserDeleteRequestSchema>; response: z.infer<typeof MaestroUserDeleteResponseSchema> };
+  'users.resetPassword': { request: z.infer<typeof MaestroUserResetPasswordRequestSchema>; response: z.infer<typeof MaestroUserResetPasswordResponseSchema> };
+  'totp.setup': { request: z.infer<typeof MaestroTotpSetupRequestSchema>; response: z.infer<typeof MaestroTotpSetupResponseSchema> };
+  'totp.enable': { request: z.infer<typeof MaestroTotpEnableRequestSchema>; response: z.infer<typeof MaestroTotpEnableResponseSchema> };
+}
+
+export interface MaestroEvents {
+  'core.online': z.infer<typeof MaestroCoreOnlineEventSchema>;
+  'core.offline': z.infer<typeof MaestroCoreOfflineEventSchema>;
+  'ai.configUpdated': z.infer<typeof MaestroAiConfigUpdatedEventSchema>;
 }
