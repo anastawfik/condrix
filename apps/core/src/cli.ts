@@ -1,9 +1,5 @@
 #!/usr/bin/env node
 
-// Force IPv4 DNS resolution — prevents EHOSTUNREACH on macOS dual-stack systems
-import { setDefaultResultOrder } from 'node:dns';
-setDefaultResultOrder('ipv4first');
-
 /**
  * NexusCore CLI entry point.
  *

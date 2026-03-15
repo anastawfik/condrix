@@ -10,6 +10,8 @@ import type { IncomingMessage } from 'node:http';
 import type { MaestroState } from '@nexus-core/protocol';
 import { generateMessageId } from '@nexus-core/protocol';
 
+import { EventEmitter } from 'node:events';
+
 import { MaestroDatabase } from './database.js';
 import { AuthManager } from './auth-manager.js';
 import { CoreConnectionManager } from './core-connection-manager.js';
@@ -17,12 +19,16 @@ import { ClientConnectionManager } from './client-connection-manager.js';
 import { MessageRelay } from './message-relay.js';
 import { AiConfigDistributor } from './ai-config-distributor.js';
 import { OAuthManager } from './oauth-manager.js';
+import { TunnelManager } from './tunnel-manager.js';
 
 export interface MaestroConfig {
   maestroId: string;
   host: string;
   port: number;
   databasePath: string;
+  tunnel?: boolean;
+  tunnelMode?: 'quick' | 'named';
+  tunnelToken?: string;
 }
 
 export class MaestroService {
@@ -36,7 +42,12 @@ export class MaestroService {
   private messageRelay!: MessageRelay;
   private aiConfigDistributor!: AiConfigDistributor;
   private oauthManager!: OAuthManager;
+  private tunnelManager: TunnelManager | null = null;
+  private emitter = new EventEmitter();
   private wss!: WebSocketServer;
+
+  /** The public tunnel URL, if a tunnel is running. */
+  tunnelUrl: string | null = null;
 
   constructor(config: MaestroConfig) {
     this.config = config;
@@ -142,11 +153,45 @@ export class MaestroService {
     console.log(
       `[Maestro] ${this.config.maestroId} ready on ${this.config.host}:${this.config.port}`,
     );
+
+    // Start tunnel if configured
+    if (this.config.tunnel) {
+      this.startTunnel().catch((err) => {
+        console.warn(`[Maestro] Tunnel failed: ${(err as Error).message}`);
+      });
+    }
+  }
+
+  private async startTunnel(): Promise<void> {
+    this.tunnelManager = new TunnelManager(this.emitter, this.config.port);
+
+    const installed = await this.tunnelManager.isInstalled();
+    if (!installed) {
+      console.log('[Maestro] cloudflared not found, installing...');
+      const result = await this.tunnelManager.install();
+      if (!result.success) {
+        throw new Error(result.message);
+      }
+    }
+
+    const mode = this.config.tunnelMode ?? 'quick';
+    if (mode === 'named' && this.config.tunnelToken) {
+      await this.tunnelManager.startNamed(this.config.tunnelToken);
+      console.log('[Maestro] Named tunnel started');
+    } else {
+      const url = await this.tunnelManager.startQuick();
+      this.tunnelUrl = url;
+      // Convert https:// to wss:// for WebSocket connections
+      const wsUrl = url.replace('https://', 'wss://');
+      console.log(`[Maestro] Tunnel URL: ${wsUrl}`);
+      console.log(`[Maestro] Remote Cores can connect with: NEXUS_MAESTRO_URL="${wsUrl}"`);
+    }
   }
 
   async stop(): Promise<void> {
     console.log(`[Maestro] ${this.config.maestroId} stopping`);
 
+    this.tunnelManager?.destroy();
     this.oauthManager?.destroy();
     this.coreManager?.stop();
     this.clientManager?.stop();
