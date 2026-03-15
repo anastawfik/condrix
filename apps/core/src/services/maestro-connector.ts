@@ -79,7 +79,7 @@ export class MaestroConnector {
     console.log(`[Core] Connecting to Maestro at ${url}...`);
 
     try {
-      this.ws = new WebSocket(url, { family: 4 });
+      this.ws = new WebSocket(url);
     } catch (err) {
       console.warn(`[Core] Failed to create WebSocket to Maestro: ${(err as Error).message}`);
       this.scheduleReconnect();
