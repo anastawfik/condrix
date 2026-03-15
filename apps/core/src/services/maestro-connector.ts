@@ -3,9 +3,13 @@
  * Handles authentication, reconnection, heartbeat, and message forwarding.
  */
 import { EventEmitter } from 'node:events';
+import { Agent } from 'node:http';
 import WebSocket from 'ws';
 import { generateMessageId } from '@nexus-core/protocol';
 import type { MessageEnvelope } from '@nexus-core/protocol';
+
+/** Force IPv4 to avoid EHOSTUNREACH on dual-stack machines. */
+const ipv4Agent = new Agent({ family: 4 });
 
 export interface MaestroConnectorConfig {
   url: string;
@@ -79,7 +83,7 @@ export class MaestroConnector {
     console.log(`[Core] Connecting to Maestro at ${url}...`);
 
     try {
-      this.ws = new WebSocket(url);
+      this.ws = new WebSocket(url, { agent: ipv4Agent });
     } catch (err) {
       console.warn(`[Core] Failed to create WebSocket to Maestro: ${(err as Error).message}`);
       this.scheduleReconnect();

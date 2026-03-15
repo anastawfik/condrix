@@ -783,8 +783,12 @@ export class CoreRuntime {
       (this.db.getSetting('maestro.token') as string | undefined) ??
       process.env.NEXUS_MAESTRO_TOKEN;
 
-    if (!maestroUrl || !maestroToken) return;
+    if (!maestroUrl || !maestroToken) {
+      console.log(`[Core] Maestro not configured (url: ${maestroUrl ? 'set' : 'missing'}, token: ${maestroToken ? 'set' : 'missing'})`);
+      return;
+    }
 
+    console.log(`[Core] Maestro configured — connecting to ${maestroUrl}`);
     this.maestroConnector = new MaestroConnector(this.emitter);
 
     // Handle incoming relayed requests from Maestro
