@@ -40,6 +40,10 @@ export interface FileStore {
   updateFileContent: (path: string, content: string) => void;
   getActiveFile: () => OpenFile | undefined;
   restoreUIState: (workspaceId: string) => Promise<void>;
+  renameFile: (workspaceId: string, oldPath: string, newPath: string) => Promise<void>;
+  deleteFile: (workspaceId: string, path: string) => Promise<void>;
+  createFile: (workspaceId: string, path: string) => Promise<void>;
+  createDir: (workspaceId: string, path: string) => Promise<void>;
 }
 
 function detectLanguage(path: string): string {
@@ -195,6 +199,45 @@ export const createFileStore = () =>
           set({ activeFilePath: activePath });
         }
       } catch { /* ignore corrupt state */ }
+    },
+
+    renameFile: async (workspaceId, oldPath, newPath) => {
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) throw new Error('No active Core connection');
+      await multiCoreStore.getState().requestOnCore(coreId, 'file', 'rename', { workspaceId, oldPath, newPath });
+      // Update open files if renamed file was open
+      set((s) => ({
+        openFiles: s.openFiles.map((f) =>
+          f.path === oldPath ? { ...f, path: newPath, name: newPath.split('/').pop() ?? newPath } : f,
+        ),
+        activeFilePath: s.activeFilePath === oldPath ? newPath : s.activeFilePath,
+      }));
+      // Refresh tree
+      await get().fetchTree(workspaceId);
+    },
+
+    deleteFile: async (workspaceId, path) => {
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) throw new Error('No active Core connection');
+      await multiCoreStore.getState().requestOnCore(coreId, 'file', 'delete', { workspaceId, path });
+      // Close file if it was open
+      get().closeFile(path);
+      // Refresh tree
+      await get().fetchTree(workspaceId);
+    },
+
+    createFile: async (workspaceId, path) => {
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) throw new Error('No active Core connection');
+      await multiCoreStore.getState().requestOnCore(coreId, 'file', 'createFile', { workspaceId, path });
+      await get().fetchTree(workspaceId);
+    },
+
+    createDir: async (workspaceId, path) => {
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) throw new Error('No active Core connection');
+      await multiCoreStore.getState().requestOnCore(coreId, 'file', 'createDir', { workspaceId, path });
+      await get().fetchTree(workspaceId);
     },
   }));
 

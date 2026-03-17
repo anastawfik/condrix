@@ -475,8 +475,9 @@ function MaestroCoresPanel() {
   const [user, setUser] = useState(() => maestroStore.getState().user);
   const [showAdd, setShowAdd] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState('');
+  const [expandedCore, setExpandedCore] = useState<string | null>(null);
+  const [editingTokenId, setEditingTokenId] = useState<string | null>(null);
+  const [tokenValue, setTokenValue] = useState('');
 
   useEffect(() => {
     const unsub = maestroStore.subscribe((s) => { setCores(s.maestroCores); setUser(s.user); });
@@ -492,6 +493,18 @@ function MaestroCoresPanel() {
   const handleRename = async (id: string, name: string) => {
     if (!name.trim()) return;
     try { await maestroStore.getState().renameCore(id, name.trim()); } catch (err) { setStatus({ type: 'error', message: (err as Error).message }); }
+  };
+
+  const handleUpdateToken = async (id: string) => {
+    if (!tokenValue.trim()) { setEditingTokenId(null); return; }
+    try {
+      await maestroStore.getState().request('maestro', 'cores.updateToken', { id, accessToken: tokenValue.trim() });
+      setStatus({ type: 'success', message: 'Token updated' });
+      setEditingTokenId(null);
+      setTokenValue('');
+    } catch (err) {
+      setStatus({ type: 'error', message: (err as Error).message });
+    }
   };
 
   return (
@@ -523,12 +536,62 @@ function MaestroCoresPanel() {
               key={core.id}
               name={core.displayName}
               status={core.status}
-              details={[{ label: 'Core ID', value: core.coreId }]}
-              expanded={false}
-              onToggle={() => {}}
+              details={[
+                { label: 'Core ID', value: core.coreId },
+                { label: 'Database ID', value: core.id },
+                { label: 'Status', value: core.status },
+              ]}
+              expanded={expandedCore === core.id}
+              onToggle={() => setExpandedCore(expandedCore === core.id ? null : core.id)}
               onRename={(name) => handleRename(core.id, name)}
               onRemove={isAdmin ? () => handleRemove(core.id) : undefined}
-            />
+            >
+              <div className="px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[var(--text-secondary)]">Access Token</span>
+                  {editingTokenId === core.id ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="password"
+                        value={tokenValue}
+                        onChange={(e) => setTokenValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleUpdateToken(core.id);
+                          if (e.key === 'Escape') { setEditingTokenId(null); setTokenValue(''); }
+                        }}
+                        autoFocus
+                        placeholder="New token..."
+                        className="px-1.5 py-0.5 rounded bg-[var(--bg-primary)] border border-[var(--accent-blue)] text-[var(--text-primary)] text-[10px] font-mono focus:outline-none w-32"
+                      />
+                      <button
+                        onClick={() => handleUpdateToken(core.id)}
+                        className="px-1.5 py-0.5 rounded text-[10px] bg-[var(--accent-blue)] text-white hover:opacity-90"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => { setEditingTokenId(null); setTokenValue(''); }}
+                        className="px-1.5 py-0.5 rounded text-[10px] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[var(--text-muted)] text-[10px]">{'\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'}</span>
+                      {isAdmin && (
+                        <button
+                          onClick={() => { setEditingTokenId(core.id); setTokenValue(''); }}
+                          className="px-1.5 py-0.5 rounded text-[10px] text-[var(--accent-blue)] hover:bg-[var(--bg-hover)]"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CoreCard>
           ))}
         </div>
       )}

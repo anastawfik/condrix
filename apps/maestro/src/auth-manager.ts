@@ -53,18 +53,18 @@ export class AuthManager {
 
   login(username: string, password: string, totpCode?: string): SessionInfo | { error: string; requiresTotp?: boolean } {
     const user = this.db.getUserByUsername(username);
-    if (!user) return { error: 'Invalid credentials' };
+    if (!user) return { error: 'INVALID_CREDENTIALS' };
 
     if (!this.verifyPassword(password, user.password_hash, user.salt)) {
-      return { error: 'Invalid credentials' };
+      return { error: 'INVALID_CREDENTIALS' };
     }
 
     if (user.totp_enabled && user.totp_secret) {
       if (!totpCode) {
-        return { error: 'TOTP required', requiresTotp: true };
+        return { error: 'TOTP_REQUIRED', requiresTotp: true };
       }
       if (!this.verifyTotpCode(user.totp_secret, totpCode)) {
-        return { error: 'Invalid TOTP code' };
+        return { error: 'INVALID_TOTP_CODE' };
       }
     }
 

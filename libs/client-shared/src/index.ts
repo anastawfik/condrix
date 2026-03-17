@@ -9,7 +9,7 @@
 export { connectionStore, createConnectionStore } from './stores/connection-store.js';
 export { coreRegistryStore, createCoreRegistryStore } from './stores/core-registry-store.js';
 export { multiCoreStore, createMultiCoreStore } from './stores/multi-core-store.js';
-export { workspaceStore, createWorkspaceStore, getSavedUIState } from './stores/workspace-store.js';
+export { workspaceStore, createWorkspaceStore, getSavedUIState, initWorkspaceSync } from './stores/workspace-store.js';
 export { chatStore, createChatStore, initChatSync } from './stores/chat-store.js';
 export { fileStore, createFileStore } from './stores/file-store.js';
 export { terminalStore, createTerminalStore, initTerminalSync } from './stores/terminal-store.js';

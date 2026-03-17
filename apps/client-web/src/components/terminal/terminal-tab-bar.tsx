@@ -1,5 +1,8 @@
 import { Plus, X } from 'lucide-react';
 import type { TerminalSession } from '@nexus-core/client-shared';
+import {
+  ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
+} from '@nexus-core/client-components';
 
 interface TerminalTabBarProps {
   terminals: TerminalSession[];
@@ -20,31 +23,37 @@ export function TerminalTabBar({ terminals, activeTerminalId, onSelect, onCreate
         {terminals.map((term) => {
           const isActive = activeTerminalId === term.id;
           return (
-            <button
-              key={term.id}
-              onClick={() => onSelect(term.id)}
-              className={[
-                'flex items-center gap-1 h-full px-2 text-[11px] whitespace-nowrap group',
-                'border-r border-[var(--border-color)] transition-colors duration-75',
-                isActive
-                  ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] border-t border-t-[var(--border-active)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
-              ].join(' ')}
-            >
-              <span className="leading-none">{term.title}</span>
-              <span
-                role="button"
-                tabIndex={-1}
-                onClick={(e) => { e.stopPropagation(); onClose(term.id); }}
-                className={[
-                  'inline-flex items-center justify-center w-4 h-4 rounded-sm ml-0.5',
-                  'hover:bg-[var(--bg-active)] transition-opacity duration-75',
-                  isActive ? 'opacity-60 hover:opacity-100' : 'opacity-0 group-hover:opacity-60 hover:!opacity-100',
-                ].join(' ')}
-              >
-                <X size={10} />
-              </span>
-            </button>
+            <ContextMenu key={term.id}>
+              <ContextMenuTrigger asChild>
+                <button
+                  onClick={() => onSelect(term.id)}
+                  className={[
+                    'flex items-center gap-1 h-full px-2 text-[11px] whitespace-nowrap group',
+                    'border-r border-[var(--border-color)] transition-colors duration-75',
+                    isActive
+                      ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] border-t border-t-[var(--border-active)]'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]',
+                  ].join(' ')}
+                >
+                  <span className="leading-none">{term.title}</span>
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    onClick={(e) => { e.stopPropagation(); onClose(term.id); }}
+                    className={[
+                      'inline-flex items-center justify-center w-4 h-4 rounded-sm ml-0.5',
+                      'hover:bg-[var(--bg-active)] transition-opacity duration-75',
+                      isActive ? 'opacity-60 hover:opacity-100' : 'opacity-0 group-hover:opacity-60 hover:!opacity-100',
+                    ].join(' ')}
+                  >
+                    <X size={10} />
+                  </span>
+                </button>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={() => onClose(term.id)}>Close</ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           );
         })}
       </div>

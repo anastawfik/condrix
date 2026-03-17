@@ -58,6 +58,10 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
       if (msg === 'TOTP_REQUIRED') {
         setShowTotp(true);
         setError('Enter your TOTP code');
+      } else if (msg === 'INVALID_TOTP_CODE') {
+        setError('Invalid TOTP code');
+      } else if (msg === 'INVALID_CREDENTIALS') {
+        setError('Invalid username or password');
       } else {
         setError(msg);
       }

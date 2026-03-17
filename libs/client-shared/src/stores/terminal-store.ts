@@ -6,6 +6,7 @@ import { createStore } from 'zustand/vanilla';
 import type { MessageEnvelope } from '@nexus-core/protocol';
 
 import { multiCoreStore } from './multi-core-store.js';
+import { maestroStore } from './maestro-store.js';
 import { workspaceStore } from './workspace-store.js';
 
 export interface TerminalSession {
@@ -29,6 +30,7 @@ export interface TerminalStore {
   onTerminalOutput: (terminalId: string, listener: (data: string) => void) => () => void;
   handleOutputEvent: (terminalId: string, data: string) => void;
   handleExitEvent: (terminalId: string) => void;
+  restoreTerminals: (workspaceId: string) => Promise<void>;
 }
 
 export const createTerminalStore = () =>
@@ -40,12 +42,12 @@ export const createTerminalStore = () =>
     createTerminal: async (workspaceId, shell) => {
       const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) throw new Error('No active Core connection');
-      const result = await multiCoreStore.getState().requestOnCore<{ terminalId: string; shell: string }>(
+      const result = await multiCoreStore.getState().requestOnCore<{ id: string; shell: string }>(
         coreId, 'terminal', 'create', { workspaceId, shell },
       );
 
       const session: TerminalSession = {
-        id: result.terminalId,
+        id: result.id,
         workspaceId,
         title: result.shell ?? 'Terminal',
         active: true,
@@ -103,6 +105,37 @@ export const createTerminalStore = () =>
     handleExitEvent: (terminalId) => {
       removeTerminal(set, get, terminalId);
     },
+
+    restoreTerminals: async (workspaceId) => {
+      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      if (!coreId) return;
+      try {
+        const result = await multiCoreStore.getState().requestOnCore<{
+          terminals: Array<{ id: string; shell?: string }>;
+        }>(coreId, 'terminal', 'list', { workspaceId });
+
+        const existing = new Set(get().terminals.map((t) => t.id));
+        const newSessions: TerminalSession[] = [];
+        for (const t of result.terminals) {
+          if (!existing.has(t.id)) {
+            newSessions.push({
+              id: t.id,
+              workspaceId,
+              title: t.shell ?? 'Terminal',
+              active: true,
+            });
+          }
+        }
+        if (newSessions.length > 0) {
+          set((s) => ({
+            terminals: [...s.terminals, ...newSessions],
+            activeTerminalId: s.activeTerminalId ?? newSessions[0].id,
+          }));
+        }
+      } catch {
+        // terminal:list may not be available
+      }
+    },
   }));
 
 function removeTerminal(
@@ -122,56 +155,92 @@ function removeTerminal(
 
 export const terminalStore = createTerminalStore();
 
+/** Guard against duplicate initTerminalSync calls (e.g. HMR re-evaluation). */
+let _terminalSyncCleanup: (() => void) | null = null;
+
 /**
  * Auto-subscribe to terminal output/exit events whenever a Core connects.
  * Call once at app startup (mirrors initChatSync pattern).
  */
 export function initTerminalSync(): () => void {
+  // Clean up previous subscriptions if called again (HMR / hot-reload)
+  if (_terminalSyncCleanup) {
+    _terminalSyncCleanup();
+    _terminalSyncCleanup = null;
+  }
+
   const connectedCores = new Set<string>();
   const unsubs = new Map<string, Array<() => void>>();
 
+  // Deduplicate events that may arrive via multiple paths
+  const recentEventIds = new Set<string>();
+  const dedup = (id: string | undefined): boolean => {
+    if (!id) return false;
+    if (recentEventIds.has(id)) return true;
+    recentEventIds.add(id);
+    if (recentEventIds.size > 200) {
+      const first = recentEventIds.values().next().value;
+      if (first) recentEventIds.delete(first);
+    }
+    return false;
+  };
+
+  const outputHandler = (event: MessageEnvelope) => {
+    if (dedup(event.id)) return;
+    const payload = event.payload as { terminalId: string; data: string };
+    if (payload.terminalId) {
+      terminalStore.getState().handleOutputEvent(payload.terminalId, payload.data);
+    }
+  };
+
+  const exitHandler = (event: MessageEnvelope) => {
+    if (dedup(event.id)) return;
+    const payload = event.payload as { terminalId: string };
+    if (payload.terminalId) {
+      terminalStore.getState().handleExitEvent(payload.terminalId);
+    }
+  };
+
+  // Direct mode: subscribe via multiCoreStore connections
   const unsub = multiCoreStore.subscribe((state) => {
-    // Subscribe to newly connected cores
     for (const [coreId, conn] of state.connections) {
       if (conn.connState === 'connected' && !connectedCores.has(coreId)) {
         connectedCores.add(coreId);
-
         const coreUnsubs: Array<() => void> = [];
-
-        coreUnsubs.push(
-          multiCoreStore.getState().subscribeOnCore(coreId, 'terminal:output', (event: MessageEnvelope) => {
-            const payload = event.payload as { terminalId: string; data: string };
-            if (payload.terminalId) {
-              terminalStore.getState().handleOutputEvent(payload.terminalId, payload.data);
-            }
-          }),
-        );
-
-        coreUnsubs.push(
-          multiCoreStore.getState().subscribeOnCore(coreId, 'terminal:exit', (event: MessageEnvelope) => {
-            const payload = event.payload as { terminalId: string };
-            if (payload.terminalId) {
-              terminalStore.getState().handleExitEvent(payload.terminalId);
-            }
-          }),
-        );
-
+        coreUnsubs.push(multiCoreStore.getState().subscribeOnCore(coreId, 'terminal:output', outputHandler));
+        coreUnsubs.push(multiCoreStore.getState().subscribeOnCore(coreId, 'terminal:exit', exitHandler));
         unsubs.set(coreId, coreUnsubs);
       }
     }
-
-    // Unsubscribe from disconnected cores
     for (const coreId of connectedCores) {
       if (!state.connections.has(coreId)) {
         connectedCores.delete(coreId);
         const coreUnsubs = unsubs.get(coreId);
-        if (coreUnsubs) {
-          for (const u of coreUnsubs) u();
-          unsubs.delete(coreId);
-        }
+        if (coreUnsubs) { for (const u of coreUnsubs) u(); unsubs.delete(coreId); }
       }
     }
   });
 
-  return unsub;
+  // Maestro mode: subscribe via maestroStore when connected
+  let maestroEventUnsubs: Array<() => void> = [];
+  const maestroUnsub = maestroStore.subscribe((state) => {
+    if (state.state === 'connected' && maestroEventUnsubs.length === 0) {
+      const sub = maestroStore.getState().subscribe;
+      maestroEventUnsubs.push(sub('terminal:output', outputHandler));
+      maestroEventUnsubs.push(sub('terminal:exit', exitHandler));
+    } else if (state.state !== 'connected' && maestroEventUnsubs.length > 0) {
+      for (const u of maestroEventUnsubs) u();
+      maestroEventUnsubs = [];
+    }
+  });
+  // Handle already-connected Maestro
+  if (maestroStore.getState().state === 'connected') {
+    const sub = maestroStore.getState().subscribe;
+    maestroEventUnsubs.push(sub('terminal:output', outputHandler));
+    maestroEventUnsubs.push(sub('terminal:exit', exitHandler));
+  }
+
+  const cleanup = () => { unsub(); maestroUnsub(); for (const u of maestroEventUnsubs) u(); };
+  _terminalSyncCleanup = cleanup;
+  return cleanup;
 }

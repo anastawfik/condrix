@@ -90,11 +90,18 @@ export const createMaestroStore = () =>
 
       const ws = new WebSocket(url);
 
+      // Store immediately so subsequent connect() calls can close a CONNECTING socket
+      set({ _ws: ws });
+
       ws.onopen = () => {
-        set({ _ws: ws });
+        // Ignore if a newer connect() replaced us
+        if (get()._ws !== ws) return;
       };
 
       ws.onmessage = (event) => {
+        // Ignore messages from stale WebSockets
+        if (get()._ws !== ws) return;
+
         let msg: MessageEnvelope;
         try {
           msg = JSON.parse(event.data as string) as MessageEnvelope;
@@ -112,7 +119,13 @@ export const createMaestroStore = () =>
             if (resp.success) {
               pending.resolve(msg.payload);
             } else {
-              pending.reject(new Error(resp.error?.message ?? 'Request failed'));
+              // For login: payload may contain requiresTotp even on failure
+              const p = msg.payload as Record<string, unknown> | undefined;
+              if (p?.requiresTotp) {
+                pending.resolve(msg.payload);
+              } else {
+                pending.reject(new Error(resp.error?.message ?? 'Request failed'));
+              }
             }
           }
           return;
@@ -139,6 +152,9 @@ export const createMaestroStore = () =>
       };
 
       ws.onclose = () => {
+        // Ignore close from stale WebSockets — a newer connect() is in progress
+        if (get()._ws !== ws) return;
+
         set({ _ws: null });
         // Reject pending requests
         for (const [id, pending] of get()._pending) {
@@ -374,10 +390,19 @@ async function waitForOpen(get: () => MaestroStore): Promise<void> {
   return new Promise((resolve, reject) => {
     const checkInterval = setInterval(() => {
       const currentWs = get()._ws;
+      // WebSocket opened successfully
       if (currentWs && currentWs.readyState === WebSocket.OPEN) {
         clearInterval(checkInterval);
         clearTimeout(timeout);
         resolve();
+        return;
+      }
+      // WebSocket was closed/replaced — fail fast instead of waiting full timeout
+      if (!currentWs || currentWs.readyState === WebSocket.CLOSED) {
+        clearInterval(checkInterval);
+        clearTimeout(timeout);
+        reject(new Error('Connection failed'));
+        return;
       }
     }, 50);
 

@@ -486,6 +486,34 @@ export class CoreRuntime {
       return { watching: true, paths: p.paths };
     });
 
+    r.register('file', 'rename', async (payload) => {
+      const p = payload as { workspaceId: string; oldPath: string; newPath: string };
+      const rootPath = this.resolveWorkspacePath(p.workspaceId);
+      await this.fileManager.renameFile(join(rootPath, p.oldPath), join(rootPath, p.newPath));
+      return { oldPath: p.oldPath, newPath: p.newPath, renamed: true };
+    });
+
+    r.register('file', 'delete', async (payload) => {
+      const p = payload as { workspaceId: string; path: string };
+      const rootPath = this.resolveWorkspacePath(p.workspaceId);
+      await this.fileManager.deleteFile(join(rootPath, p.path));
+      return { path: p.path, deleted: true };
+    });
+
+    r.register('file', 'createFile', async (payload) => {
+      const p = payload as { workspaceId: string; path: string };
+      const rootPath = this.resolveWorkspacePath(p.workspaceId);
+      await this.fileManager.createFile(join(rootPath, p.path));
+      return { path: p.path, created: true };
+    });
+
+    r.register('file', 'createDir', async (payload) => {
+      const p = payload as { workspaceId: string; path: string };
+      const rootPath = this.resolveWorkspacePath(p.workspaceId);
+      await this.fileManager.createDirectory(join(rootPath, p.path));
+      return { path: p.path, created: true };
+    });
+
     // ── git namespace ────────────────────────────────────────────────────────
     r.register('git', 'status', async (payload) => {
       const p = payload as { workspaceId: string };
@@ -561,6 +589,8 @@ export class CoreRuntime {
           payload as never,
         );
         this.connectionManager.broadcast(event);
+        // Forward to Maestro so relayed clients receive events
+        this.maestroConnector?.send(event);
       });
     }
 
@@ -577,6 +607,7 @@ export class CoreRuntime {
           payload as never,
         );
         this.connectionManager.broadcast(event);
+        this.maestroConnector?.send(event);
       });
     }
   }

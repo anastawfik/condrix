@@ -7,6 +7,7 @@ import { createStore } from 'zustand/vanilla';
 import type { WorkspaceInfo, ProjectInfo } from '@nexus-core/protocol';
 
 import { multiCoreStore } from './multi-core-store.js';
+import { maestroStore } from './maestro-store.js';
 
 const UI_STATE_KEY = 'nexus-ui-state';
 
@@ -44,6 +45,8 @@ export interface WorkspaceStore {
   currentProjectId: string | null;
   currentWorkspaceId: string | null;
   currentWorkspace: WorkspaceInfo | null;
+  /** Workspace IDs that have been entered this session (for multi-tab chat). */
+  enteredWorkspaceIds: string[];
 
   // Project operations
   fetchProjects: (coreId?: string) => Promise<void>;
@@ -69,6 +72,7 @@ export const createWorkspaceStore = () =>
     currentProjectId: null,
     currentWorkspaceId: null,
     currentWorkspace: null,
+    enteredWorkspaceIds: [],
 
     fetchProjects: async (coreId?) => {
       const result = await request<{ projects: ProjectInfo[] }>('project', 'list', {}, coreId);
@@ -131,6 +135,9 @@ export const createWorkspaceStore = () =>
         currentWorkspace: ws,
         currentCoreId: resolvedCoreId,
         workspaces: s.workspaces.map((w) => (w.id === workspaceId ? ws : w)),
+        enteredWorkspaceIds: s.enteredWorkspaceIds.includes(workspaceId)
+          ? s.enteredWorkspaceIds
+          : [...s.enteredWorkspaceIds, workspaceId],
       }));
       saveWorkspaceUIState(resolvedCoreId, get().currentProjectId, workspaceId);
     },
@@ -169,4 +176,73 @@ if (typeof window !== 'undefined') {
     const { currentCoreId, currentProjectId, currentWorkspaceId } = workspaceStore.getState();
     saveWorkspaceUIState(currentCoreId, currentProjectId, currentWorkspaceId);
   });
+}
+
+/** Guard against duplicate initWorkspaceSync calls (e.g. HMR re-evaluation). */
+let _workspaceSyncCleanup: (() => void) | null = null;
+
+/**
+ * Auto-subscribe to workspace broadcast events whenever a Core connects.
+ * Keeps workspace list in sync across multiple clients.
+ * Call once at app startup (mirrors initChatSync / initTerminalSync pattern).
+ */
+export function initWorkspaceSync(): () => void {
+  if (_workspaceSyncCleanup) {
+    _workspaceSyncCleanup();
+    _workspaceSyncCleanup = null;
+  }
+  const connectedCores = new Set<string>();
+  const unsubs = new Map<string, Array<() => void>>();
+
+  const workspaceEventHandler = () => {
+    const { currentProjectId } = workspaceStore.getState();
+    workspaceStore.getState().fetchWorkspaces(currentProjectId ?? undefined).catch(() => {});
+  };
+
+  // Direct mode: subscribe via multiCoreStore connections
+  const unsub = multiCoreStore.subscribe((state) => {
+    for (const [coreId, conn] of state.connections) {
+      if (conn.connState === 'connected' && !connectedCores.has(coreId)) {
+        connectedCores.add(coreId);
+        const coreUnsubs: Array<() => void> = [];
+        const sub = (pattern: string) =>
+          multiCoreStore.getState().subscribeOnCore(coreId, pattern, workspaceEventHandler);
+        coreUnsubs.push(sub('workspace:created'));
+        coreUnsubs.push(sub('workspace:stateChanged'));
+        coreUnsubs.push(sub('workspace:destroyed'));
+        unsubs.set(coreId, coreUnsubs);
+      }
+    }
+    for (const coreId of connectedCores) {
+      if (!state.connections.has(coreId)) {
+        connectedCores.delete(coreId);
+        const coreUnsubs = unsubs.get(coreId);
+        if (coreUnsubs) { for (const u of coreUnsubs) u(); unsubs.delete(coreId); }
+      }
+    }
+  });
+
+  // Maestro mode: subscribe via maestroStore when connected
+  let maestroEventUnsubs: Array<() => void> = [];
+  const setupMaestroSubs = () => {
+    const sub = maestroStore.getState().subscribe;
+    maestroEventUnsubs.push(sub('workspace:created', workspaceEventHandler));
+    maestroEventUnsubs.push(sub('workspace:stateChanged', workspaceEventHandler));
+    maestroEventUnsubs.push(sub('workspace:destroyed', workspaceEventHandler));
+  };
+  const maestroUnsub = maestroStore.subscribe((state) => {
+    if (state.state === 'connected' && maestroEventUnsubs.length === 0) {
+      setupMaestroSubs();
+    } else if (state.state !== 'connected' && maestroEventUnsubs.length > 0) {
+      for (const u of maestroEventUnsubs) u();
+      maestroEventUnsubs = [];
+    }
+  });
+  if (maestroStore.getState().state === 'connected') {
+    setupMaestroSubs();
+  }
+
+  const cleanup = () => { unsub(); maestroUnsub(); for (const u of maestroEventUnsubs) u(); };
+  _workspaceSyncCleanup = cleanup;
+  return cleanup;
 }

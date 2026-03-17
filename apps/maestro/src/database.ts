@@ -206,6 +206,12 @@ export class MaestroDatabase {
       .run(displayName, id);
   }
 
+  updateCoreAccessToken(id: string, accessToken: string): void {
+    this.db
+      .prepare("UPDATE cores SET access_token = ? WHERE id = ?")
+      .run(accessToken, id);
+  }
+
   deleteCore(id: string): boolean {
     const result = this.db.prepare('DELETE FROM cores WHERE id = ?').run(id);
     return result.changes > 0;

@@ -37,11 +37,16 @@ export function TerminalTab({ terminalId, active, onData, onResize, onOutput }: 
 
     term.open(containerRef.current);
 
-    try {
-      const webglAddon = new WebglAddon();
-      term.loadAddon(webglAddon);
-    } catch {
-      // WebGL not available, fallback to canvas
+    // Only load WebGL addon if the container is visible (has dimensions)
+    // Hidden tabs (display:none) cause "Cannot read properties of undefined (reading 'dimensions')"
+    if (containerRef.current.offsetWidth > 0 && containerRef.current.offsetHeight > 0) {
+      try {
+        const webglAddon = new WebglAddon();
+        webglAddon.onContextLost(() => webglAddon.dispose());
+        term.loadAddon(webglAddon);
+      } catch {
+        // WebGL not available, fallback to canvas
+      }
     }
 
     fitAddon.fit();

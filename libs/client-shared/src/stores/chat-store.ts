@@ -11,6 +11,7 @@ import { createStore } from 'zustand/vanilla';
 import type { MessageEnvelope } from '@nexus-core/protocol';
 
 import { multiCoreStore } from './multi-core-store.js';
+import { maestroStore } from './maestro-store.js';
 import { workspaceStore } from './workspace-store.js';
 
 export interface ToolCall {
@@ -461,23 +462,29 @@ function updateMessage(
 
 export const chatStore = createChatStore();
 
+/** Guard against duplicate initChatSync calls (e.g. HMR re-evaluation). */
+let _chatSyncCleanup: (() => void) | null = null;
+
 /**
  * Auto-subscribe to agent broadcasts whenever a Core connects.
  * Call once at app startup.
  */
 export function initChatSync(): () => void {
+  if (_chatSyncCleanup) {
+    _chatSyncCleanup();
+    _chatSyncCleanup = null;
+  }
+
   const connectedCores = new Set<string>();
 
+  // Direct mode: subscribe via multiCoreStore connections
   const unsub = multiCoreStore.subscribe((state) => {
-    // Subscribe to newly connected cores
     for (const [coreId, conn] of state.connections) {
       if (conn.connState === 'connected' && !connectedCores.has(coreId)) {
         connectedCores.add(coreId);
         chatStore.getState().subscribeToBroadcasts(coreId);
       }
     }
-
-    // Unsubscribe from disconnected cores
     for (const coreId of connectedCores) {
       if (!state.connections.has(coreId)) {
         connectedCores.delete(coreId);
@@ -486,5 +493,97 @@ export function initChatSync(): () => void {
     }
   });
 
-  return unsub;
+  // Maestro mode: subscribe via maestroStore when connected
+  let maestroEventUnsubs: Array<() => void> = [];
+  const setupMaestroSubs = () => {
+    const sub = maestroStore.getState().subscribe;
+    maestroEventUnsubs.push(sub('agent:message', (event) => {
+      const payload = event.payload as { workspaceId: string };
+      if (payload.workspaceId) {
+        chatStore.getState()._handleAgentEvent(payload.workspaceId, event);
+      }
+    }));
+    maestroEventUnsubs.push(sub('agent:thinkingDelta', (event) => {
+      const payload = event.payload as { workspaceId: string; delta: string };
+      if (!payload.workspaceId) return;
+      // If we have our own streaming placeholder, skip (handled by sendMessage)
+      if (chatStore.getState()._streamingPlaceholders.has(payload.workspaceId)) return;
+      const remoteId = `remote_streaming_${payload.workspaceId}`;
+      const msgs = chatStore.getState().messages.get(payload.workspaceId) ?? [];
+      const existing = msgs.find((m) => m.id === remoteId);
+      if (!existing) {
+        chatStore.setState((s) => {
+          const newStreaming = new Set(s.streamingWorkspaces);
+          newStreaming.add(payload.workspaceId);
+          return { streamingWorkspaces: newStreaming };
+        });
+        const placeholder: ChatMessage = {
+          id: remoteId, role: 'assistant', content: '', thinking: payload.delta,
+          timestamp: new Date().toISOString(), isStreaming: true,
+        };
+        const newMessages = new Map(chatStore.getState().messages);
+        const existingMsgs = newMessages.get(payload.workspaceId) ?? [];
+        newMessages.set(payload.workspaceId, [...existingMsgs, placeholder]);
+        chatStore.setState({ messages: newMessages });
+      } else {
+        const newMessages = new Map(chatStore.getState().messages);
+        const allMsgs = newMessages.get(payload.workspaceId) ?? [];
+        const idx = allMsgs.findIndex((m) => m.id === remoteId);
+        if (idx >= 0) {
+          const updated = [...allMsgs];
+          updated[idx] = { ...updated[idx], thinking: (updated[idx].thinking ?? '') + payload.delta };
+          newMessages.set(payload.workspaceId, updated);
+          chatStore.setState({ messages: newMessages });
+        }
+      }
+    }));
+    maestroEventUnsubs.push(sub('agent:textDelta', (event) => {
+      const payload = event.payload as { workspaceId: string; delta: string };
+      if (!payload.workspaceId) return;
+      if (chatStore.getState()._streamingPlaceholders.has(payload.workspaceId)) return;
+      const remoteId = `remote_streaming_${payload.workspaceId}`;
+      const msgs = chatStore.getState().messages.get(payload.workspaceId) ?? [];
+      const existing = msgs.find((m) => m.id === remoteId);
+      if (!existing) {
+        chatStore.setState((s) => {
+          const newStreaming = new Set(s.streamingWorkspaces);
+          newStreaming.add(payload.workspaceId);
+          return { streamingWorkspaces: newStreaming };
+        });
+        const placeholder: ChatMessage = {
+          id: remoteId, role: 'assistant', content: payload.delta, thinking: '',
+          timestamp: new Date().toISOString(), isStreaming: true,
+        };
+        const newMessages = new Map(chatStore.getState().messages);
+        const existingMsgs = newMessages.get(payload.workspaceId) ?? [];
+        newMessages.set(payload.workspaceId, [...existingMsgs, placeholder]);
+        chatStore.setState({ messages: newMessages });
+      } else {
+        const newMessages = new Map(chatStore.getState().messages);
+        const allMsgs = newMessages.get(payload.workspaceId) ?? [];
+        const idx = allMsgs.findIndex((m) => m.id === remoteId);
+        if (idx >= 0) {
+          const updated = [...allMsgs];
+          updated[idx] = { ...updated[idx], content: updated[idx].content + payload.delta };
+          newMessages.set(payload.workspaceId, updated);
+          chatStore.setState({ messages: newMessages });
+        }
+      }
+    }));
+  };
+  const maestroUnsub = maestroStore.subscribe((state) => {
+    if (state.state === 'connected' && maestroEventUnsubs.length === 0) {
+      setupMaestroSubs();
+    } else if (state.state !== 'connected' && maestroEventUnsubs.length > 0) {
+      for (const u of maestroEventUnsubs) u();
+      maestroEventUnsubs = [];
+    }
+  });
+  if (maestroStore.getState().state === 'connected') {
+    setupMaestroSubs();
+  }
+
+  const cleanup = () => { unsub(); maestroUnsub(); for (const u of maestroEventUnsubs) u(); };
+  _chatSyncCleanup = cleanup;
+  return cleanup;
 }

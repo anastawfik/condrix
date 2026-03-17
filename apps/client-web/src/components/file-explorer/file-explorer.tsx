@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useStore } from 'zustand';
 import { Search, RefreshCw } from 'lucide-react';
-import { workspaceStore, useFileTree, useFileContent } from '@nexus-core/client-shared';
+import { workspaceStore, fileStore, useFileTree, useFileContent } from '@nexus-core/client-shared';
 import { TreeNode } from './tree-node.js';
 
 export function FileExplorer() {
@@ -13,6 +13,43 @@ export function FileExplorer() {
   const filteredTree = filter
     ? tree.filter((n) => n.name.toLowerCase().includes(filter.toLowerCase()))
     : tree;
+
+  const handleRename = useCallback((path: string) => {
+    if (!workspaceId) return;
+    const name = path.split('/').pop() ?? path;
+    const newName = prompt('Rename to:', name);
+    if (!newName || newName === name) return;
+    const parentDir = path.substring(0, path.lastIndexOf('/'));
+    const newPath = parentDir ? `${parentDir}/${newName}` : newName;
+    fileStore.getState().renameFile(workspaceId, path, newPath).catch(() => {});
+  }, [workspaceId]);
+
+  const handleDelete = useCallback((path: string) => {
+    if (!workspaceId) return;
+    const name = path.split('/').pop() ?? path;
+    if (!confirm(`Delete "${name}"?`)) return;
+    fileStore.getState().deleteFile(workspaceId, path).catch(() => {});
+  }, [workspaceId]);
+
+  const handleNewFile = useCallback((dirPath: string) => {
+    if (!workspaceId) return;
+    const name = prompt('New file name:');
+    if (!name) return;
+    const fullPath = `${dirPath}/${name}`;
+    fileStore.getState().createFile(workspaceId, fullPath).catch(() => {});
+  }, [workspaceId]);
+
+  const handleNewFolder = useCallback((dirPath: string) => {
+    if (!workspaceId) return;
+    const name = prompt('New folder name:');
+    if (!name) return;
+    const fullPath = `${dirPath}/${name}`;
+    fileStore.getState().createDir(workspaceId, fullPath).catch(() => {});
+  }, [workspaceId]);
+
+  const handleCopyPath = useCallback((path: string) => {
+    navigator.clipboard.writeText(path).catch(() => {});
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
@@ -49,6 +86,11 @@ export function FileExplorer() {
             onExpand={expandNode}
             onCollapse={collapseNode}
             onFileOpen={openFile}
+            onRename={handleRename}
+            onDelete={handleDelete}
+            onNewFile={handleNewFile}
+            onNewFolder={handleNewFolder}
+            onCopyPath={handleCopyPath}
           />
         ))}
       </div>

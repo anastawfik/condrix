@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { AppLayout, TitleBar, TooltipProvider, MaestroLoginDialog } from '@nexus-core/client-components';
-import { maestroStore, multiCoreStore, workspaceStore, fileStore, getSavedUIState } from '@nexus-core/client-shared';
+import { maestroStore, multiCoreStore, workspaceStore, fileStore, terminalStore, getSavedUIState } from '@nexus-core/client-shared';
 import type { MaestroConnectionState } from '@nexus-core/client-shared';
 import { Sidebar } from './components/sidebar.js';
 import { EditorTabs } from './components/editor/editor-tabs.js';
@@ -69,6 +69,7 @@ export function App() {
 
       workspaceStore.getState().enterWorkspace(workspaceId, coreId)
         .then(() => fileStore.getState().restoreUIState(workspaceId))
+        .then(() => terminalStore.getState().restoreTerminals(workspaceId))
         .catch(() => { /* workspace may no longer exist */ });
     };
 
@@ -98,6 +99,8 @@ export function App() {
 
   return (
     <TooltipProvider delayDuration={300}>
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+      <div onContextMenu={(e) => e.preventDefault()} className="contents">
       <AppLayout
         renderTitleBar={() => <WebTitleBar />}
         renderCenter={(wsId) => CenterPanel(wsId)}
@@ -108,6 +111,7 @@ export function App() {
         onClose={() => setShowLogin(false)}
         onDirectConnect={() => setShowLogin(false)}
       />
+      </div>
     </TooltipProvider>
   );
 }

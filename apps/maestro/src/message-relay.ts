@@ -153,6 +153,9 @@ export class MessageRelay {
       case 'cores.rename':
         this.handleCoresRename(clientId, msg);
         break;
+      case 'cores.updateToken':
+        this.handleCoresUpdateToken(clientId, msg);
+        break;
       case 'ai.config.get':
         this.handleAiConfigGet(clientId, msg);
         break;
@@ -246,6 +249,22 @@ export class MessageRelay {
 
     this.db.updateCoreDisplayName(payload.id, payload.displayName);
     this.sendResponse(clientId, msg, { id: payload.id, displayName: payload.displayName });
+  }
+
+  private handleCoresUpdateToken(clientId: string, msg: MessageEnvelope): void {
+    if (!this.clientManager.isAdmin(clientId)) {
+      this.sendErrorToClient(clientId, msg.id, 'FORBIDDEN', 'Admin role required');
+      return;
+    }
+
+    const payload = msg.payload as { id?: string; accessToken?: string };
+    if (!payload.id || !payload.accessToken) {
+      this.sendErrorToClient(clientId, msg.id, 'INVALID_PAYLOAD', 'id and accessToken required');
+      return;
+    }
+
+    this.db.updateCoreAccessToken(payload.id, payload.accessToken);
+    this.sendResponse(clientId, msg, { id: payload.id, updated: true });
   }
 
   private handleAiConfigGet(clientId: string, msg: MessageEnvelope): void {

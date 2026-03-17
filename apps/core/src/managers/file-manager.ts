@@ -1,4 +1,4 @@
-import { readFile, writeFile, readdir, stat, mkdir, access } from 'node:fs/promises';
+import { readFile, writeFile, readdir, stat, mkdir, access, rename, rm, unlink } from 'node:fs/promises';
 import { join, basename, relative, resolve } from 'node:path';
 import type { FileEntry, FileChange } from '@nexus-core/protocol';
 import type { EventEmitter } from 'node:events';
@@ -241,6 +241,31 @@ export class FileManager {
 
   onFileChange(handler: (change: FileChange) => void): void {
     this.changeHandlers.push(handler);
+  }
+
+  async renameFile(oldPath: string, newPath: string): Promise<void> {
+    await rename(oldPath, newPath);
+  }
+
+  async deleteFile(filePath: string): Promise<void> {
+    const s = await stat(filePath);
+    if (s.isDirectory()) {
+      await rm(filePath, { recursive: true });
+    } else {
+      await unlink(filePath);
+    }
+  }
+
+  async createFile(filePath: string): Promise<void> {
+    const dir = filePath.substring(0, filePath.lastIndexOf('/') || filePath.lastIndexOf('\\'));
+    if (dir) {
+      await mkdir(dir, { recursive: true });
+    }
+    await writeFile(filePath, '', 'utf-8');
+  }
+
+  async createDirectory(dirPath: string): Promise<void> {
+    await mkdir(dirPath, { recursive: true });
   }
 
   async closeAll(): Promise<void> {
