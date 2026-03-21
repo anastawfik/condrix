@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useStore } from 'zustand';
+import { Terminal } from 'lucide-react';
 import { workspaceStore, useTerminals } from '@nexus-core/client-shared';
 import { terminalStore } from '@nexus-core/client-shared';
 import { TerminalTabBar } from './terminal-tab-bar.js';
@@ -35,14 +36,15 @@ export function TerminalPanel() {
 
   if (!workspaceId) {
     return (
-      <div className="flex items-center justify-center h-full bg-[var(--bg-primary)] text-[var(--text-muted)] text-xs">
-        Select a workspace to use terminal
+      <div className="flex flex-col items-center justify-center gap-2 h-full bg-[var(--bg-primary)] text-[var(--text-muted)]">
+        <Terminal size={24} />
+        <span className="text-sm">Select a workspace to use terminal</span>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-primary)]">
+    <div className="flex flex-col h-full bg-[var(--bg-primary)]" data-testid="terminal-panel">
       <TerminalTabBar
         terminals={terminals}
         activeTerminalId={activeTerminalId}
@@ -53,10 +55,11 @@ export function TerminalPanel() {
 
       <div className="flex-1 min-h-0 relative">
         {terminals.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center text-[var(--text-muted)] text-xs">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[var(--text-muted)]">
+            <Terminal size={24} />
             <button
               onClick={handleCreate}
-              className="hover:text-[var(--text-primary)] transition-colors duration-100"
+              className="text-sm hover:text-[var(--text-primary)] transition-colors"
             >
               Click + to create a terminal
             </button>

@@ -1,15 +1,17 @@
 import { useStore } from 'zustand';
-import { MessageSquare, GitCompareArrows, X } from 'lucide-react';
+import { MessageSquare, GitCompareArrows, X, Loader2 } from 'lucide-react';
 import { workspaceStore, useFileContent, gitStore, fileStore } from '@nexus-core/client-shared';
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
 } from '@nexus-core/client-components';
 import type { WorkspaceInfo } from '@nexus-core/protocol';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { EditorTab } from './editor-tab.js';
-import { CodeEditor } from './code-editor.js';
 import { ChatPanel } from '../chat/chat-panel.js';
-import { DiffEditor } from './diff-editor.js';
+
+// Lazy-load Monaco editor components to reduce main bundle size
+const CodeEditor = lazy(() => import('./code-editor.js').then((m) => ({ default: m.CodeEditor })));
+const DiffEditor = lazy(() => import('./diff-editor.js').then((m) => ({ default: m.DiffEditor })));
 
 export type ActiveView = 'chat' | 'editor' | 'diff';
 
@@ -121,8 +123,8 @@ export function EditorTabs() {
   const wsTabName = (ws: WorkspaceInfo) => ws.name || ws.id.slice(0, 8);
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center bg-[var(--bg-tertiary)] border-b border-[var(--border-color)] overflow-x-auto shrink-0">
+    <div className="flex flex-col h-full" data-testid="editor-tabs">
+      <div className="flex items-center bg-[var(--bg-tertiary)] border-b border-[var(--border-color)] overflow-x-auto shrink-0" data-testid="tab-bar">
         {enteredWorkspaces.length > 0 ? (
           enteredWorkspaces.map((ws) => (
             <button
@@ -199,9 +201,26 @@ export function EditorTabs() {
 
       <div className="flex-1 min-h-0">
         {activeView === 'chat' && <ChatPanel />}
-        {activeView === 'editor' && <CodeEditor />}
-        {activeView === 'diff' && <DiffEditor />}
+        {activeView === 'editor' && (
+          <Suspense fallback={<EditorLoading />}>
+            <CodeEditor />
+          </Suspense>
+        )}
+        {activeView === 'diff' && (
+          <Suspense fallback={<EditorLoading />}>
+            <DiffEditor />
+          </Suspense>
+        )}
       </div>
+    </div>
+  );
+}
+
+function EditorLoading() {
+  return (
+    <div className="flex items-center justify-center gap-2 h-full bg-[var(--bg-primary)] text-[var(--text-muted)]">
+      <Loader2 size={18} className="animate-spin" />
+      <span className="text-sm">Loading editor...</span>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, FolderGit2, Files } from 'lucide-react';
+import { ScrollArea } from '@nexus-core/client-components';
 import { FileExplorer } from './file-explorer/file-explorer.js';
 import { GitPanel } from './git/git-panel.js';
 
@@ -8,20 +9,21 @@ export function Sidebar() {
   const [showGit, setShowGit] = useState(true);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-secondary)] text-xs">
+    <div className="flex flex-col h-full overflow-hidden bg-[var(--bg-secondary)] text-sm" data-testid="sidebar">
       {/* Explorer section */}
       <div className="flex flex-col min-h-0" style={{ flex: showGit ? '1 1 60%' : '1 1 100%' }}>
         <button
           onClick={() => setShowFiles(!showFiles)}
-          className="flex items-center gap-1 px-2 h-6 shrink-0 bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] border-b border-[var(--border-color)] uppercase tracking-wider font-semibold text-[11px] text-[var(--text-secondary)]"
+          className="flex items-center gap-1.5 px-3 h-8 shrink-0 bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] border-b border-[var(--border-color)] uppercase tracking-wide font-semibold text-[11px] text-[var(--text-secondary)] transition-colors"
         >
-          {showFiles ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          {showFiles ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          <Files size={14} className="text-[var(--text-muted)]" />
           Explorer
         </button>
         {showFiles && (
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <ScrollArea className="flex-1 min-h-0">
             <FileExplorer />
-          </div>
+          </ScrollArea>
         )}
       </div>
 
@@ -29,15 +31,16 @@ export function Sidebar() {
       <div className="flex flex-col min-h-0" style={{ flex: showFiles ? '0 1 40%' : '1 1 100%' }}>
         <button
           onClick={() => setShowGit(!showGit)}
-          className="flex items-center gap-1 px-2 h-6 shrink-0 bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] border-t border-b border-[var(--border-color)] uppercase tracking-wider font-semibold text-[11px] text-[var(--text-secondary)]"
+          className="flex items-center gap-1.5 px-3 h-8 shrink-0 bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] border-t border-b border-[var(--border-color)] uppercase tracking-wide font-semibold text-[11px] text-[var(--text-secondary)] transition-colors"
         >
-          {showGit ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          {showGit ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          <FolderGit2 size={14} className="text-[var(--text-muted)]" />
           Source Control
         </button>
         {showGit && (
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <ScrollArea className="flex-1 min-h-0">
             <GitPanel />
-          </div>
+          </ScrollArea>
         )}
       </div>
     </div>

@@ -1,6 +1,19 @@
 #!/usr/bin/env node
 
 import { MaestroService } from './maestro-service.js';
+import { logger } from './logger.js';
+
+// ─── Global Error Handlers ─────────────────────────────────────────────────
+
+process.on('uncaughtException', (err) => {
+  logger.fatal('[Maestro]', 'Uncaught exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.fatal('[Maestro]', 'Unhandled rejection:', reason);
+  process.exit(1);
+});
 
 const config = {
   maestroId: process.env.NEXUS_MAESTRO_ID ?? 'maestro-primary',

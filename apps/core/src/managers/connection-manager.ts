@@ -1,11 +1,13 @@
 import { WebSocketServer, WebSocket } from 'ws';
-import type { IncomingMessage } from 'node:http';
+import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { EventEmitter } from 'node:events';
 import { generateId } from '@nexus-core/protocol';
 import type { AuthScope } from '@nexus-core/protocol';
 
 import type { MessageRouter } from '../message-router.js';
 import type { AuthManager } from '../auth.js';
+
+export type HttpRouteHandler = (req: IncomingMessage, res: ServerResponse) => void;
 
 const ALL_SCOPES: AuthScope[] = [
   'read:files', 'write:files', 'exec:terminal',
@@ -16,6 +18,11 @@ const ALL_SCOPES: AuthScope[] = [
 const HEARTBEAT_INTERVAL = 15_000;
 const HEARTBEAT_TIMEOUT = 45_000;
 
+/** Max messages per second per client before rate limiting. */
+const RATE_LIMIT_PER_SECOND = 50;
+/** Window size for rate limiting (ms). */
+const RATE_LIMIT_WINDOW = 1_000;
+
 export interface ClientSession {
   id: string;
   ws: WebSocket;
@@ -25,6 +32,9 @@ export interface ClientSession {
   workspaceId?: string;
   lastPong: number;
   isTunneled: boolean;
+  /** Rate limiting state. */
+  rateLimitCounter: number;
+  rateLimitWindowStart: number;
 }
 
 /**
@@ -33,12 +43,14 @@ export interface ClientSession {
  * and event subscription for connected clients.
  */
 export class ConnectionManager {
+  private httpServer: Server | null = null;
   private wss: WebSocketServer | null = null;
   private sessions = new Map<string, ClientSession>();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private devMode: boolean;
   private authManager: AuthManager | null;
   private externalAccessEnabled = false;
+  private httpRoutes = new Map<string, HttpRouteHandler>();
 
   constructor(
     private router: MessageRouter,
@@ -54,11 +66,27 @@ export class ConnectionManager {
     this.externalAccessEnabled = enabled;
   }
 
+  /** Register an HTTP route handler on the Core's server (e.g. for OAuth callbacks). */
+  registerHttpRoute(path: string, handler: HttpRouteHandler): void {
+    this.httpRoutes.set(path, handler);
+  }
+
   async start(host: string, port: number): Promise<void> {
     return new Promise((resolve, reject) => {
+      // Create HTTP server to handle both WebSocket upgrades and HTTP routes
+      this.httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
+        const url = new URL(req.url ?? '/', `http://localhost`);
+        const handler = this.httpRoutes.get(url.pathname);
+        if (handler) {
+          handler(req, res);
+          return;
+        }
+        res.writeHead(426, { 'Content-Type': 'text/plain' });
+        res.end('WebSocket connections only');
+      });
+
       this.wss = new WebSocketServer({
-        host,
-        port,
+        server: this.httpServer,
         maxPayload: 1 * 1024 * 1024, // 1 MiB limit
         verifyClient: (info, cb) => {
           const origin = info.origin ?? info.req.headers.origin ?? '';
@@ -77,19 +105,21 @@ export class ConnectionManager {
         },
       });
 
-      this.wss.on('listening', () => {
+      this.httpServer.on('listening', () => {
         console.log(`[ConnectionManager] WebSocket server listening on ${host}:${port}`);
         this.startHeartbeat();
         resolve();
       });
 
-      this.wss.on('error', (err) => {
+      this.httpServer.on('error', (err) => {
         reject(err);
       });
 
       this.wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
         this.handleConnection(ws, req);
       });
+
+      this.httpServer.listen(port, host);
     });
   }
 
@@ -105,6 +135,8 @@ export class ConnectionManager {
       subscribedPatterns: [],
       lastPong: Date.now(),
       isTunneled,
+      rateLimitCounter: 0,
+      rateLimitWindowStart: Date.now(),
     };
 
     // In dev mode, auto-authenticate direct local connections.
@@ -137,6 +169,27 @@ export class ConnectionManager {
   }
 
   private handleMessage(session: ClientSession, raw: string): void {
+    // Rate limiting
+    const now = Date.now();
+    if (now - session.rateLimitWindowStart > RATE_LIMIT_WINDOW) {
+      session.rateLimitCounter = 0;
+      session.rateLimitWindowStart = now;
+    }
+    session.rateLimitCounter++;
+    if (session.rateLimitCounter > RATE_LIMIT_PER_SECOND) {
+      this.send(session, {
+        id: '',
+        type: 'response',
+        namespace: 'core',
+        action: 'error',
+        payload: {},
+        timestamp: new Date().toISOString(),
+        success: false,
+        error: { code: 'RATE_LIMITED', message: 'Too many messages, slow down' },
+      });
+      return;
+    }
+
     // Try to parse to check for auth & subscribe messages
     let parsed: Record<string, unknown> | null = null;
     try {
@@ -342,12 +395,18 @@ export class ConnectionManager {
     }
     this.sessions.clear();
 
-    // Close server
+    // Close servers
     if (this.wss) {
       await new Promise<void>((resolve) => {
         this.wss!.close(() => resolve());
       });
       this.wss = null;
+    }
+    if (this.httpServer) {
+      await new Promise<void>((resolve) => {
+        this.httpServer!.close(() => resolve());
+      });
+      this.httpServer = null;
     }
   }
 }

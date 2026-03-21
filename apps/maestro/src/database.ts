@@ -90,6 +90,13 @@ export class MaestroDatabase {
         value       TEXT NOT NULL,
         updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
       );
+
+      -- Performance indices
+      CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+      CREATE INDEX IF NOT EXISTS idx_cores_core_id ON cores(core_id);
+      CREATE INDEX IF NOT EXISTS idx_cores_access_token ON cores(access_token);
+      CREATE INDEX IF NOT EXISTS idx_cores_status ON cores(status);
     `);
   }
 

@@ -8,6 +8,11 @@ import type { MaestroDatabase, UserRow } from './database.js';
 const SESSION_EXPIRY_DAYS = 7;
 const SCRYPT_KEYLEN = 64;
 
+/** Rate limiting: max failed attempts before lockout. */
+const MAX_LOGIN_ATTEMPTS = 5;
+/** Lockout duration in ms (15 minutes). */
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+
 export interface SessionInfo {
   token: string;
   userId: string;
@@ -17,6 +22,9 @@ export interface SessionInfo {
 }
 
 export class AuthManager {
+  /** Tracks failed login attempts: username → { count, lastAttempt } */
+  private loginAttempts = new Map<string, { count: number; lockedUntil: number }>();
+
   constructor(private db: MaestroDatabase) {}
 
   // ─── User Management ──────────────────────────────────────────────────────
@@ -51,11 +59,22 @@ export class AuthManager {
 
   // ─── Login / Session ──────────────────────────────────────────────────────
 
-  login(username: string, password: string, totpCode?: string): SessionInfo | { error: string; requiresTotp?: boolean } {
+  login(username: string, password: string, totpCode?: string): SessionInfo | { error: string; requiresTotp?: boolean; retryAfterMs?: number } {
+    // Check rate limiting
+    const attempt = this.loginAttempts.get(username);
+    if (attempt && attempt.lockedUntil > Date.now()) {
+      const retryAfterMs = attempt.lockedUntil - Date.now();
+      return { error: 'ACCOUNT_LOCKED', retryAfterMs };
+    }
+
     const user = this.db.getUserByUsername(username);
-    if (!user) return { error: 'INVALID_CREDENTIALS' };
+    if (!user) {
+      this.recordFailedAttempt(username);
+      return { error: 'INVALID_CREDENTIALS' };
+    }
 
     if (!this.verifyPassword(password, user.password_hash, user.salt)) {
+      this.recordFailedAttempt(username);
       return { error: 'INVALID_CREDENTIALS' };
     }
 
@@ -64,11 +83,24 @@ export class AuthManager {
         return { error: 'TOTP_REQUIRED', requiresTotp: true };
       }
       if (!this.verifyTotpCode(user.totp_secret, totpCode)) {
+        this.recordFailedAttempt(username);
         return { error: 'INVALID_TOTP_CODE' };
       }
     }
 
+    // Clear failed attempts on success
+    this.loginAttempts.delete(username);
     return this.createSession(user);
+  }
+
+  private recordFailedAttempt(username: string): void {
+    const existing = this.loginAttempts.get(username);
+    const count = (existing?.count ?? 0) + 1;
+    const lockedUntil = count >= MAX_LOGIN_ATTEMPTS ? Date.now() + LOCKOUT_DURATION_MS : 0;
+    this.loginAttempts.set(username, { count, lockedUntil });
+    if (lockedUntil > 0) {
+      console.warn(`[Maestro] Account "${username}" locked for ${LOCKOUT_DURATION_MS / 60000}min after ${count} failed attempts`);
+    }
   }
 
   validateSession(token: string): SessionInfo | null {

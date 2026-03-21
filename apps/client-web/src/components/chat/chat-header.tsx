@@ -1,7 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from 'zustand';
+import { MessageSquarePlus, Check, ChevronDown } from 'lucide-react';
 import { workspaceStore } from '@nexus-core/client-shared';
-import { useWorkspaceConfig, type WorkspaceConfig } from '@nexus-core/client-shared';
+import { useWorkspaceConfig } from '@nexus-core/client-shared';
+import {
+  DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItemComponent,
+  Popover, PopoverContent, PopoverTrigger,
+  Tooltip, TooltipProvider,
+} from '@nexus-core/client-components';
 
 const MODELS = [
   { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
@@ -20,90 +26,62 @@ export function ChatHeader() {
   if (!workspaceId) return null;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
-      <ModelSelector
-        value={config.model}
-        onChange={(model) => setConfig('model', model)}
-      />
-      <SystemPromptEditor
-        value={config.systemPrompt}
-        onChange={(prompt) => setConfig('systemPrompt', prompt || undefined)}
-      />
-    </div>
+    <TooltipProvider delayDuration={300}>
+      <div className="flex items-center gap-3 px-4 py-2 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]" data-testid="chat-header">
+        <ModelSelector
+          value={config.model}
+          onChange={(model) => setConfig('model', model)}
+        />
+        <SystemPromptEditor
+          value={config.systemPrompt}
+          onChange={(prompt) => setConfig('systemPrompt', prompt || undefined)}
+        />
+      </div>
+    </TooltipProvider>
   );
 }
 
 /* ─── Model Selector ───────────────────────────────────────────────────── */
 
 function ModelSelector({ value, onChange }: { value?: string; onChange: (model: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
   const current = MODELS.find((m) => m.id === value) ?? MODELS.find((m) => m.id === DEFAULT_MODEL)!;
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors"
-      >
-        <span>{current.label}</span>
-        <svg width="10" height="10" viewBox="0 0 10 10" className={`transition-transform ${open ? 'rotate-180' : ''}`}>
-          <path d="M2 4 L5 7 L8 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </button>
-
-      {open && (
-        <div className="absolute top-full left-0 mt-1 w-48 py-1 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-lg z-50">
-          {MODELS.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => { onChange(m.id); setOpen(false); }}
-              className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
-                m.id === (value ?? DEFAULT_MODEL)
-                  ? 'bg-[var(--bg-active)] text-[var(--accent-blue)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <DropdownMenuRoot>
+      <DropdownMenuTrigger asChild>
+        <button
+          data-testid="model-selector"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)]"
+        >
+          <span>{current.label}</span>
+          <ChevronDown size={12} className="opacity-60" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[180px]">
+        {MODELS.map((m) => (
+          <DropdownMenuItemComponent
+            key={m.id}
+            onClick={() => onChange(m.id)}
+            className="flex items-center justify-between text-xs"
+          >
+            <span>{m.label}</span>
+            {m.id === (value ?? DEFAULT_MODEL) && <Check size={14} className="text-[var(--accent-blue)]" />}
+          </DropdownMenuItemComponent>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenuRoot>
   );
 }
 
 /* ─── System Prompt Editor ─────────────────────────────────────────────── */
 
 function SystemPromptEditor({ value, onChange }: { value?: string; onChange: (prompt: string) => void }) {
-  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value ?? '');
-  const ref = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setDraft(value ?? '');
   }, [value]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        handleSave();
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open, draft]);
 
   const handleSave = () => {
     const trimmed = draft.trim();
@@ -116,60 +94,56 @@ function SystemPromptEditor({ value, onChange }: { value?: string; onChange: (pr
   const hasPrompt = !!(value && value.trim());
 
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors ${
-          hasPrompt
-            ? 'text-[var(--accent-blue)] hover:bg-[var(--bg-hover)]'
-            : 'text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'
-        }`}
-        title={hasPrompt ? value : 'Set system prompt'}
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2">
-          <path d="M6 1v10M1 6h10" strokeLinecap="round" />
-          <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" />
-        </svg>
-        <span>{hasPrompt ? 'System Prompt' : 'Add System Prompt'}</span>
-      </button>
-
-      {open && (
-        <div className="absolute top-full left-0 mt-1 w-80 p-3 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-lg z-50 space-y-2">
-          <label className="block text-[11px] font-medium text-[var(--text-secondary)]">
-            System Prompt
-          </label>
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="You are a helpful assistant..."
-            rows={4}
-            className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-primary)] text-xs resize-y focus:outline-none focus:border-[var(--accent-blue)]"
-            autoFocus
-          />
-          <div className="flex justify-end gap-1.5">
-            {hasPrompt && (
-              <button
-                onClick={() => { setDraft(''); onChange(''); setOpen(false); }}
-                className="px-2 py-1 rounded text-[10px] text-[var(--accent-red)] hover:bg-[var(--bg-hover)]"
-              >
-                Clear
-              </button>
-            )}
+    <Popover open={open} onOpenChange={setOpen}>
+      <Tooltip content={hasPrompt ? 'Edit system prompt' : 'Add system prompt'}>
+        <PopoverTrigger asChild>
+          <button
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-blue)] ${
+              hasPrompt
+                ? 'text-[var(--accent-blue)] bg-[var(--accent-blue)]/10 hover:bg-[var(--accent-blue)]/15'
+                : 'text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-secondary)]'
+            }`}
+          >
+            <MessageSquarePlus size={14} />
+            <span>{hasPrompt ? 'System Prompt' : 'Add System Prompt'}</span>
+          </button>
+        </PopoverTrigger>
+      </Tooltip>
+      <PopoverContent className="w-80 p-3 space-y-2.5" align="start">
+        <label className="block text-xs font-medium text-[var(--text-secondary)]">
+          System Prompt
+        </label>
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="You are a helpful assistant..."
+          rows={4}
+          className="w-full px-3 py-2 rounded-md bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-primary)] text-sm resize-y focus:outline-none focus:border-[var(--accent-blue)] focus:ring-1 focus:ring-[var(--accent-blue)]"
+          autoFocus
+        />
+        <div className="flex justify-end gap-2">
+          {hasPrompt && (
             <button
-              onClick={() => setOpen(false)}
-              className="px-2 py-1 rounded text-[10px] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]"
+              onClick={() => { setDraft(''); onChange(''); setOpen(false); }}
+              className="px-3 py-1.5 rounded-md text-xs font-medium text-[var(--accent-red)] hover:bg-[var(--bg-hover)] transition-colors"
             >
-              Cancel
+              Clear
             </button>
-            <button
-              onClick={handleSave}
-              className="px-2 py-1 rounded text-[10px] bg-[var(--accent-blue)] text-white hover:opacity-90"
-            >
-              Save
-            </button>
-          </div>
+          )}
+          <button
+            onClick={() => setOpen(false)}
+            className="px-3 py-1.5 rounded-md text-xs font-medium text-[var(--text-muted)] hover:bg-[var(--bg-hover)] transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-3 py-1.5 rounded-md text-xs font-medium bg-[var(--accent-blue)] text-white hover:bg-[var(--accent-blue-hover)] transition-colors"
+          >
+            Save
+          </button>
         </div>
-      )}
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 }

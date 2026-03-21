@@ -34,6 +34,7 @@ import { CoreRuntime, type CoreConfig } from './runtime.js';
 import { CoreDatabase } from './database.js';
 import { AuthManager } from './auth.js';
 import { OAuthTokenManager } from './services/oauth-token-manager.js';
+import { logger } from './logger.js';
 
 // ─── Arg Parsing ────────────────────────────────────────────────────────────
 
@@ -206,6 +207,18 @@ if (hasFlag('oauth-login')) {
   // ─── Normal Startup ─────────────────────────────────────────────────────────
   startServer();
 }
+
+// ─── Global Error Handlers ─────────────────────────────────────────────────
+
+process.on('uncaughtException', (err) => {
+  logger.fatal('[Core]', 'Uncaught exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.fatal('[Core]', 'Unhandled rejection:', reason);
+  process.exit(1);
+});
 
 function startServer(): void {
   // Build config from CLI args + env vars

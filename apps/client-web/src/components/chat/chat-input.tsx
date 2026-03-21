@@ -56,25 +56,27 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           placeholder="Message..."
           disabled={disabled}
           rows={1}
-          className="flex-1 resize-none py-1.5 bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none disabled:opacity-50"
+          data-testid="chat-input"
+          className="flex-1 resize-none py-1.5 bg-transparent text-sm leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none disabled:opacity-50"
         />
         <button
           onClick={handleSend}
           disabled={disabled || !value.trim()}
           aria-label="Send message"
-          className="p-2 rounded-lg bg-[var(--accent-blue)] text-white shrink-0 transition-all duration-150 hover:bg-[var(--accent-blue-hover)] hover:scale-105 hover:shadow-[0_0_8px_rgba(0,120,212,0.4)] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
+          data-testid="chat-send-button"
+          className="p-2 rounded-lg bg-[var(--accent-blue)] text-white shrink-0 transition-all duration-150 hover:bg-[var(--accent-blue-hover)] hover:scale-105 hover:shadow-[0_0_8px_rgba(0,120,212,0.4)] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none disabled:bg-[var(--bg-tertiary)] disabled:text-[var(--text-muted)]"
         >
           <Send size={16} />
         </button>
       </div>
       <div className="flex items-center justify-between mt-1.5 px-1">
-        <span className="text-[10px] text-[var(--text-muted)]">
-          <kbd className="px-1 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-mono text-[9px]">Enter</kbd> to send
+        <span className="text-[11px] text-[var(--text-muted)]">
+          <kbd className="px-1 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-mono text-[10px]">Enter</kbd> to send
           <span className="mx-1.5 text-[var(--border-color)]">&middot;</span>
-          <kbd className="px-1 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-mono text-[9px]">Shift+Enter</kbd> new line
+          <kbd className="px-1 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-mono text-[10px]">Shift+Enter</kbd> new line
         </span>
         {charCount > 0 && (
-          <span className={`text-[10px] tabular-nums ${isNearLimit ? 'text-[var(--accent-red)]' : 'text-[var(--text-muted)]'}`}>
+          <span className={`text-[11px] tabular-nums ${isNearLimit ? 'text-[var(--accent-red)]' : 'text-[var(--text-muted)]'}`}>
             {charCount}/{MAX_LENGTH}
           </span>
         )}
