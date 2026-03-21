@@ -11,6 +11,7 @@ import type { ClientConnectionManager } from './client-connection-manager.js';
 import type { AuthManager } from './auth-manager.js';
 import type { AiConfigDistributor } from './ai-config-distributor.js';
 import type { OAuthManager } from './oauth-manager.js';
+import type { ConversationEngine } from './conversation-engine.js';
 
 interface PendingRelay {
   clientId: string;
@@ -22,6 +23,7 @@ export class MessageRelay {
   private pendingRelays = new Map<string, PendingRelay>();
 
   private oauthManager: OAuthManager | null = null;
+  private conversationEngine: ConversationEngine | null = null;
 
   constructor(
     private db: MaestroDatabase,
@@ -33,6 +35,10 @@ export class MessageRelay {
 
   setOAuthManager(oauthManager: OAuthManager): void {
     this.oauthManager = oauthManager;
+  }
+
+  setConversationEngine(engine: ConversationEngine): void {
+    this.conversationEngine = engine;
   }
 
   /**
@@ -191,8 +197,40 @@ export class MessageRelay {
       case 'auth.totp.disable':
         this.handleTotpDisable(clientId, msg);
         break;
+      case 'chat':
+        this.handleChat(clientId, msg);
+        break;
+      case 'status':
+        this.handleChat(clientId, msg);
+        break;
       default:
         this.sendErrorToClient(clientId, msg.id, 'UNKNOWN_ACTION', `Unknown maestro action: ${msg.action}`);
+    }
+  }
+
+  private async handleChat(clientId: string, msg: MessageEnvelope): Promise<void> {
+    if (!this.conversationEngine) {
+      this.sendErrorToClient(clientId, msg.id, 'NOT_CONFIGURED', 'Conversation engine not available');
+      return;
+    }
+
+    const payload = msg.payload as { message?: string };
+    const message = payload?.message ?? '';
+
+    try {
+      const response = await this.conversationEngine.processMessage(message);
+      this.clientManager.sendToClient(clientId, {
+        id: generateMessageId(),
+        type: 'response',
+        namespace: 'maestro',
+        action: 'chat',
+        payload: { message: response },
+        timestamp: new Date().toISOString(),
+        success: true,
+        correlationId: msg.id,
+      });
+    } catch (err) {
+      this.sendErrorToClient(clientId, msg.id, 'CHAT_ERROR', (err as Error).message);
     }
   }
 

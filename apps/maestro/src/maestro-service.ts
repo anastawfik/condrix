@@ -20,6 +20,10 @@ import { MessageRelay } from './message-relay.js';
 import { AiConfigDistributor } from './ai-config-distributor.js';
 import { OAuthManager } from './oauth-manager.js';
 import { TunnelManager } from './tunnel-manager.js';
+import { EventBus } from './event-bus.js';
+import { StateStore } from './state-store.js';
+import { NotificationRouter } from './notification-router.js';
+import { ConversationEngine } from './conversation-engine.js';
 
 export interface MaestroConfig {
   maestroId: string;
@@ -43,6 +47,10 @@ export class MaestroService {
   private aiConfigDistributor!: AiConfigDistributor;
   private oauthManager!: OAuthManager;
   private tunnelManager: TunnelManager | null = null;
+  private eventBus!: EventBus;
+  private stateStore!: StateStore;
+  private notificationRouter!: NotificationRouter;
+  private conversationEngine!: ConversationEngine;
   private emitter = new EventEmitter();
   private wss!: WebSocketServer;
 
@@ -77,6 +85,13 @@ export class MaestroService {
     // Wire AI config distributor to core manager
     this.aiConfigDistributor.setCoreManager(this.coreManager);
 
+    // 4b. Init orchestration subsystems
+    this.eventBus = new EventBus();
+    this.stateStore = new StateStore(this.db);
+    this.notificationRouter = new NotificationRouter(this.db, this.clientManager);
+    this.notificationRouter.wireEventBus(this.eventBus);
+    this.conversationEngine = new ConversationEngine(this.stateStore, this.coreManager, this.aiConfigDistributor);
+
     // 5. Init message relay
     this.messageRelay = new MessageRelay(
       this.db,
@@ -86,11 +101,15 @@ export class MaestroService {
       this.aiConfigDistributor,
     );
     this.messageRelay.setOAuthManager(this.oauthManager);
+    this.messageRelay.setConversationEngine(this.conversationEngine);
 
     // 6. Wire Core events
     this.coreManager.onCoreOnline = (coreRow) => {
       // Push AI config to newly connected Core
       this.aiConfigDistributor.pushToCore(coreRow.id);
+
+      // Update state store
+      this.stateStore.setCoreOnline(coreRow.core_id, coreRow.display_name);
 
       // Notify all clients
       this.clientManager.broadcastToAll({
@@ -108,6 +127,9 @@ export class MaestroService {
     };
 
     this.coreManager.onCoreOffline = (coreRow) => {
+      // Update state store
+      this.stateStore.setCoreOffline(coreRow.core_id);
+
       this.clientManager.broadcastToAll({
         id: generateMessageId(),
         type: 'event',
@@ -122,9 +144,13 @@ export class MaestroService {
       });
     };
 
-    // Wire Core messages to relay
+    // Wire Core messages to relay + event bus
     this.coreManager.onCoreMessage = (dbId, msg) => {
       this.messageRelay.handleCoreMessage(dbId, msg);
+      // Feed events into the event bus for notification routing
+      if (msg.type === 'event') {
+        this.eventBus.publish(msg);
+      }
     };
 
     // Wire Client messages to relay
@@ -191,6 +217,7 @@ export class MaestroService {
   async stop(): Promise<void> {
     console.log(`[Maestro] ${this.config.maestroId} stopping`);
 
+    this.notificationRouter?.destroy();
     this.tunnelManager?.destroy();
     this.oauthManager?.destroy();
     this.coreManager?.stop();
