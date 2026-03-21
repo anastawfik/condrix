@@ -1,0 +1,42 @@
+node_modules
+dist
+.nx
+.git
+.env
+.env.local
+.env.*.local
+
+# Heavy build artifacts in client apps
+apps/client-desktop/src-tauri/target
+apps/client-mobile/.expo
+apps/client-mobile/android
+apps/client-mobile/ios
+
+# Build artifacts
+*.tsbuildinfo
+coverage
+logs
+*.log
+npm-debug.log*
+
+# IDE / OS
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Misc
+*.md
+!libs/*/README.md
+*.png
+*.tgz
+.cache
+tmp
+.playwright-mcp

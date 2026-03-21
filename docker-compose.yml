@@ -1,0 +1,58 @@
+services:
+  maestro:
+    build:
+      context: .
+      target: maestro
+    env_file: .env
+    volumes:
+      - maestro-data:/data
+    networks:
+      - nexus
+    restart: unless-stopped
+
+  core:
+    build:
+      context: .
+      target: core
+    env_file: .env
+    environment:
+      NEXUS_CORE_HOST: "0.0.0.0"
+    volumes:
+      - core-data:/root/.nexuscore
+    networks:
+      - nexus
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        VITE_DEFAULT_MAESTRO_URL: ${VITE_DEFAULT_MAESTRO_URL:-wss://maestro.yourdomain.com}
+    ports:
+      - "80:80"
+    networks:
+      - nexus
+    restart: unless-stopped
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN}
+    depends_on:
+      - maestro
+      - core
+      - web
+    networks:
+      - nexus
+    restart: unless-stopped
+    profiles:
+      - tunnel
+
+volumes:
+  maestro-data:
+  core-data:
+
+networks:
+  nexus:

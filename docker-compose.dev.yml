@@ -1,0 +1,93 @@
+services:
+  maestro:
+    build:
+      context: .
+      target: deps
+    command: npx tsx watch apps/maestro/src/cli.ts
+    env_file: .env
+    environment:
+      NEXUS_MAESTRO_HOST: "0.0.0.0"
+      NEXUS_MAESTRO_PORT: "9200"
+      NEXUS_MAESTRO_DB: /data/maestro.db
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/maestro/node_modules
+      - /app/libs/protocol/node_modules
+      - maestro-data:/data
+    ports:
+      - "9200:9200"
+      - "9201:9201"
+    networks:
+      - nexus
+    restart: unless-stopped
+
+  core:
+    build:
+      context: .
+      target: deps
+    command: npx tsx watch apps/core/src/cli.ts
+    env_file: .env
+    environment:
+      NEXUS_CORE_HOST: "0.0.0.0"
+      NEXUS_CORE_PORT: "9100"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/core/node_modules
+      - /app/libs/protocol/node_modules
+      - /app/libs/skills/node_modules
+      - /app/libs/mcp-configs/node_modules
+      - core-data:/root/.nexuscore
+    ports:
+      - "9100:9100"
+    networks:
+      - nexus
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      target: deps
+    # Fix React 18/19 conflict: root node_modules hoists React 18 from ink/cli,
+    # but web needs React 19. Symlink root react to client-web's copy before Vite starts.
+    command: >-
+      sh -c "rm -rf /app/node_modules/react &&
+             ln -sf /app/apps/client-web/node_modules/react /app/node_modules/react &&
+             rm -rf /app/apps/client-web/node_modules/.vite &&
+             exec npx vite apps/client-web --host 0.0.0.0 --port 80"
+    env_file: .env
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/client-web/node_modules
+      - /app/libs/protocol/node_modules
+      - /app/libs/client-shared/node_modules
+      - /app/libs/client-components/node_modules
+    ports:
+      - "5173:80"
+    networks:
+      - nexus
+    restart: unless-stopped
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN}
+    depends_on:
+      - maestro
+      - core
+      - web
+    networks:
+      - nexus
+    restart: unless-stopped
+    profiles:
+      - tunnel
+
+volumes:
+  maestro-data:
+  core-data:
+
+networks:
+  nexus:
