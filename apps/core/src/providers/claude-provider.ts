@@ -81,6 +81,9 @@ export class ClaudeProvider implements AgentProviderAdapter {
     const messages = this.buildMessages(history, message);
     const system = this.buildSystem(history);
 
+    // 4.6 models require extended thinking; 4.5 and Haiku do not support it
+    const requiresThinking = /claude-(sonnet|opus)-4-6/.test(this.model);
+
     const baseParams: Anthropic.MessageCreateParams = {
       model: this.model,
       max_tokens: this.maxTokens,
@@ -88,6 +91,16 @@ export class ClaudeProvider implements AgentProviderAdapter {
       messages,
       ...(toolExecutor ? { tools: agentTools } : {}),
     };
+
+    if (requiresThinking) {
+      const budgetTokens = Math.min(this.thinkingBudget, this.maxTokens - 1024);
+      const effectiveBudget = Math.max(budgetTokens, 1024);
+      baseParams.max_tokens = Math.max(this.maxTokens, effectiveBudget + 1024);
+      (baseParams as unknown as Record<string, unknown>).thinking = {
+        type: 'enabled',
+        budget_tokens: effectiveBudget,
+      };
+    }
 
     const options = this.authMethod === 'oauth'
       ? { headers: { 'anthropic-beta': OAUTH_BETA } }
