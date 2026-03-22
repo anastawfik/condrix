@@ -811,7 +811,18 @@ export class CoreRuntime {
 
     const apiKey = (settings['model.apiKey'] as string | undefined) ?? process.env.ANTHROPIC_API_KEY;
     if (authMethod === 'oauth' && accessToken) {
-      const claude = new ClaudeProvider({ authToken: accessToken, apiKey, model, maxTokens, systemPrompt });
+      // When connected to Maestro, don't set tokenRefresher — Maestro owns the refresh lifecycle
+      const isMaestroManaged = !!this.maestroConnector?.connected;
+      const claude = new ClaudeProvider({
+        authToken: accessToken,
+        apiKey,
+        model,
+        maxTokens,
+        systemPrompt,
+        tokenRefresher: isMaestroManaged
+          ? undefined
+          : () => this.oauthManager.refreshAccessToken(),
+      });
       this.agentManager.registerProvider(claude);
       this.agentManager.setDefaultProvider('claude');
       console.log('[Core] Claude provider (re)created with OAuth');
