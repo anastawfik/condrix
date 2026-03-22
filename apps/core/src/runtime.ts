@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { homedir, platform } from 'node:os';
 import { join, resolve } from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, existsSync } from 'node:fs';
 import type { CoreInfo, MessageEnvelope } from '@nexus-core/protocol';
 import { createEvent, generateMessageId } from '@nexus-core/protocol';
 
@@ -206,7 +206,26 @@ export class CoreRuntime {
       port: this.config.port,
       status: this.running ? 'online' : 'offline',
       lastHeartbeat: new Date().toISOString(),
+      containerized: this.isContainerized(),
+      hostMounts: this.getHostMounts(),
     };
+  }
+
+  private isContainerized(): boolean {
+    return existsSync('/.dockerenv')
+      || process.env.NEXUS_CORE_CONTAINER === 'true'
+      || existsSync('/run/.containerenv'); // Podman
+  }
+
+  private getHostMounts(): { label: string; path: string }[] {
+    const env = process.env.NEXUS_HOST_MOUNTS;
+    if (!env) return [];
+    // Format: "Label1=/path1,Label2=/path2"
+    return env.split(',').map((entry) => {
+      const [label, ...pathParts] = entry.split('=');
+      const path = pathParts.join('='); // Handle paths with = in them
+      return { label: label!.trim(), path: path.trim() };
+    }).filter((m) => m.label && m.path && existsSync(m.path));
   }
 
   // ─── Route Registration ────────────────────────────────────────────────────
@@ -229,12 +248,26 @@ export class CoreRuntime {
     r.register('core', 'browse', async (payload) => {
       const p = payload as { path?: string; depth?: number };
 
-      // No path given: on Windows show drive letters, on Unix show home directory
+      // No path given: show root-level entries based on environment
       if (!p.path) {
+        // Containerized with host mounts: show mount points as top-level
+        const mounts = this.getHostMounts();
+        if (this.isContainerized() && mounts.length > 0) {
+          const entries = mounts.map((m) => ({
+            path: m.path,
+            name: m.label,
+            type: 'directory' as const,
+          }));
+          return { path: '', entries };
+        }
+
+        // Windows: show drive letters
         if (platform() === 'win32') {
           const entries = await this.fileManager.listDrives();
           return { path: '', entries };
         }
+
+        // Unix: show home directory
         const home = homedir();
         const entries = await this.fileManager.browseDirectory(home, p.depth ?? 1);
         return { path: resolve(home).replace(/\\/g, '/'), entries };

@@ -7,6 +7,11 @@ import { IdSchema, TimestampSchema } from './common.js';
 
 // ─── Domain Schemas ─────────────────────────────────────────────────────────
 
+export const HostMountSchema = z.object({
+  label: z.string(),
+  path: z.string(),
+});
+
 export const CoreInfoSchema = z.object({
   coreId: IdSchema,
   displayName: z.string(),
@@ -14,6 +19,8 @@ export const CoreInfoSchema = z.object({
   port: z.number().int().positive(),
   status: z.enum(['online', 'offline', 'degraded']),
   lastHeartbeat: TimestampSchema,
+  containerized: z.boolean().optional(),
+  hostMounts: z.array(HostMountSchema).optional(),
 });
 
 // ─── Browse ─────────────────────────────────────────────────────────────────

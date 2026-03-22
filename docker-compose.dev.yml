@@ -31,6 +31,8 @@ services:
     environment:
       NEXUS_CORE_HOST: "0.0.0.0"
       NEXUS_CORE_PORT: "9100"
+      NEXUS_CORE_CONTAINER: "true"
+      NEXUS_HOST_MOUNTS: "${NEXUS_HOST_MOUNTS:-}"
     volumes:
       - .:/app
       - /app/node_modules

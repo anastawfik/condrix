@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FolderOpen, Globe } from 'lucide-react';
+import { FolderOpen, Globe, Container } from 'lucide-react';
 import { workspaceStore } from '@nexus-core/client-shared';
 import { Dialog } from './dialog.js';
 import { Button } from './button.js';
@@ -12,6 +12,10 @@ export interface AddProjectDialogProps {
   open: boolean;
   onClose: () => void;
   onCreated?: (projectId: string) => void;
+  /** Whether the Core is running inside a container. */
+  containerized?: boolean;
+  /** Host directories mounted into the container. */
+  hostMounts?: { label: string; path: string }[];
 }
 
 /** Extract folder name from a path (handles both / and \ separators). */
@@ -27,7 +31,7 @@ function repoNameFromUrl(url: string): string {
   return match?.[1] ?? '';
 }
 
-export function AddProjectDialog({ coreId, open, onClose, onCreated }: AddProjectDialogProps) {
+export function AddProjectDialog({ coreId, open, onClose, onCreated, containerized, hostMounts }: AddProjectDialogProps) {
   const [selectedPath, setSelectedPath] = useState('');
   const [name, setName] = useState('');
   const [gitUrl, setGitUrl] = useState('');
@@ -35,7 +39,12 @@ export function AddProjectDialog({ coreId, open, onClose, onCreated }: AddProjec
   const [browserOpen, setBrowserOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('folder');
+
+  // When containerized, default to git tab. Show folder tab only if host mounts are available.
+  const hasHostMounts = (hostMounts?.length ?? 0) > 0;
+  const showFolderTab = !containerized || hasHostMounts;
+  const defaultTab = containerized ? 'git' : 'folder';
+  const [activeTab, setActiveTab] = useState(defaultTab);
 
   const handleFolderSelected = (path: string) => {
     setSelectedPath(path);
@@ -93,45 +102,60 @@ export function AddProjectDialog({ coreId, open, onClose, onCreated }: AddProjec
   return (
     <>
       <Dialog open={open} onClose={onClose} title="Add Project" className="w-[440px]">
-        <Tabs defaultTab="folder" onChange={(id) => setActiveTab(id)}>
+        {containerized && (
+          <div className="flex items-center gap-2 mx-4 mt-1 mb-2 px-3 py-2 rounded-md bg-[var(--bg-tertiary)] text-xs text-[var(--text-secondary)]">
+            <Container size={14} className="shrink-0 text-[var(--accent-blue)]" />
+            <span>Core is running in a container.{hasHostMounts ? ' Host folders are available via mounted volumes.' : ' Add projects via Git URL.'}</span>
+          </div>
+        )}
+
+        <Tabs defaultTab={defaultTab} onChange={(id) => setActiveTab(id)}>
           <TabList className="px-4">
-            <Tab id="folder" icon={<FolderOpen size={12} />}>Local Folder</Tab>
+            {showFolderTab && (
+              <Tab id="folder" icon={<FolderOpen size={12} />}>
+                {containerized ? 'Host Folders' : 'Local Folder'}
+              </Tab>
+            )}
             <Tab id="git" icon={<Globe size={12} />}>Git URL</Tab>
           </TabList>
 
-          <TabPanel id="folder" className="p-4 space-y-3">
-            <div>
-              <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Folder</label>
-              <div className="flex gap-2">
-                <Input
-                  value={selectedPath}
-                  onChange={(e) => {
-                    setSelectedPath(e.target.value);
-                    if (e.target.value) setName(folderName(e.target.value));
-                  }}
-                  placeholder="/path/to/project or Browse..."
-                  inputSize="sm"
-                  className="flex-1"
-                />
-                <Button size="sm" variant="secondary" onClick={() => setBrowserOpen(true)}>
-                  Browse...
-                </Button>
+          {showFolderTab && (
+            <TabPanel id="folder" className="p-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  {containerized ? 'Host Folder' : 'Folder'}
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    value={selectedPath}
+                    onChange={(e) => {
+                      setSelectedPath(e.target.value);
+                      if (e.target.value) setName(folderName(e.target.value));
+                    }}
+                    placeholder={containerized ? 'Select from mounted host folders...' : '/path/to/project or Browse...'}
+                    inputSize="sm"
+                    className="flex-1"
+                  />
+                  <Button size="sm" variant="secondary" onClick={() => setBrowserOpen(true)}>
+                    Browse...
+                  </Button>
+                </div>
               </div>
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Name</label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Project name (auto-derived)"
-                inputSize="sm"
-              />
-            </div>
-          </TabPanel>
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Name</label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Project name (auto-derived)"
+                  inputSize="sm"
+                />
+              </div>
+            </TabPanel>
+          )}
 
           <TabPanel id="git" className="p-4 space-y-3">
             <div>
-              <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Repository URL</label>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Repository URL</label>
               <Input
                 value={gitUrl}
                 onChange={(e) => handleGitUrlChange(e.target.value)}
@@ -140,7 +164,7 @@ export function AddProjectDialog({ coreId, open, onClose, onCreated }: AddProjec
               />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Name</label>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Name</label>
               <Input
                 value={gitName}
                 onChange={(e) => setGitName(e.target.value)}
@@ -152,7 +176,7 @@ export function AddProjectDialog({ coreId, open, onClose, onCreated }: AddProjec
         </Tabs>
 
         {error && (
-          <div className="mx-4 mb-1 px-3 py-2 rounded bg-[var(--accent-red)]/10 text-[var(--accent-red)] text-xs">
+          <div className="mx-4 mb-1 px-3 py-2 rounded-md bg-[var(--accent-red)]/10 text-[var(--accent-red)] text-xs">
             {error}
           </div>
         )}
