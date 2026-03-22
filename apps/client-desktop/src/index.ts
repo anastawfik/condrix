@@ -1,12 +1,12 @@
 /**
  * @nexus-core/client-desktop
  *
- * Tauri 2.0 desktop application providing a full IDE-like experience:
- * - Chat panel with streaming AI responses
- * - Monaco-based code editor
- * - Integrated terminal (xterm.js)
- * - File explorer and git panel
- * - Core switcher and Maestro overlay
+ * Tauri 2.0 thin shell that loads the NexusCore web client.
+ * In dev mode, loads http://localhost:5173 (the Vite dev server).
+ * In production, bundles the built web client assets.
+ *
+ * Contains a minimal fallback UI with URL input if the web client
+ * is not available at the expected location.
  */
 
 export { App } from './App.js';

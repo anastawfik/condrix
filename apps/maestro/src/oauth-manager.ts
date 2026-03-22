@@ -102,7 +102,9 @@ export class OAuthManager {
     const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
     const state = randomBytes(16).toString('hex');
 
-    const { server, port } = await this.startCallbackServer();
+    // Use a fixed port (Maestro port + 1) so Docker can expose it
+    const callbackPort = (parseInt(process.env.NEXUS_MAESTRO_PORT ?? '9200', 10)) + 1;
+    const { server, port } = await this.startCallbackServer(callbackPort);
     this.loginServer = server;
 
     const redirectUri = `http://localhost:${port}/callback`;
@@ -234,7 +236,7 @@ export class OAuthManager {
 
   // ─── Private ─────────────────────────────────────────────────────────────────
 
-  private startCallbackServer(): Promise<{ server: Server; port: number }> {
+  private startCallbackServer(fixedPort: number): Promise<{ server: Server; port: number }> {
     return new Promise((resolve, reject) => {
       const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         const url = new URL(req.url ?? '/', `http://localhost`);
@@ -244,16 +246,18 @@ export class OAuthManager {
           const reqState = url.searchParams.get('state');
           const error = url.searchParams.get('error');
 
+          const redirectTo = process.env.WEB_PUBLIC_URL ?? CLAUDEAI_SUCCESS_URL;
+
           if (error) {
             const desc = url.searchParams.get('error_description') ?? error;
-            res.writeHead(302, { Location: CLAUDEAI_SUCCESS_URL });
+            res.writeHead(302, { Location: redirectTo });
             res.end();
             server.emit('oauth-error', `OAuth error: ${desc}`);
             return;
           }
 
           if (code && reqState) {
-            res.writeHead(302, { Location: CLAUDEAI_SUCCESS_URL });
+            res.writeHead(302, { Location: redirectTo });
             res.end();
             server.emit('oauth-callback', code, reqState);
           } else {
@@ -268,10 +272,10 @@ export class OAuthManager {
         res.end('Not found');
       });
 
-      server.listen(0, '127.0.0.1', () => {
-        const addr = server.address() as AddressInfo;
-        console.log(`[Maestro OAuth] Callback server listening on port ${addr.port}`);
-        resolve({ server, port: addr.port });
+      const bindHost = process.env.NEXUS_MAESTRO_HOST ?? '0.0.0.0';
+      server.listen(fixedPort, bindHost, () => {
+        console.log(`[Maestro OAuth] Callback server listening on ${bindHost}:${fixedPort}`);
+        resolve({ server, port: fixedPort });
       });
 
       server.on('error', reject);

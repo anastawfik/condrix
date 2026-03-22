@@ -1,30 +1,19 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  resolve: {
-    dedupe: ['react', 'react-dom', 'zustand'],
-  },
+  plugins: [react()],
+  // Tauri expects a fixed port for devUrl
   server: {
     port: 5175,
-    host: '0.0.0.0',
+    strictPort: true,
   },
   build: {
     outDir: 'dist',
-    chunkSizeWarningLimit: 600,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('@monaco-editor/react')) return 'monaco';
-          if (id.includes('node_modules/react-dom')) return 'react-vendor';
-          if (id.includes('node_modules/react/')) return 'react-vendor';
-          if (id.includes('@xterm/')) return 'xterm';
-          if (id.includes('lucide-react')) return 'icons';
-          if (id.includes('radix-ui') || id.includes('radix')) return 'radix';
-        },
-      },
-    },
+    // Tauri uses Chromium on Windows and WebKit on macOS/Linux
+    target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13',
+    // Tauri handles minification
+    minify: !process.env.TAURI_ENV_DEBUG ? 'esbuild' : false,
+    sourcemap: !!process.env.TAURI_ENV_DEBUG,
   },
 });

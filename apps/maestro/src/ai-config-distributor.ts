@@ -88,12 +88,11 @@ export class AiConfigDistributor {
       this.sendConfigSet(coreDbId, 'model.apiKey', config.apiKey);
     }
 
-    // Push OAuth tokens
+    // Push OAuth access token only — Maestro owns refresh lifecycle.
+    // Sending the refresh token to Cores causes token rotation conflicts
+    // where both services independently refresh, invalidating each other's tokens.
     if (config.oauthAccessToken) {
       this.sendConfigSet(coreDbId, 'oauth.accessToken', config.oauthAccessToken);
-    }
-    if (config.oauthRefreshToken) {
-      this.sendConfigSet(coreDbId, 'oauth.refreshToken', config.oauthRefreshToken);
     }
 
     return true;

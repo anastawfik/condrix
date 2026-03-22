@@ -36,7 +36,7 @@ export function TitleBar({ onSettingsOpen, maestroConnected }: TitleBarProps) {
   const currentProject = currentProjectId ? projects.find((p) => p.id === currentProjectId) : null;
 
   return (
-    <div className="flex items-center h-9 px-3 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] select-none shrink-0">
+    <div className="flex items-center h-9 px-3 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] select-none shrink-0" data-testid="title-bar">
       <span className="font-semibold text-[var(--accent-blue)] mr-3">NexusCore</span>
 
       <div className="flex items-center gap-2 text-[var(--text-secondary)] text-xs">

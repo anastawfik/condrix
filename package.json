@@ -18,7 +18,11 @@
     "dev:desktop": "nx run @nexus-core/client-desktop:dev",
     "dev:cli": "nx run @nexus-core/client-cli:dev",
     "graph": "nx graph",
-    "clean": "nx run-many -t clean && rm -rf node_modules"
+    "clean": "nx run-many -t clean && rm -rf node_modules",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:dev": "docker compose -f docker-compose.dev.yml up",
+    "docker:build": "docker compose build"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
@@ -39,5 +43,9 @@
   },
   "dependencies": {
     "qrcode": "^1.5.4"
+  },
+  "overrides": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

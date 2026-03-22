@@ -18,7 +18,7 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
   const [url, setUrl] = useState(() => {
     try {
       const saved = localStorage.getItem('nexus-maestro-url');
-      return saved ?? '';
+      return saved ?? (import.meta.env.VITE_DEFAULT_MAESTRO_URL as string | undefined) ?? '';
     } catch {
       return '';
     }
@@ -89,6 +89,7 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
       <div
         className="w-[380px] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-xl"
         onKeyDown={handleKeyDown}
+        data-testid="maestro-login-dialog"
       >
         {/* Header */}
         <div className="px-6 pt-5 pb-3">
@@ -108,6 +109,7 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
               onChange={(e) => setUrl(e.target.value)}
               placeholder="ws://localhost:9200"
               autoFocus
+              data-testid="maestro-url-input"
               className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-blue)]"
             />
           </div>
@@ -119,6 +121,7 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="admin"
+              data-testid="maestro-username-input"
               className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-blue)]"
             />
           </div>
@@ -129,6 +132,7 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              data-testid="maestro-password-input"
               className="w-full px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-blue)]"
             />
           </div>
@@ -156,6 +160,7 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
             className="w-full"
             onClick={handleLogin}
             disabled={loading}
+            data-testid="maestro-login-button"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
@@ -172,6 +177,7 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
         <div className="px-6 pt-3 pb-5">
           <button
             onClick={onDirectConnect}
+            data-testid="direct-connect-button"
             className="w-full px-3 py-2 rounded border border-[var(--border-color)] text-[var(--text-secondary)] text-xs hover:bg-[var(--bg-hover)] transition-colors"
           >
             Connect directly to a Core

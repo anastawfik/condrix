@@ -12,10 +12,10 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { randomBytes, createHash } from 'node:crypto';
-import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'node:http';
-import type { AddressInfo } from 'node:net';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import type { CoreDatabase } from '../database.js';
+import type { HttpRouteHandler } from '../managers/connection-manager.js';
 
 const ANTHROPIC_OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const ANTHROPIC_TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';
@@ -57,7 +57,8 @@ export interface BrowserLoginResult {
 export class OAuthTokenManager {
   private db: CoreDatabase;
   private refreshTimer: ReturnType<typeof setTimeout> | null = null;
-  private loginServer: Server | null = null;
+  private registerRoute: ((path: string, handler: HttpRouteHandler) => void) | null = null;
+  private callbackPort = 9100;
 
   /** Called when tokens are refreshed — runtime uses this to reconfigure provider. */
   onTokenRefreshed: ((accessToken: string) => void) | null = null;
@@ -68,6 +69,12 @@ export class OAuthTokenManager {
   constructor(db: CoreDatabase) {
     this.db = db;
     this.scheduleRefresh();
+  }
+
+  /** Wire the OAuth callback to the Core's HTTP server (same port as WebSocket). */
+  setHttpCallback(registerRoute: (path: string, handler: HttpRouteHandler) => void, port: number): void {
+    this.registerRoute = registerRoute;
+    this.callbackPort = port;
   }
 
   /** Store new tokens in the database. */
@@ -147,18 +154,16 @@ export class OAuthTokenManager {
    * that resolves when the login completes.
    */
   async startBrowserLogin(): Promise<BrowserLoginResult> {
-    // Clean up any previous login server
-    this.cleanupLoginServer();
+    if (!this.registerRoute) {
+      throw new Error('OAuth callback not configured — call setHttpCallback() first');
+    }
 
     // Generate PKCE parameters
     const codeVerifier = randomBytes(32).toString('base64url');
     const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
     const state = randomBytes(16).toString('hex');
 
-    // Start a temporary HTTP server to receive the OAuth callback
-    const { server, port } = await this.startCallbackServer();
-    this.loginServer = server;
-
+    const port = this.callbackPort;
     const redirectUri = `http://localhost:${port}/callback`;
 
     // Construct authorization URL
@@ -178,84 +183,54 @@ export class OAuthTokenManager {
     // Create a promise that resolves when the callback is received
     const completion = new Promise<{ success: boolean; message: string }>((resolve) => {
       const timeout = setTimeout(() => {
-        this.cleanupLoginServer();
         resolve({ success: false, message: 'Login timed out (5 minutes). Please try again.' });
       }, LOGIN_TIMEOUT_MS);
 
-      // Store the handler context for the callback server
-      server.once('oauth-callback', async (code: string, callbackState: string) => {
-        clearTimeout(timeout);
+      // Register the callback handler on the Core's HTTP server
+      this.registerRoute!('/callback', (_req: IncomingMessage, res: ServerResponse) => {
+        const reqUrl = new URL(_req.url ?? '/', `http://localhost`);
+        const code = reqUrl.searchParams.get('code');
+        const reqState = reqUrl.searchParams.get('state');
+        const error = reqUrl.searchParams.get('error');
 
-        if (callbackState !== state) {
-          this.cleanupLoginServer();
-          resolve({ success: false, message: 'OAuth state mismatch — possible CSRF. Try again.' });
+        // Redirect back to the web UI, or Anthropic's success page as fallback
+        const redirectTo = process.env.WEB_PUBLIC_URL ?? CLAUDEAI_SUCCESS_URL;
+
+        if (error) {
+          const desc = reqUrl.searchParams.get('error_description') ?? error;
+          res.writeHead(302, { Location: redirectTo });
+          res.end();
+          clearTimeout(timeout);
+          resolve({ success: false, message: `OAuth error: ${desc}` });
           return;
         }
 
-        try {
-          await this.exchangeCodeForTokens(code, codeVerifier, redirectUri, callbackState);
-          this.cleanupLoginServer();
-          resolve({ success: true, message: 'Successfully signed in with Claude!' });
-        } catch (err) {
-          this.cleanupLoginServer();
-          const msg = err instanceof Error ? err.message : String(err);
-          resolve({ success: false, message: `Token exchange failed: ${msg}` });
-        }
-      });
+        if (code && reqState) {
+          res.writeHead(302, { Location: redirectTo });
+          res.end();
+          clearTimeout(timeout);
 
-      server.once('oauth-error', (errorMsg: string) => {
-        clearTimeout(timeout);
-        this.cleanupLoginServer();
-        resolve({ success: false, message: errorMsg });
+          if (reqState !== state) {
+            resolve({ success: false, message: 'OAuth state mismatch — possible CSRF. Try again.' });
+            return;
+          }
+
+          this.exchangeCodeForTokens(code, codeVerifier, redirectUri, reqState)
+            .then(() => resolve({ success: true, message: 'Successfully signed in with Claude!' }))
+            .catch((err) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              resolve({ success: false, message: `Token exchange failed: ${msg}` });
+            });
+        } else {
+          res.writeHead(400, { 'Content-Type': 'text/plain' });
+          res.end('Missing code or state parameter');
+          clearTimeout(timeout);
+          resolve({ success: false, message: 'Missing authorization code' });
+        }
       });
     });
 
     return { url, completion };
-  }
-
-  private startCallbackServer(): Promise<{ server: Server; port: number }> {
-    return new Promise((resolve, reject) => {
-      const server = createServer((req: IncomingMessage, res: ServerResponse) => {
-        const url = new URL(req.url ?? '/', `http://localhost`);
-
-        if (url.pathname === '/callback') {
-          const code = url.searchParams.get('code');
-          const state = url.searchParams.get('state');
-          const error = url.searchParams.get('error');
-
-          if (error) {
-            const desc = url.searchParams.get('error_description') ?? error;
-            res.writeHead(302, { Location: CLAUDEAI_SUCCESS_URL });
-            res.end();
-            server.emit('oauth-error', `OAuth error: ${desc}`);
-            return;
-          }
-
-          if (code && state) {
-            // Redirect to Anthropic's success page
-            res.writeHead(302, { Location: CLAUDEAI_SUCCESS_URL });
-            res.end();
-            server.emit('oauth-callback', code, state);
-          } else {
-            res.writeHead(400, { 'Content-Type': 'text/plain' });
-            res.end('Missing code or state parameter');
-            server.emit('oauth-error', 'Missing authorization code');
-          }
-          return;
-        }
-
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('Not found');
-      });
-
-      server.listen(0, '127.0.0.1', () => {
-        const addr = server.address() as AddressInfo;
-        console.log(`[OAuth] Callback server listening on port ${addr.port}`);
-        resolve({ server, port: addr.port });
-      });
-
-      server.on('error', reject);
-    });
   }
 
   private async exchangeCodeForTokens(
@@ -295,13 +270,6 @@ export class OAuthTokenManager {
 
     if (this.onTokenRefreshed) {
       this.onTokenRefreshed(data.access_token);
-    }
-  }
-
-  private cleanupLoginServer(): void {
-    if (this.loginServer) {
-      this.loginServer.close();
-      this.loginServer = null;
     }
   }
 
@@ -385,13 +353,12 @@ export class OAuthTokenManager {
     return { authenticated: false, method: 'none' };
   }
 
-  /** Clean up timers and servers on shutdown. */
+  /** Clean up timers on shutdown. */
   destroy(): void {
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
       this.refreshTimer = null;
     }
-    this.cleanupLoginServer();
   }
 
   // ─── Private ─────────────────────────────────────────────────────────────────

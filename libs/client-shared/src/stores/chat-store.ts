@@ -381,15 +381,24 @@ export const createChatStore = () =>
 
       if (action === 'message') {
         const msgId = (payload.messageId as string) ?? `msg_${Date.now()}`;
+        const role = ((payload.role as string) ?? 'assistant') as ChatMessage['role'];
 
-        // Skip if we already have this message
+        // Skip user messages from our own sends (we already added them optimistically)
+        if (role === 'user' && get()._pendingSendWorkspaces.has(workspaceId)) return;
+
+        // Skip assistant messages we received via request/response
         if (get()._ownMessageIds.has(msgId)) return;
+
+        // Skip if we already have this message (by ID)
         const existing = get().messages.get(workspaceId) ?? [];
         if (existing.some((m) => m.id === msgId)) return;
 
+        // Skip assistant messages if we're streaming our own request on this workspace
+        if (role === 'assistant' && get()._streamingPlaceholders.has(workspaceId)) return;
+
         const msg: ChatMessage = {
           id: msgId,
-          role: ((payload.role as string) ?? 'assistant') as ChatMessage['role'],
+          role,
           content: (payload.content as string) ?? '',
           thinking: payload.thinking as string | undefined,
           timestamp: (payload.timestamp as string) ?? new Date().toISOString(),
@@ -438,6 +447,8 @@ function addMessage(
 ): void {
   const newMessages = new Map(get().messages);
   const existing = newMessages.get(workspaceId) ?? [];
+  // Final dedup guard: never add a message with an ID that already exists
+  if (existing.some((m) => m.id === msg.id)) return;
   newMessages.set(workspaceId, [...existing, msg]);
   set(() => ({ messages: newMessages }));
 }
@@ -493,16 +504,13 @@ export function initChatSync(): () => void {
     }
   });
 
-  // Maestro mode: subscribe via maestroStore when connected
+  // Maestro mode: subscribe via maestroStore when connected.
+  // NOTE: Only subscribe to streaming deltas here. agent:message is already
+  // handled by subscribeToBroadcasts which routes through maestro.subscribe()
+  // when in Maestro mode. Subscribing here too would cause double delivery.
   let maestroEventUnsubs: Array<() => void> = [];
   const setupMaestroSubs = () => {
     const sub = maestroStore.getState().subscribe;
-    maestroEventUnsubs.push(sub('agent:message', (event) => {
-      const payload = event.payload as { workspaceId: string };
-      if (payload.workspaceId) {
-        chatStore.getState()._handleAgentEvent(payload.workspaceId, event);
-      }
-    }));
     maestroEventUnsubs.push(sub('agent:thinkingDelta', (event) => {
       const payload = event.payload as { workspaceId: string; delta: string };
       if (!payload.workspaceId) return;

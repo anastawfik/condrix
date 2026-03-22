@@ -8,11 +8,6 @@
     "moduleResolution": "Bundler",
     "lib": ["ES2023", "DOM", "DOM.Iterable"]
   },
-  "references": [
-    { "path": "../../libs/protocol" },
-    { "path": "../../libs/client-shared" },
-    { "path": "../../libs/client-components" }
-  ],
   "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["dist", "node_modules"]
+  "exclude": ["dist", "node_modules", "src-tauri"]
 }

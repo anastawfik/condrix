@@ -20,7 +20,7 @@ export interface ClaudeProviderConfig {
   tokenRefresher?: () => Promise<string>;
 }
 
-const DEFAULT_MODEL = 'claude-sonnet-4-5';
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 const DEFAULT_MAX_TOKENS = 16000;
 const DEFAULT_THINKING_BUDGET = 10000;
 const MAX_TOOL_TURNS = 25;
@@ -41,6 +41,7 @@ export class ClaudeProvider implements AgentProviderAdapter {
 
   constructor(config: ClaudeProviderConfig = {}) {
     if (config.authToken) {
+      console.log(`[Claude] Creating client with OAuth token (${config.authToken.substring(0, 15)}...)`);
       this.client = new Anthropic({ authToken: config.authToken });
       this.authMethod = 'oauth';
       this.fallbackApiKey = config.apiKey ?? process.env.ANTHROPIC_API_KEY;
@@ -324,23 +325,34 @@ export class ClaudeProvider implements AgentProviderAdapter {
   }
 
   private buildMessages(history: AgentMessage[], message: string): Anthropic.MessageParam[] {
-    const messages: Anthropic.MessageParam[] = [];
+    const raw: Anthropic.MessageParam[] = [];
 
     for (const msg of history) {
       if (msg.role === 'system') continue;
-      messages.push({
+      raw.push({
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
       });
     }
 
-    const lastMsg = messages[messages.length - 1];
+    const lastMsg = raw[raw.length - 1];
     if (!lastMsg || lastMsg.role !== 'user' || lastMsg.content !== message) {
-      messages.push({ role: 'user', content: message });
+      raw.push({ role: 'user', content: message });
     }
 
-    if (messages.length > 0 && messages[0].role !== 'user') {
-      messages.shift();
+    if (raw.length > 0 && raw[0].role !== 'user') {
+      raw.shift();
+    }
+
+    // Merge consecutive same-role messages (API requires alternating roles)
+    const messages: Anthropic.MessageParam[] = [];
+    for (const msg of raw) {
+      const prev = messages[messages.length - 1];
+      if (prev && prev.role === msg.role) {
+        prev.content = `${prev.content as string}\n\n${msg.content as string}`;
+      } else {
+        messages.push({ ...msg });
+      }
     }
 
     return messages;

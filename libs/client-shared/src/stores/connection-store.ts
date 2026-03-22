@@ -68,9 +68,16 @@ export const createConnectionStore = () =>
       const { _ws } = get();
       if (_ws) _ws.close();
 
-      set({ state: 'connecting', _config: config, error: null });
+      // Auto-prefix protocol if missing
+      let url = config.url.trim();
+      if (!/^wss?:\/\//i.test(url)) {
+        url = `ws://${url}`;
+      }
+      const normalizedConfig = { ...config, url };
 
-      const ws = new WebSocket(config.url);
+      set({ state: 'connecting', _config: normalizedConfig, error: null });
+
+      const ws = new WebSocket(url);
 
       ws.onopen = () => {
         set({ _ws: ws, _reconnectAttempt: 0 });

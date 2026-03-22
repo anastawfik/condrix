@@ -76,7 +76,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const showCursor = message.isStreaming && message.role === 'assistant';
 
   return (
-    <div className={`flex gap-2.5 ${isUser ? 'flex-row-reverse' : 'flex-row'} px-4`}>
+    <div className={`flex gap-2.5 ${isUser ? 'flex-row-reverse' : 'flex-row'} px-4`} data-testid={`chat-message-${message.role}`}>
       {/* Avatar */}
       <div
         className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center mt-0.5 ${
@@ -117,6 +117,19 @@ export function ChatMessage({ message }: ChatMessageProps) {
             <Markdown
               rehypePlugins={[rehypeHighlight]}
               components={{
+                h1: ({ children }) => <h1 className="text-lg font-bold mb-2 mt-3 first:mt-0 text-[var(--text-primary)]">{children}</h1>,
+                h2: ({ children }) => <h2 className="text-base font-bold mb-1.5 mt-2.5 first:mt-0 text-[var(--text-primary)]">{children}</h2>,
+                h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 mt-2 first:mt-0 text-[var(--text-primary)]">{children}</h3>,
+                h4: ({ children }) => <h4 className="text-sm font-semibold mb-1 mt-2 first:mt-0 text-[var(--text-secondary)]">{children}</h4>,
+                strong: ({ children }) => <strong className="font-semibold text-[var(--text-primary)]">{children}</strong>,
+                em: ({ children }) => <em className="italic">{children}</em>,
+                a: ({ children, href }) => (
+                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--accent-blue)] underline underline-offset-2 hover:brightness-125">{children}</a>
+                ),
+                blockquote: ({ children }) => (
+                  <blockquote className="border-l-2 border-[var(--accent-blue)] pl-3 my-1.5 text-[var(--text-secondary)] italic">{children}</blockquote>
+                ),
+                hr: () => <hr className="my-2 border-[var(--border-color)]" />,
                 pre: ({ children }) => (
                   <pre className="my-2 p-3 rounded-lg bg-[var(--bg-primary)] overflow-x-auto text-xs border border-[var(--border-color)]">{children}</pre>
                 ),
@@ -130,6 +143,12 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 ul: ({ children }) => <ul className="list-disc pl-4 mb-1.5">{children}</ul>,
                 ol: ({ children }) => <ol className="list-decimal pl-4 mb-1.5">{children}</ol>,
                 li: ({ children }) => <li className="mb-0.5">{children}</li>,
+                table: ({ children }) => (
+                  <div className="my-2 overflow-x-auto"><table className="w-full text-xs border-collapse border border-[var(--border-color)]">{children}</table></div>
+                ),
+                thead: ({ children }) => <thead className="bg-[var(--bg-primary)]">{children}</thead>,
+                th: ({ children }) => <th className="px-2 py-1.5 text-left font-semibold border border-[var(--border-color)] text-[var(--text-primary)]">{children}</th>,
+                td: ({ children }) => <td className="px-2 py-1.5 border border-[var(--border-color)]">{children}</td>,
               }}
             >
               {message.content}

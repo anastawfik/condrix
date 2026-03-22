@@ -33,14 +33,21 @@ export interface WorkspacePathResolver {
   getWorkspacePath(workspaceId: string): string | undefined;
 }
 
-/** Echo provider for Phase 1 — returns the user's message prefixed with [Echo]. */
+/** Fallback provider when no AI is configured — prompts the user to authenticate. */
 export class EchoProvider implements AgentProviderAdapter {
   readonly name = 'echo';
   async sendMessage(
     _history: AgentMessage[],
-    message: string,
+    _message: string,
   ): Promise<{ content: string }> {
-    return { content: `[Echo] ${message}` };
+    return {
+      content:
+        '**No AI model configured.** Please authenticate to start using the agent:\n\n' +
+        '- **Settings → Model → "Sign in with Claude"** (OAuth with your Claude Pro/Max plan)\n' +
+        '- **Settings → Model → API Key** (paste an Anthropic API key)\n' +
+        '- Or set the `ANTHROPIC_API_KEY` environment variable on the Core\n\n' +
+        'Once authenticated, send your message again.',
+    };
   }
 }
 
@@ -215,7 +222,11 @@ export class AgentManager {
     // Send to provider with streaming and tool execution
     let result: { content: string; thinking?: string };
     try {
+      console.log(`[AgentManager] Sending to provider "${session.provider.name}" for workspace ${workspaceId}`);
       result = await session.provider.sendMessage(agentHistory, message, onStream, toolExecutor);
+    } catch (err) {
+      console.error(`[AgentManager] Provider error:`, err instanceof Error ? err.message : err);
+      throw err;
     } finally {
       // Restore original provider config after the call
       if (providerReconfigured && 'reconfigure' in session.provider) {

@@ -82,9 +82,15 @@ export const createMaestroStore = () =>
     _pending: new Map(),
     _listeners: new Map(),
 
-    connect: (url) => {
+    connect: (rawUrl) => {
       const { _ws } = get();
       if (_ws) _ws.close();
+
+      // Auto-prefix protocol if missing (prevents treating hostname as relative path)
+      let url = rawUrl.trim();
+      if (!/^wss?:\/\//i.test(url)) {
+        url = `wss://${url}`;
+      }
 
       set({ state: 'connecting', url, error: null });
 

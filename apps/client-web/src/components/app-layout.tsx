@@ -16,7 +16,7 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen" data-testid="app-layout">
       <TitleBar
         onSettingsOpen={() => setSettingsOpen(true)}
         onBackToProjects={handleBackToProjects}

@@ -139,10 +139,31 @@ export class WorkspaceManager {
 
   /**
    * Clone a repo with a timeout to avoid hanging on network issues.
+   * Injects GITHUB_TOKEN into HTTPS GitHub URLs for private repo access.
    */
   private async cloneWithTimeout(source: string, dest: string): Promise<void> {
     const git = simpleGit({ timeout: { block: CLONE_TIMEOUT_MS } });
-    await git.clone(source, dest);
+    await git.clone(this.injectGitAuth(source), dest);
+  }
+
+  /**
+   * Inject authentication token into HTTPS git URLs.
+   * Supports GITHUB_TOKEN for github.com URLs.
+   */
+  private injectGitAuth(url: string): string {
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) return url;
+
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'https:' && parsed.hostname.includes('github.com') && !parsed.username) {
+        parsed.username = token;
+        return parsed.toString();
+      }
+    } catch {
+      // Not a valid URL (e.g. local path) — return as-is
+    }
+    return url;
   }
 
   /**

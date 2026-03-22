@@ -1,8 +1,35 @@
-# NexusCore
+<p align="center">
+  <h1 align="center">NexusCore</h1>
+  <p align="center"><strong>Distributed AI Agent Orchestration Platform</strong></p>
+  <p align="center">
+    Orchestrate AI coding agents across multiple machines. Start a session on your desktop, check progress from your phone, continue from a laptop — all in real-time.
+  </p>
+</p>
 
-**Distributed AI Agent Orchestration Platform**
+<p align="center">
+  <a href="#quick-start">Quick Start</a> &bull;
+  <a href="#architecture">Architecture</a> &bull;
+  <a href="#deployment">Deployment</a> &bull;
+  <a href="#development">Development</a> &bull;
+  <a href="#documentation">Docs</a>
+</p>
 
-NexusCore orchestrates AI coding agents across multiple machines, accessible from any device in real-time. Start a coding session on your desktop, check progress from your phone, continue from a laptop — without losing context.
+---
+
+## Features
+
+- **Multi-machine orchestration** — Run AI agents on powerful machines, control them from anywhere
+- **Real-time collaboration** — File explorer, terminals, git, and chat all update live via WebSocket
+- **Built-in IDE experience** — Monaco editor, integrated terminal (xterm.js), git panel with diffs
+- **Multiple clients** — Web, Desktop (Tauri), Mobile (React Native), CLI (Ink)
+- **Messaging bridge** — WhatsApp and Telegram notifications when agents need human input
+- **Secure remote access** — Cloudflare Tunnel integration with zero port forwarding
+- **Private repo support** — Clone private GitHub repos via `GITHUB_TOKEN`
+- **Docker-ready** — One-command deployment with Docker Compose (dev and production)
+- **Pluggable AI** — Anthropic Claude (API key or OAuth), extensible to other providers
+- **Skills & MCP** — Equip agents with domain-specific capabilities and tool access
+
+---
 
 ## Architecture
 
@@ -11,14 +38,15 @@ NexusCore is built on three layers:
 | Layer | Role | Technology |
 |-------|------|-----------|
 | **Core** | Agent runtime daemon — manages projects, workspaces, agents, terminals, files, git | Node.js, WebSocket, SQLite, node-pty |
-| **Maestro** | Orchestration — cross-core coordination, message relay, messaging bridge | Node.js, grammy, baileys, SQLite |
+| **Maestro** | Orchestration hub — cross-core coordination, message relay, messaging bridge | Node.js, grammy, baileys, SQLite |
 | **Clients** | Stateless UIs that connect to Cores for IDE-like experiences | Tauri, React, React Native, Ink |
 
-NexusCore supports two connection modes:
+### Connection Modes
 
-### Direct Mode
+<details>
+<summary><strong>Direct Mode</strong> — Single machine, simplest setup</summary>
 
-Clients connect directly to a Core via WebSocket. Best for single-machine setups or LAN access.
+Clients connect directly to a Core via WebSocket. Best for local development or LAN access.
 
 ```
 ┌──────────┐     ┌──────────┐     ┌──────────┐
@@ -33,9 +61,12 @@ Clients connect directly to a Core via WebSocket. Best for single-machine setups
     └─────────────────┘
 ```
 
-### Maestro Mode
+</details>
 
-Clients connect to Maestro, which relays messages to Cores. Enables multi-core orchestration, remote access via Cloudflare Tunnel, and messaging bridges (WhatsApp/Telegram).
+<details>
+<summary><strong>Maestro Mode</strong> — Multi-machine, remote access, messaging</summary>
+
+Clients connect to Maestro, which relays messages to Cores. Enables multi-core orchestration, remote access via Cloudflare Tunnel, and messaging bridges.
 
 ```
 ┌──────────┐     ┌──────────┐     ┌──────────┐
@@ -55,123 +86,280 @@ Clients connect to Maestro, which relays messages to Cores. Enables multi-core o
   └─────────┘ └─────────┘
 ```
 
-## Monorepo Structure
+</details>
+
+<details>
+<summary><strong>Docker Mode</strong> — Full stack in containers with optional Cloudflare Tunnel</summary>
+
+All services run in Docker Compose with persistent volumes and optional Cloudflare Tunnel for public access.
 
 ```
-apps/                        # Deployable applications & services
-  core/                      # Core daemon (Node.js)
-  maestro/                   # Maestro orchestration service
-  client-desktop/            # Tauri desktop app
-  client-web/                # Web client (Vite + React)
-  client-mobile/             # React Native app
-  client-cli/                # CLI client (Ink)
-  docs/                      # Documentation (VitePress)
-libs/                        # Shared libraries
-  protocol/                  # Shared types & message schemas
-  client-shared/             # Shared React hooks/stores for clients
-  client-components/         # Shared UI components (shadcn/ui-style)
-  skills/                    # Built-in agent skill definitions
-  mcp-configs/               # MCP server configurations
+┌─────────────── Docker Host ───────────────────┐
+│                                               │
+│  ┌──────────┐  ┌──────────┐  ┌─────────────┐ │
+│  │ Maestro  │  │   Core   │  │ Web (Nginx) │ │
+│  │  :9200   │  │  :9100   │  │    :80      │ │
+│  └────┬─────┘  └────┬─────┘  └──────┬──────┘ │
+│       │              │               │        │
+│  ┌────▼──────────────▼───────────────▼──────┐ │
+│  │          Cloudflare Tunnel (optional)     │ │
+│  └──────────────────┬───────────────────────┘ │
+└─────────────────────┼─────────────────────────┘
+                      │ wss://
+            ┌─────────▼──────────┐
+            │   Public Internet  │
+            │  maestro.domain.com│
+            │  nexus.domain.com  │
+            └────────────────────┘
 ```
 
-## Prerequisites
+</details>
 
-- **Node.js** >= 22.0.0
-- **npm** >= 10.0.0
+---
 
-## Getting Started
+## Quick Start
+
+### Prerequisites
+
+- **Node.js** >= 22.0.0 and **npm** >= 10.0.0
+- **Docker** + **Docker Compose** (optional, for containerized deployment)
+
+### Option 1: Native (Fastest for Development)
 
 ```bash
-# Clone the repository
-git clone <repo-url> nexus-core
-cd nexus-core
+# Clone and install
+git clone <repo-url> nexus-core && cd nexus-core
+npm install && npm run build
 
-# Install all dependencies
-npm install
-
-# Build all packages (required before first run)
-npm run build
-```
-
-### Option A: Direct Mode (Single Machine)
-
-The simplest setup — one Core, one Client, same machine.
-
-```bash
-# 1. Start the Core daemon
-npm run dev:core
-
-# 2. Start the web client
+# Start Core + Web Client
+npm run dev:core &
 npm run dev:web
 
-# 3. Open http://localhost:5173 in your browser
-#    Click "Direct Connect" → connect to ws://localhost:9100
+# Open http://localhost:5173 → Direct Connect → ws://localhost:9100
 ```
 
-**Configure AI authentication** (choose one):
+### Option 2: Docker Compose (Recommended for Deployment)
 
 ```bash
-# API Key — pass via environment variable
-ANTHROPIC_API_KEY=sk-ant-xxx npm run dev:core
+git clone <repo-url> nexus-core && cd nexus-core
 
-# API Key — pass via CLI flag
+# Configure environment
+cp .env.example .env
+# Edit .env — set ANTHROPIC_API_KEY at minimum
+
+# Production (optimized builds, Nginx)
+docker compose up -d
+
+# — OR — Development (hot-reload, source mounted)
+docker compose -f docker-compose.dev.yml up
+```
+
+| Mode | Web Client | Maestro | Core |
+|------|-----------|---------|------|
+| Production | `http://localhost` | `ws://localhost:9200` | Internal |
+| Development | `http://localhost:5173` | `ws://localhost:9200` | `ws://localhost:9100` |
+
+### Configure AI Authentication
+
+Choose one method:
+
+```bash
+# Environment variable (recommended for Docker)
+ANTHROPIC_API_KEY=sk-ant-xxx
+
+# CLI flag
 npm run dev:core -- --api-key sk-ant-xxx
 
 # OAuth — sign in with your Claude Pro/Max plan (opens browser)
 npm run dev:core -- --oauth-login
 ```
 
-Or configure after startup via the web client: **Settings → Authentication**.
+Or configure after startup: **Web Client → Settings → Model → Authentication**.
 
-### Option B: Maestro Mode (Multi-Machine / Remote)
+---
 
-For accessing Cores across machines or networks. Maestro acts as a relay with authentication, Cloudflare Tunnel for remote access, and messaging bridges.
+## Deployment
 
-#### Step 1: Start Maestro
+### Docker Compose Services
 
-On the machine that will act as the orchestration hub:
+Each service can be started independently:
 
 ```bash
-# Start Maestro with Cloudflare Tunnel (recommended for remote access)
-NEXUS_MAESTRO_TUNNEL=true npm run dev:maestro
-
-# Maestro will output:
-#   [Maestro] maestro-primary ready on 0.0.0.0:9200
-#   [Maestro] Tunnel URL: wss://random-name.trycloudflare.com
-#   [Maestro] Remote Cores can connect with: NEXUS_MAESTRO_URL="wss://..."
+docker compose up maestro            # Maestro only
+docker compose up core               # Core only (standalone)
+docker compose up maestro core       # Maestro + Core
+docker compose up                    # All services (Maestro + Core + Web)
+docker compose --profile tunnel up   # All + Cloudflare Tunnel
 ```
 
-If `cloudflared` is not installed, Maestro will automatically download it.
+**Persistent data** is stored in Docker named volumes:
+- `maestro-data` — Maestro database (users, registered cores, settings)
+- `core-data` — Core database, cloned repositories, workspaces
 
-**Maestro environment variables:**
+These survive `docker compose down`. Only `docker compose down -v` removes them.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NEXUS_MAESTRO_HOST` | `0.0.0.0` | Bind host |
-| `NEXUS_MAESTRO_PORT` | `9200` | WebSocket port |
-| `NEXUS_MAESTRO_TUNNEL` | `false` | Set to `true` to enable Cloudflare Tunnel |
-| `NEXUS_MAESTRO_TUNNEL_MODE` | `quick` | `quick` (temporary URL) or `named` (persistent URL) |
-| `NEXUS_MAESTRO_TUNNEL_TOKEN` | — | Cloudflare tunnel token (for named tunnels) |
-| `NEXUS_MAESTRO_DB` | `./maestro.db` | Database file path |
+### Cloudflare Tunnel (Persistent Public URLs)
 
-#### Step 2: Add a Core in Maestro
+Expose NexusCore to the internet with zero port forwarding:
 
-Open the web client, connect to Maestro (login with the default admin credentials printed at first startup), then add a Core via the Maestro UI. Maestro will generate an **access token** for the Core.
+**1. Create a tunnel** in [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → Networks → Tunnels
 
-#### Step 3: Start Core(s)
+**2. Add public hostname routes** pointing to Docker service names:
 
-On each machine running a Core, pass the Maestro URL and access token:
+| Public Hostname | Service | Type |
+|-----------------|---------|------|
+| `maestro.yourdomain.com` | `http://maestro:9200` | HTTP |
+| `nexus.yourdomain.com` | `http://web:80` | HTTP |
+
+**3. Configure `.env`**:
+
+```env
+CF_TUNNEL_TOKEN=eyJ...
+VITE_DEFAULT_MAESTRO_URL=wss://maestro.yourdomain.com
+```
+
+**4. Start with tunnel profile**:
 
 ```bash
-# Using the tunnel URL from Step 1
-NEXUS_MAESTRO_URL="wss://random-name.trycloudflare.com" \
+docker compose --profile tunnel up -d
+```
+
+**Remote Cores** on other machines connect to the tunneled Maestro without Docker:
+
+```bash
+NEXUS_MAESTRO_URL="wss://maestro.yourdomain.com" \
 NEXUS_MAESTRO_TOKEN="<token-from-maestro>" \
 npm run dev:core
 ```
 
-The Core will connect to Maestro and appear as "online" in the UI.
+### Private Repository Access
 
-**Core environment variables:**
+Set `GITHUB_TOKEN` in `.env` to clone private GitHub repos when adding projects:
+
+```env
+GITHUB_TOKEN=ghp_xxxx   # GitHub PAT with `repo` scope
+```
+
+The Core automatically injects the token into HTTPS GitHub URLs during cloning.
+
+### Desktop App
+
+A thin Tauri 2.0 shell (~10-15MB) that loads the web client:
+
+```bash
+# Requires: Rust toolchain + Tauri prerequisites
+# https://v2.tauri.app/start/prerequisites/
+
+npm run dev:web &                            # Start web client first
+cd apps/client-desktop && npm run dev        # Tauri dev mode
+
+# Production build → .msi/.exe (Windows), .dmg (macOS), .deb/.AppImage (Linux)
+npm run build                                # Bundles web assets into binary
+```
+
+---
+
+## Development
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev:core` | Core daemon with hot-reload |
+| `npm run dev:maestro` | Maestro service with hot-reload |
+| `npm run dev:web` | Web client dev server (port 5173) |
+| `npm run dev:desktop` | Desktop client (Tauri) |
+| `npm run dev:cli` | CLI client |
+| `npm run build` | Build all packages |
+| `npm test` | Run all tests |
+| `npm run lint` | Lint all packages |
+| `npm run typecheck` | Type-check all packages |
+| `npm run docker:up` | Docker Compose production |
+| `npm run docker:dev` | Docker Compose dev mode |
+| `npm run docker:down` | Stop Docker Compose |
+| `npm run docker:build` | Build Docker images |
+| `npx nx graph` | Visualize dependency graph |
+| `npx nx affected -t test` | Test only affected packages |
+
+> `npm run dev:*` automatically builds dependency libraries first via NX.
+
+### Core CLI Options
+
+```bash
+npm run dev:core -- --oauth-login          # Authenticate via OAuth (opens browser)
+npm run dev:core -- --api-key sk-ant-xxx   # Set API key
+npm run dev:core -- --generate-token NAME  # Generate auth token for remote clients
+npm run dev:core -- --list-tokens          # List existing auth tokens
+npm run dev:core -- --tunnel               # Start with Cloudflare Tunnel
+npm run dev:core -- --production           # Production mode (requires auth for all connections)
+```
+
+### Monorepo Structure
+
+```
+nexus-core/
+├── apps/
+│   ├── core/                # Core daemon (Node.js, WebSocket, SQLite)
+│   ├── maestro/             # Maestro orchestration service
+│   ├── client-web/          # Web client (Vite + React)
+│   ├── client-desktop/      # Desktop client (Tauri 2.0 shell)
+│   ├── client-mobile/       # Mobile client (React Native / Expo)
+│   ├── client-cli/          # CLI client (Ink + Commander)
+│   └── docs/                # Documentation (VitePress)
+├── libs/
+│   ├── protocol/            # Shared types & message schemas (foundation)
+│   ├── client-shared/       # Shared React hooks/stores
+│   ├── client-components/   # Shared UI components (shadcn/ui-style)
+│   ├── skills/              # Built-in agent skill definitions
+│   └── mcp-configs/         # MCP server configurations
+├── docker-compose.yml       # Production deployment
+├── docker-compose.dev.yml   # Development with hot-reload
+├── Dockerfile               # Multi-stage build (core, maestro, web)
+└── .env.example             # Environment variable template
+```
+
+### Default Ports
+
+| Service | Port | Docker (Dev) | Docker (Prod) |
+|---------|------|-------------|---------------|
+| Core | 9100 | 9100 | Internal |
+| Maestro | 9200 | 9200 | Internal |
+| Web Client | 5173 | 5173 | 80 |
+| Docs | 5174 | — | — |
+
+---
+
+## Key Concepts
+
+### Workspaces
+
+An isolated environment within a project — its own agent session, terminals, git branch, and file watchers. Each workspace is cloned to `~/.nexuscore/workspaces/<id>/`. Workspaces follow a state machine: `CREATING → IDLE → ACTIVE → WAITING → SUSPENDED → DESTROYED`.
+
+### Real-time Updates
+
+The file explorer and source control panel update automatically when files change. The Core watches workspace directories and broadcasts events to connected clients — no manual refresh needed.
+
+### Source Control
+
+Built-in Git panel with staging, unstaging, colored diffs in the Monaco editor, and committing with `Ctrl+Enter`.
+
+### Skills
+
+Composable capability packages that equip agents with domain-specific knowledge (TypeScript, React, DevOps, etc.) and tool access.
+
+### MCP Servers
+
+[Model Context Protocol](https://modelcontextprotocol.io/) servers extend agent capabilities with tools for filesystem, git, database, browser, search, and more.
+
+### Messaging Bridge
+
+Maestro integrates with WhatsApp and Telegram for proactive notifications when agents need human input, enabling approval/rejection directly from your phone.
+
+---
+
+## Environment Variables
+
+### Core
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -180,121 +368,109 @@ The Core will connect to Maestro and appear as "online" in the UI.
 | `NEXUS_CORE_NAME` | `NexusCore` | Display name |
 | `NEXUS_CORE_ID` | `core-default` | Core identifier |
 | `NEXUS_CORE_DB_PATH` | `~/.nexuscore/core.db` | Database file path |
-| `NEXUS_CORE_DEV_MODE` | `true` | Set to `false` for production |
+| `NEXUS_CORE_DEV_MODE` | `true` | `false` for production (requires auth) |
 | `ANTHROPIC_API_KEY` | — | Anthropic API key |
+| `GITHUB_TOKEN` | — | GitHub PAT for cloning private repos |
 | `NEXUS_CLAUDE_MODEL` | `claude-sonnet-4-5` | Claude model ID |
 | `NEXUS_CLAUDE_MAX_TOKENS` | `16000` | Max output tokens |
 | `NEXUS_MAESTRO_URL` | — | Maestro WebSocket URL |
-| `NEXUS_MAESTRO_TOKEN` | — | Access token for Maestro authentication |
-| `NEXUS_TUNNEL_ENABLED` | `false` | Set to `true` to enable Core tunnel |
-| `NEXUS_TUNNEL_MODE` | `quick` | `quick` or `named` |
-| `NEXUS_TUNNEL_TOKEN` | — | Cloudflare tunnel token (for named tunnels) |
+| `NEXUS_MAESTRO_TOKEN` | — | Access token for Maestro auth |
 
-#### Step 4: Start the Web Client
+### Maestro
 
-```bash
-npm run dev:web
-# Open http://localhost:5173
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NEXUS_MAESTRO_HOST` | `0.0.0.0` | Bind host |
+| `NEXUS_MAESTRO_PORT` | `9200` | WebSocket port |
+| `NEXUS_MAESTRO_DB` | `./maestro.db` | Database file path |
+| `NEXUS_MAESTRO_TUNNEL` | `false` | Enable built-in Cloudflare Tunnel |
+| `NEXUS_MAESTRO_TUNNEL_MODE` | `quick` | `quick` (temporary) or `named` (persistent) |
+| `NEXUS_MAESTRO_TUNNEL_TOKEN` | — | Cloudflare tunnel token |
 
-Click **"Maestro"** and enter the Maestro URL (`ws://localhost:9200` if on the same machine, or the tunnel URL for remote). Log in with your credentials, and you'll see all connected Cores.
+### Docker / Tunnel
 
-### Default Ports
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CF_TUNNEL_TOKEN` | — | Cloudflare tunnel token (Docker tunnel profile) |
+| `VITE_DEFAULT_MAESTRO_URL` | — | Pre-filled Maestro URL in web client login |
+| `MAESTRO_PUBLIC_URL` | — | Public Maestro URL (reference only) |
+| `WEB_PUBLIC_URL` | — | Public web URL (reference only) |
 
-| Service | Port |
-|---------|------|
-| Core | 9100 |
-| Maestro | 9200 |
-| Web Client (Vite) | 5173 |
-| Docs (VitePress) | 5174 |
+---
 
-## Development
+## FAQ
 
-```bash
-# Run all tests
-npm test
+<details>
+<summary><strong>How do I connect a Core on another machine?</strong></summary>
 
-# Lint all packages
-npm run lint
-
-# Type-check everything
-npm run typecheck
-
-# Build/test only affected packages
-npx nx affected -t build
-npx nx affected -t test
-
-# View the dependency graph
-npx nx graph
-```
-
-### Dev Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev:core` | Core daemon with hot-reload |
-| `npm run dev:maestro` | Maestro service with hot-reload |
-| `npm run dev:web` | Web client dev server |
-| `npm run dev:desktop` | Desktop client (Tauri) |
-| `npm run dev:cli` | CLI client |
-| `npm run build` | Build all packages |
-
-> **Note:** `npm run dev:*` automatically builds dependency libraries first (via NX).
-
-### Core CLI Commands
+Start Maestro with a Cloudflare Tunnel (Docker or native), then on the remote machine:
 
 ```bash
-# Authenticate via OAuth (opens browser)
-npm run dev:core -- --oauth-login
-
-# Generate an auth token for remote clients
-npm run dev:core -- --generate-token <name>
-
-# List existing auth tokens
-npm run dev:core -- --list-tokens
-
-# Start with a Cloudflare tunnel
-npm run dev:core -- --tunnel
-
-# Start in production mode (requires auth tokens for all connections)
-npm run dev:core -- --production
+NEXUS_MAESTRO_URL="wss://maestro.yourdomain.com" \
+NEXUS_MAESTRO_TOKEN="<token>" \
+npm run dev:core
 ```
 
-## Key Concepts
+The Core registers with Maestro and appears in the UI. No Docker required on the remote machine.
 
-### Workspaces
+</details>
 
-A workspace is an isolated environment within a project — its own agent session, terminals, git worktree, and file watchers. Each workspace is cloned to `~/.nexuscore/workspaces/<id>/`. Workspaces follow a state machine: `CREATING → IDLE → ACTIVE → WAITING → SUSPENDED → DESTROYED`.
+<details>
+<summary><strong>Can I run just the Core without Maestro?</strong></summary>
 
-### Real-time Updates
+Yes. In Direct Mode, clients connect straight to the Core:
 
-The Explorer tree and Source Control panel update automatically when files change — no manual refresh needed. The Core watches workspace directories via chokidar and broadcasts `file:changed` events to connected clients.
+```bash
+npm run dev:core    # or: docker compose up core
+```
 
-### Source Control
+Connect via the web client → "Direct Connect" → `ws://localhost:9100`.
 
-The built-in Git panel supports:
-- Viewing staged and unstaged changes
-- Staging and unstaging files
-- Viewing colored diffs in the editor (click any file)
-- Committing with `Ctrl+Enter`
+</details>
 
-### Skills
+<details>
+<summary><strong>How do I access NexusCore from outside my network?</strong></summary>
 
-Composable capability packages that equip agents with domain-specific knowledge (TypeScript, React, DevOps, etc.) and tool access.
+Use Cloudflare Tunnel. In Docker: `docker compose --profile tunnel up -d`. Natively: `npm run dev:maestro` with `NEXUS_MAESTRO_TUNNEL=true`. Both give you a public `wss://` URL.
 
-### MCP Servers
+</details>
 
-Model Context Protocol servers extend agent capabilities with tools for filesystem, git, database, browser, search, and more.
+<details>
+<summary><strong>Does restarting containers lose my data?</strong></summary>
 
-### Messaging Bridge
+No. Maestro and Core data are stored in Docker named volumes (`maestro-data`, `core-data`) that persist across restarts and `docker compose down`. Only `docker compose down -v` removes them. Web client settings are stored in your browser's localStorage.
 
-Maestro integrates with WhatsApp and Telegram for proactive notifications when agents need human input, enabling approval/rejection directly from your phone.
+</details>
 
-### Cloudflare Tunnel
+<details>
+<summary><strong>Can I clone private GitHub repositories?</strong></summary>
 
-Both Core and Maestro support Cloudflare Tunnel for secure remote access without port forwarding:
-- **Quick tunnel** — temporary URL, no Cloudflare account needed
-- **Named tunnel** — persistent URL, requires a Cloudflare tunnel token
+Yes. Set `GITHUB_TOKEN` in your `.env` file with a GitHub Personal Access Token that has `repo` scope. The Core injects the token into HTTPS GitHub URLs automatically.
+
+</details>
+
+<details>
+<summary><strong>What's the difference between Quick and Named tunnels?</strong></summary>
+
+**Quick tunnels** give you a temporary random URL (e.g., `random-name.trycloudflare.com`) — no Cloudflare account needed, but the URL changes on restart. **Named tunnels** give you persistent custom subdomains (e.g., `maestro.yourdomain.com`) — requires a Cloudflare account and domain.
+
+</details>
+
+<details>
+<summary><strong>How does the Desktop app work?</strong></summary>
+
+The desktop app is a thin Tauri 2.0 shell (~10-15MB) that loads the web client. In dev mode it connects to `localhost:5173`; in production it bundles the built web assets. This avoids duplicating the UI and keeps the binary small.
+
+</details>
+
+<details>
+<summary><strong>Which AI models are supported?</strong></summary>
+
+Currently Anthropic Claude models via API key or OAuth (Claude Pro/Max plan). The default model is `claude-sonnet-4-5`. Configure via `NEXUS_CLAUDE_MODEL` env var or the web UI settings.
+
+</details>
+
+---
 
 ## Documentation
 
@@ -302,4 +478,4 @@ Full architecture document: [`apps/docs/architecture/NexusCore-Architecture-v1.0
 
 ## License
 
-TBD
+MIT

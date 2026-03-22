@@ -378,7 +378,7 @@ function MaestroSection({ maestroState }: { maestroState: MaestroConnectionState
 
 function MaestroConnectionPanel({ maestroState }: { maestroState: MaestroConnectionState }) {
   const [url, setUrl] = useState(() => {
-    try { return localStorage.getItem('nexus-maestro-url') ?? ''; } catch { return ''; }
+    try { return localStorage.getItem('nexus-maestro-url') ?? (import.meta.env.VITE_DEFAULT_MAESTRO_URL as string | undefined) ?? ''; } catch { return ''; }
   });
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
