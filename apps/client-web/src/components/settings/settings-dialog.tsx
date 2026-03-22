@@ -95,11 +95,11 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         aria-modal="true"
         aria-label="Settings"
         tabIndex={-1}
-        className="flex w-[640px] max-w-[95vw] h-[480px] max-h-[90vh] rounded-lg overflow-hidden bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-2xl focus:outline-none"
+        className="flex w-[640px] max-w-[95vw] h-[480px] max-h-[90vh] rounded-lg overflow-hidden bg-card border border-border shadow-2xl focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-44 shrink-0 border-r border-[var(--border-color)] bg-[var(--bg-primary)] py-3">
-          <div className="px-4 pb-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
+        <div className="w-44 shrink-0 border-r border-border bg-background py-3">
+          <div className="px-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Settings
           </div>
           {tabs.map((tab) => (
@@ -108,8 +108,8 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               onClick={() => setActiveTab(tab.id)}
               className={`w-full flex items-center gap-2 px-4 py-2 text-sm text-left transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-[var(--bg-active)] text-[var(--accent-blue)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                  ? 'bg-muted text-primary'
+                  : 'text-muted-foreground hover:bg-accent'
               }`}
             >
               <span className="w-5 text-center">{tab.icon}</span>
@@ -122,7 +122,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           <div className="flex items-center justify-end p-2">
             <button
               onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+              className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent"
               aria-label="Close settings"
             >
               &#x2715;

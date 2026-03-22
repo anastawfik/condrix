@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { useStore } from 'zustand';
 import { Search, RefreshCw } from 'lucide-react';
 import { workspaceStore, fileStore, useFileTree, useFileContent } from '@nexus-core/client-shared';
-import { Tooltip, TooltipProvider, IconButton } from '@nexus-core/client-components';
 import { TreeNode } from './tree-node.js';
 
 export function FileExplorer() {
@@ -53,51 +52,48 @@ export function FileExplorer() {
   }, []);
 
   return (
-    <TooltipProvider delayDuration={300}>
-      <div className="flex flex-col h-full" data-testid="file-explorer">
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border-color)]">
-          <Search size={16} className="text-[var(--text-muted)] shrink-0" />
-          <input
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            placeholder="Filter files..."
-            data-testid="file-filter-input"
-            className="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
-          />
-          <Tooltip content="Refresh">
-            <IconButton
-              icon={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />}
-              onClick={refresh}
-              disabled={loading}
-              size="sm"
-            />
-          </Tooltip>
-        </div>
-
-        <div className="flex-1 overflow-y-auto py-1">
-          {!workspaceId && (
-            <p className="px-4 py-8 text-sm text-[var(--text-muted)] text-center">No workspace selected</p>
-          )}
-          {workspaceId && filteredTree.length === 0 && !loading && (
-            <p className="px-4 py-8 text-sm text-[var(--text-muted)] text-center">No files found</p>
-          )}
-          {filteredTree.map((node) => (
-            <TreeNode
-              key={node.path}
-              node={node}
-              depth={0}
-              onExpand={expandNode}
-              onCollapse={collapseNode}
-              onFileOpen={openFile}
-              onRename={handleRename}
-              onDelete={handleDelete}
-              onNewFile={handleNewFile}
-              onNewFolder={handleNewFolder}
-              onCopyPath={handleCopyPath}
-            />
-          ))}
-        </div>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+        <Search size={16} className="text-muted-foreground shrink-0" />
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filter files..."
+          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+        />
+        <button
+          onClick={refresh}
+          disabled={loading}
+          className="p-0.5 rounded hover:bg-accent text-muted-foreground"
+          title="Refresh"
+        >
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+        </button>
       </div>
-    </TooltipProvider>
+
+      <div className="flex-1 overflow-y-auto py-0.5">
+        {!workspaceId && (
+          <p className="px-3 py-4 text-sm text-muted-foreground text-center">No workspace selected</p>
+        )}
+        {workspaceId && filteredTree.length === 0 && !loading && (
+          <p className="px-3 py-4 text-sm text-muted-foreground text-center">No files found</p>
+        )}
+        {filteredTree.map((node) => (
+          <TreeNode
+            key={node.path}
+            node={node}
+            depth={0}
+            onExpand={expandNode}
+            onCollapse={collapseNode}
+            onFileOpen={openFile}
+            onRename={handleRename}
+            onDelete={handleDelete}
+            onNewFile={handleNewFile}
+            onNewFolder={handleNewFolder}
+            onCopyPath={handleCopyPath}
+          />
+        ))}
+      </div>
+    </div>
   );
 }

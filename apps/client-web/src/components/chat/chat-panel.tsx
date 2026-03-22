@@ -9,7 +9,7 @@ export function ChatPanel() {
   const { messages, isStreaming, sendMessage } = useWorkspace(workspaceId);
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-primary)]" data-testid="chat-panel">
+    <div className="flex flex-col h-full bg-background">
       <ChatHeader />
       <MessageList messages={messages} isStreaming={isStreaming} />
       <ChatInput onSend={sendMessage} disabled={isStreaming || !workspaceId} />

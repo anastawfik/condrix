@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { AppLayout, TitleBar, TooltipProvider, MaestroLoginDialog } from '@nexus-core/client-components';
+import { AppLayout, TitleBar, MaestroLoginDialog } from '@nexus-core/client-components';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { maestroStore, multiCoreStore, workspaceStore, fileStore, terminalStore, getSavedUIState } from '@nexus-core/client-shared';
 import type { MaestroConnectionState } from '@nexus-core/client-shared';
 import { Sidebar } from './components/sidebar.js';
@@ -40,7 +41,7 @@ function RightPanel(_workspaceId: string) {
       <Panel defaultSize="50%" minSize="100px" className="min-h-0">
         <Sidebar />
       </Panel>
-      <Separator className="h-[1px] bg-[var(--border-color)] hover:bg-[var(--accent-blue)] transition-colors" />
+      <Separator className="h-[1px] bg-border hover:bg-primary transition-colors" />
       <Panel defaultSize="50%" minSize="80px" collapsible className="min-h-0">
         <TerminalPanel />
       </Panel>

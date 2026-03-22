@@ -1,17 +1,15 @@
 import { useStore } from 'zustand';
-import { MessageSquare, GitCompareArrows, X, Loader2 } from 'lucide-react';
+import { MessageSquare, GitCompareArrows, X } from 'lucide-react';
 import { workspaceStore, useFileContent, gitStore, fileStore } from '@nexus-core/client-shared';
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
-} from '@nexus-core/client-components';
+} from '@/components/ui/context-menu';
 import type { WorkspaceInfo } from '@nexus-core/protocol';
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { EditorTab } from './editor-tab.js';
+import { CodeEditor } from './code-editor.js';
 import { ChatPanel } from '../chat/chat-panel.js';
-
-// Lazy-load Monaco editor components to reduce main bundle size
-const CodeEditor = lazy(() => import('./code-editor.js').then((m) => ({ default: m.CodeEditor })));
-const DiffEditor = lazy(() => import('./diff-editor.js').then((m) => ({ default: m.DiffEditor })));
+import { DiffEditor } from './diff-editor.js';
 
 export type ActiveView = 'chat' | 'editor' | 'diff';
 
@@ -123,33 +121,33 @@ export function EditorTabs() {
   const wsTabName = (ws: WorkspaceInfo) => ws.name || ws.id.slice(0, 8);
 
   return (
-    <div className="flex flex-col h-full" data-testid="editor-tabs">
-      <div className="flex items-center h-9 bg-[var(--bg-tertiary)] border-b border-[var(--border-color)] overflow-x-auto shrink-0" data-testid="tab-bar">
+    <div className="flex flex-col h-full">
+      <div className="flex items-center bg-secondary border-b border-border overflow-x-auto shrink-0">
         {enteredWorkspaces.length > 0 ? (
           enteredWorkspaces.map((ws) => (
             <button
               key={`chat:${ws.id}`}
               onClick={() => handleChatSelect(ws.id)}
-              className={`flex items-center gap-2 h-full px-4 text-sm border-r border-[var(--border-color)] transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border-r border-border ${
                 activeView === 'chat' && workspaceId === ws.id
-                  ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] border-t-2 border-t-[var(--accent-blue)]'
-                  : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-t-2 border-t-transparent hover:bg-[var(--bg-hover)]'
+                  ? 'bg-background text-foreground border-t-2 border-t-primary'
+                  : 'bg-secondary text-muted-foreground border-t-2 border-t-transparent hover:bg-accent'
               }`}
             >
-              <MessageSquare size={14} />
-              <span className="truncate max-w-[140px]">{wsTabName(ws)}</span>
+              <MessageSquare size={12} />
+              <span className="truncate max-w-[120px]">{wsTabName(ws)}</span>
             </button>
           ))
         ) : (
           <button
             onClick={() => handleChatSelect()}
-            className={`flex items-center gap-2 h-full px-4 text-sm border-r border-[var(--border-color)] transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border-r border-border ${
               activeView === 'chat'
-                ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] border-t-2 border-t-[var(--accent-blue)]'
-                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-t-2 border-t-transparent hover:bg-[var(--bg-hover)]'
+                ? 'bg-background text-foreground border-t-2 border-t-primary'
+                : 'bg-secondary text-muted-foreground border-t-2 border-t-transparent hover:bg-accent'
             }`}
           >
-            <MessageSquare size={14} />
+            <MessageSquare size={12} />
             Chat
           </button>
         )}
@@ -174,20 +172,20 @@ export function EditorTabs() {
                 onClick={() => handleDiffSelect(diff.path)}
                 role="tab"
                 aria-selected={activeView === 'diff' && activeDiffPath === diff.path}
-                className={`flex items-center gap-2 h-full px-4 text-sm border-r border-[var(--border-color)] group cursor-pointer transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border-r border-border group cursor-pointer ${
                   activeView === 'diff' && activeDiffPath === diff.path
-                    ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] border-t-2 border-t-[var(--accent-green)]'
-                    : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-t-2 border-t-transparent hover:bg-[var(--bg-hover)]'
+                    ? 'bg-background text-foreground border-t-2 border-t-success'
+                    : 'bg-secondary text-muted-foreground border-t-2 border-t-transparent hover:bg-accent'
                 }`}
               >
-                <GitCompareArrows size={14} className="text-[var(--accent-green)] shrink-0" />
-                <span className="truncate max-w-[140px]">{fileName(diff.path)}</span>
+                <GitCompareArrows size={12} className="text-success shrink-0" />
+                <span className="truncate max-w-[120px]">{fileName(diff.path)}</span>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDiffClose(diff.path); }}
                   aria-label={`Close diff ${fileName(diff.path)}`}
-                  className="p-1 rounded hover:bg-[var(--bg-active)] opacity-0 group-hover:opacity-100 shrink-0"
+                  className="p-0.5 rounded hover:bg-accent opacity-0 group-hover:opacity-100 shrink-0"
                 >
-                  <X size={14} />
+                  <X size={12} />
                 </button>
               </div>
             </ContextMenuTrigger>
@@ -201,26 +199,9 @@ export function EditorTabs() {
 
       <div className="flex-1 min-h-0">
         {activeView === 'chat' && <ChatPanel />}
-        {activeView === 'editor' && (
-          <Suspense fallback={<EditorLoading />}>
-            <CodeEditor />
-          </Suspense>
-        )}
-        {activeView === 'diff' && (
-          <Suspense fallback={<EditorLoading />}>
-            <DiffEditor />
-          </Suspense>
-        )}
+        {activeView === 'editor' && <CodeEditor />}
+        {activeView === 'diff' && <DiffEditor />}
       </div>
-    </div>
-  );
-}
-
-function EditorLoading() {
-  return (
-    <div className="flex items-center justify-center gap-2 h-full bg-[var(--bg-primary)] text-[var(--text-muted)]">
-      <Loader2 size={18} className="animate-spin" />
-      <span className="text-sm">Loading editor...</span>
     </div>
   );
 }

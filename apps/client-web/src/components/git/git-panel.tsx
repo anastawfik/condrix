@@ -2,7 +2,6 @@ import { useState, type KeyboardEvent } from 'react';
 import { useStore } from 'zustand';
 import { RefreshCw, GitBranch, Check } from 'lucide-react';
 import { workspaceStore, useGitStatus } from '@nexus-core/client-shared';
-import { Tooltip, TooltipProvider, IconButton } from '@nexus-core/client-components';
 import { ChangedFileList } from './changed-file-list.js';
 
 export function GitPanel() {
@@ -29,71 +28,65 @@ export function GitPanel() {
 
   if (!workspaceId) {
     return (
-      <p className="px-4 py-8 text-sm text-[var(--text-muted)] text-center">No workspace selected</p>
+      <p className="px-3 py-4 text-sm text-muted-foreground text-center">No workspace selected</p>
     );
   }
 
   return (
-    <TooltipProvider delayDuration={300}>
-      <div className="flex flex-col h-full" data-testid="git-panel">
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border-color)]">
-          <GitBranch size={16} className="text-[var(--accent-green)]" />
-          <span className="text-sm text-[var(--text-secondary)] truncate">{branch || '...'}</span>
-          <div className="flex-1" />
-          <Tooltip content="Refresh git status">
-            <IconButton
-              icon={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />}
-              onClick={refresh}
-              disabled={loading}
-              size="sm"
-            />
-          </Tooltip>
-        </div>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+        <GitBranch size={16} className="text-success" />
+        <span className="text-sm text-muted-foreground">{branch || '...'}</span>
+        <div className="flex-1" />
+        <button
+          onClick={refresh}
+          disabled={loading}
+          className="p-0.5 rounded hover:bg-accent text-muted-foreground"
+          aria-label="Refresh git status"
+        >
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+        </button>
+      </div>
 
-        <div className="p-3 border-b border-[var(--border-color)]">
-          <div className="flex gap-2">
-            <input
-              value={commitMsg}
-              onChange={(e) => setCommitMsg(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Commit message"
-              aria-label="Commit message"
-              data-testid="commit-message-input"
-              className="flex-1 px-3 py-1.5 text-sm bg-[var(--bg-input)] border border-[var(--border-color)] rounded-md text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-blue)] focus:ring-1 focus:ring-[var(--accent-blue)]"
-            />
-            <Tooltip content="Commit (Ctrl+Enter)">
-              <button
-                onClick={handleCommit}
-                disabled={!commitMsg.trim() || staged.length === 0}
-                aria-label="Commit changes"
-                data-testid="commit-button"
-                className="px-2.5 py-1.5 rounded-md bg-[var(--accent-blue)] text-white disabled:opacity-30 disabled:bg-[var(--bg-tertiary)] disabled:text-[var(--text-muted)] transition-colors"
-              >
-                <Check size={16} />
-              </button>
-            </Tooltip>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          <ChangedFileList
-            title="Staged Changes"
-            files={staged}
-            onStageToggle={(path) => unstageFiles([path])}
-            onSelect={(path) => openDiffTab(path, true)}
+      <div className="p-3 border-b border-border">
+        <div className="flex gap-1">
+          <input
+            value={commitMsg}
+            onChange={(e) => setCommitMsg(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Commit message"
+            className="flex-1 px-2 py-1 text-sm bg-input border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
           />
-          <ChangedFileList
-            title="Changes"
-            files={unstaged}
-            onStageToggle={(path) => stageFiles([path])}
-            onSelect={(path) => openDiffTab(path, false)}
-          />
-
-          {staged.length === 0 && unstaged.length === 0 && !loading && (
-            <p className="px-4 py-8 text-sm text-[var(--text-muted)] text-center">No changes</p>
-          )}
+          <button
+            onClick={handleCommit}
+            disabled={!commitMsg.trim() || staged.length === 0}
+            className="p-1 rounded bg-primary text-white disabled:opacity-50"
+            title="Commit (Ctrl+Enter)"
+            aria-label="Commit changes"
+          >
+            <Check size={14} />
+          </button>
         </div>
       </div>
-    </TooltipProvider>
+
+      <div className="flex-1 overflow-y-auto">
+        <ChangedFileList
+          title="Staged Changes"
+          files={staged}
+          onStageToggle={(path) => unstageFiles([path])}
+          onSelect={(path) => openDiffTab(path, true)}
+        />
+        <ChangedFileList
+          title="Changes"
+          files={unstaged}
+          onStageToggle={(path) => stageFiles([path])}
+          onSelect={(path) => openDiffTab(path, false)}
+        />
+
+        {staged.length === 0 && unstaged.length === 0 && !loading && (
+          <p className="px-3 py-4 text-sm text-muted-foreground text-center">No changes</p>
+        )}
+      </div>
+    </div>
   );
 }

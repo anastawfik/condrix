@@ -16,7 +16,7 @@ export function AppLayout() {
   };
 
   return (
-    <div className="flex flex-col h-screen" data-testid="app-layout">
+    <div className="flex flex-col h-screen">
       <TitleBar
         onSettingsOpen={() => setSettingsOpen(true)}
         onBackToProjects={handleBackToProjects}
@@ -29,7 +29,7 @@ export function AppLayout() {
           <Sidebar />
         </Panel>
 
-        <Separator className="w-[1px] bg-[var(--border-color)] hover:w-[3px] data-[state=hover]:bg-[var(--accent-blue)] data-[state=drag]:bg-[var(--accent-blue)]" />
+        <Separator className="w-[1px] bg-border hover:w-[3px] data-[state=hover]:bg-primary data-[state=drag]:bg-primary" />
 
         <Panel defaultSize={80} minSize={30} className="min-w-0">
           <Group direction="vertical">
@@ -37,7 +37,7 @@ export function AppLayout() {
               <EditorTabs />
             </Panel>
 
-            <Separator className="h-[1px] bg-[var(--border-color)] hover:h-[3px] data-[state=hover]:bg-[var(--accent-blue)] data-[state=drag]:bg-[var(--accent-blue)]" />
+            <Separator className="h-[1px] bg-border hover:h-[3px] data-[state=hover]:bg-primary data-[state=drag]:bg-primary" />
 
             <Panel defaultSize={30} minSize={8} collapsible className="min-h-0">
               <TerminalPanel />

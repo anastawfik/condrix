@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, type KeyboardEvent } from 'react';
 import { Send } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -41,8 +42,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const isNearLimit = charCount > MAX_LENGTH * 0.9;
 
   return (
-    <div className="p-3 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
-      <div className="flex items-end gap-2 rounded-xl bg-[var(--bg-input)] border border-[var(--border-color)] px-3 py-2 shadow-[0_-2px_12px_rgba(0,0,0,0.25)] focus-within:border-[var(--accent-blue)] transition-colors">
+    <div className="p-3 border-t border-border bg-secondary">
+      <div className="flex items-end gap-2 rounded-xl bg-background border border-border px-3 py-2 shadow-[0_-2px_12px_rgba(0,0,0,0.25)] focus-within:border-primary transition-colors">
         <textarea
           ref={textareaRef}
           value={value}
@@ -56,27 +57,26 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           placeholder="Message..."
           disabled={disabled}
           rows={1}
-          data-testid="chat-input"
-          className="flex-1 resize-none py-1.5 bg-transparent text-sm leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none disabled:opacity-50"
+          className="flex-1 resize-none py-1.5 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
         />
-        <button
+        <Button
           onClick={handleSend}
           disabled={disabled || !value.trim()}
           aria-label="Send message"
-          data-testid="chat-send-button"
-          className="p-2 rounded-lg bg-[var(--accent-blue)] text-white shrink-0 transition-all duration-150 hover:bg-[var(--accent-blue-hover)] hover:scale-105 hover:shadow-[0_0_8px_rgba(0,120,212,0.4)] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none disabled:bg-[var(--bg-tertiary)] disabled:text-[var(--text-muted)]"
+          size="icon"
+          className="p-2 rounded-lg shrink-0 transition-all duration-150 hover:scale-105 hover:shadow-[0_0_8px_rgba(0,120,212,0.4)] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
         >
           <Send size={16} />
-        </button>
+        </Button>
       </div>
       <div className="flex items-center justify-between mt-1.5 px-1">
-        <span className="text-[11px] text-[var(--text-muted)]">
-          <kbd className="px-1 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-mono text-[10px]">Enter</kbd> to send
-          <span className="mx-1.5 text-[var(--border-color)]">&middot;</span>
-          <kbd className="px-1 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-mono text-[10px]">Shift+Enter</kbd> new line
+        <span className="text-[10px] text-muted-foreground">
+          <kbd className="px-1 py-0.5 rounded bg-secondary text-muted-foreground font-mono text-[9px]">Enter</kbd> to send
+          <span className="mx-1.5 text-border">&middot;</span>
+          <kbd className="px-1 py-0.5 rounded bg-secondary text-muted-foreground font-mono text-[9px]">Shift+Enter</kbd> new line
         </span>
         {charCount > 0 && (
-          <span className={`text-[11px] tabular-nums ${isNearLimit ? 'text-[var(--accent-red)]' : 'text-[var(--text-muted)]'}`}>
+          <span className={`text-[10px] tabular-nums ${isNearLimit ? 'text-destructive' : 'text-muted-foreground'}`}>
             {charCount}/{MAX_LENGTH}
           </span>
         )}
