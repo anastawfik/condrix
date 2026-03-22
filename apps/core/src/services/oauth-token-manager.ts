@@ -163,8 +163,12 @@ export class OAuthTokenManager {
     const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
     const state = randomBytes(16).toString('hex');
 
+    // Use tunnel URL for redirect if available (Docker/remote), otherwise localhost
     const port = this.callbackPort;
-    const redirectUri = `http://localhost:${port}/callback`;
+    const externalUrl = process.env.NEXUS_CORE_EXTERNAL_URL; // e.g. https://core.example.com from tunnel
+    const redirectUri = externalUrl
+      ? `${externalUrl.replace(/\/$/, '')}/callback`
+      : `http://localhost:${port}/callback`;
 
     // Construct authorization URL
     const params = new URLSearchParams({
@@ -193,8 +197,12 @@ export class OAuthTokenManager {
         const reqState = reqUrl.searchParams.get('state');
         const error = reqUrl.searchParams.get('error');
 
-        // Redirect back to the web UI, or Anthropic's success page as fallback
-        const redirectTo = process.env.WEB_PUBLIC_URL ?? CLAUDEAI_SUCCESS_URL;
+        // Redirect back to the web UI after OAuth completes
+        // Priority: Referer header (where user came from) > WEB_PUBLIC_URL env > Anthropic success page
+        const referer = _req.headers.referer ?? _req.headers.origin;
+        const redirectTo = referer
+          ? new URL('/', referer).toString()
+          : (process.env.WEB_PUBLIC_URL ?? CLAUDEAI_SUCCESS_URL);
 
         if (error) {
           const desc = reqUrl.searchParams.get('error_description') ?? error;
