@@ -9,14 +9,14 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { Button } from '@/components/ui/button';
 
 const MODELS = [
-  { id: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
-  { id: 'claude-opus-4-5', label: 'Claude Opus 4.5' },
-  { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
-  { id: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
-  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+  { id: 'claude-sonnet-4-5-20250514', label: 'Claude Sonnet 4.5' },
+  { id: 'claude-opus-4-5-20250514', label: 'Claude Opus 4.5' },
+  { id: 'claude-sonnet-4-6-20250725', label: 'Claude Sonnet 4.6' },
+  { id: 'claude-opus-4-6-20250725', label: 'Claude Opus 4.6' },
+  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
 ];
 
-const DEFAULT_MODEL = 'claude-sonnet-4-5';
+const DEFAULT_MODEL = 'claude-sonnet-4-5-20250514';
 
 export function ChatHeader() {
   const workspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);
