@@ -147,6 +147,48 @@ if (hasFlag('list-tokens')) {
   process.exit(0);
 }
 
+// ─── TOTP Setup Command ────────────────────────────────────────────────
+
+if (hasFlag('setup-totp')) {
+  const tokenName = getArg('setup-totp') ?? 'default-admin';
+  const dbPath = getDbPath();
+  const db = new Database(dbPath);
+  const authManager = new AuthManager(db);
+  const result = authManager.setupTotp(tokenName);
+  if (!result) {
+    console.error(`Token "${tokenName}" not found.`);
+    db.close();
+    process.exit(1);
+  }
+  console.log(`TOTP configured for token "${tokenName}".`);
+  console.log(`\nSecret (base32): ${result.secret}`);
+  console.log(`\nOTP Auth URI:\n  ${result.otpauthUri}`);
+  console.log(`\nScan this in your authenticator app, then run:`);
+  console.log(`  nexus-core --enable-totp ${tokenName} <6-digit-code>`);
+  db.close();
+  process.exit(0);
+}
+
+if (hasFlag('enable-totp')) {
+  const tokenName = getArg('enable-totp');
+  const code = process.argv[process.argv.indexOf('--enable-totp') + 2];
+  if (!tokenName || !code) {
+    console.error('Usage: nexus-core --enable-totp <token-name> <6-digit-code>');
+    process.exit(1);
+  }
+  const dbPath = getDbPath();
+  const db = new Database(dbPath);
+  const authManager = new AuthManager(db);
+  const enabled = authManager.enableTotp(tokenName, code);
+  if (enabled) {
+    console.log(`TOTP enabled for token "${tokenName}". 2FA is now required for authentication.`);
+  } else {
+    console.error(`Failed to enable TOTP. Invalid code or token "${tokenName}" has no TOTP configured.`);
+  }
+  db.close();
+  process.exit(enabled ? 0 : 1);
+}
+
 // ─── OAuth Login Command ────────────────────────────────────────────────────
 
 if (hasFlag('oauth-login')) {

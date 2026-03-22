@@ -24,6 +24,7 @@ import { EventBus } from './event-bus.js';
 import { StateStore } from './state-store.js';
 import { NotificationRouter } from './notification-router.js';
 import { ConversationEngine } from './conversation-engine.js';
+import { OutboundCoreConnector } from './outbound-core-connector.js';
 
 export interface MaestroConfig {
   maestroId: string;
@@ -51,6 +52,7 @@ export class MaestroService {
   private stateStore!: StateStore;
   private notificationRouter!: NotificationRouter;
   private conversationEngine!: ConversationEngine;
+  private outboundConnector!: OutboundCoreConnector;
   private emitter = new EventEmitter();
   private wss!: WebSocketServer;
 
@@ -92,6 +94,37 @@ export class MaestroService {
     this.notificationRouter.wireEventBus(this.eventBus);
     this.conversationEngine = new ConversationEngine(this.stateStore, this.coreManager, this.aiConfigDistributor);
 
+    // 4c. Init outbound Core connector (Maestro → Core via tunnel)
+    this.outboundConnector = new OutboundCoreConnector(this.db);
+    this.outboundConnector.onCoreOnline = (coreRow) => {
+      this.stateStore.setCoreOnline(coreRow.core_id, coreRow.display_name);
+      this.clientManager.broadcastToAll({
+        id: generateMessageId(),
+        type: 'event',
+        namespace: 'maestro',
+        action: 'core.online',
+        payload: { id: coreRow.id, coreId: coreRow.core_id, displayName: coreRow.display_name },
+        timestamp: new Date().toISOString(),
+      });
+    };
+    this.outboundConnector.onCoreOffline = (coreRow) => {
+      this.stateStore.setCoreOffline(coreRow.core_id);
+      this.clientManager.broadcastToAll({
+        id: generateMessageId(),
+        type: 'event',
+        namespace: 'maestro',
+        action: 'core.offline',
+        payload: { id: coreRow.id, coreId: coreRow.core_id, displayName: coreRow.display_name },
+        timestamp: new Date().toISOString(),
+      });
+    };
+    this.outboundConnector.onCoreMessage = (dbId, msg) => {
+      this.messageRelay.handleCoreMessage(dbId, msg);
+      if (msg.type === 'event') {
+        this.eventBus.publish(msg);
+      }
+    };
+
     // 5. Init message relay
     this.messageRelay = new MessageRelay(
       this.db,
@@ -102,6 +135,7 @@ export class MaestroService {
     );
     this.messageRelay.setOAuthManager(this.oauthManager);
     this.messageRelay.setConversationEngine(this.conversationEngine);
+    this.messageRelay.setOutboundConnector(this.outboundConnector);
 
     // 6. Wire Core events
     this.coreManager.onCoreOnline = (coreRow) => {
@@ -180,6 +214,9 @@ export class MaestroService {
       `[Maestro] ${this.config.maestroId} ready on ${this.config.host}:${this.config.port}`,
     );
 
+    // Auto-connect to outbound Cores (Maestro → Core via tunnel)
+    this.outboundConnector.connectAll();
+
     // Start tunnel if configured
     if (this.config.tunnel) {
       this.startTunnel().catch((err) => {
@@ -217,6 +254,7 @@ export class MaestroService {
   async stop(): Promise<void> {
     console.log(`[Maestro] ${this.config.maestroId} stopping`);
 
+    this.outboundConnector?.destroy();
     this.notificationRouter?.destroy();
     this.tunnelManager?.destroy();
     this.oauthManager?.destroy();

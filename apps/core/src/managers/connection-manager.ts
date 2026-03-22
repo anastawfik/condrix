@@ -232,7 +232,7 @@ export class ConnectionManager {
   }
 
   private handleAuth(session: ClientSession, msg: Record<string, unknown>): void {
-    const payload = msg.payload as { token?: string } | undefined;
+    const payload = msg.payload as { token?: string; totpCode?: string } | undefined;
 
     if (this.devMode && !session.isTunneled) {
       // Dev mode: accept any token for local connections
@@ -255,6 +255,39 @@ export class ConnectionManager {
         });
         return;
       }
+
+      // Check TOTP 2FA if enabled for this token
+      if (result.totpEnabled) {
+        if (!payload.totpCode) {
+          this.send(session, {
+            id: '',
+            type: 'response',
+            namespace: 'core',
+            action: 'auth',
+            payload: { authenticated: false, scopes: [], totpRequired: true },
+            timestamp: new Date().toISOString(),
+            correlationId: msg.id as string,
+            success: false,
+            error: { code: 'TOTP_REQUIRED', message: 'TOTP code required' },
+          });
+          return;
+        }
+        if (!this.authManager.verifyTokenTotp(payload.token, payload.totpCode)) {
+          this.send(session, {
+            id: '',
+            type: 'response',
+            namespace: 'core',
+            action: 'auth',
+            payload: { authenticated: false, scopes: [] },
+            timestamp: new Date().toISOString(),
+            correlationId: msg.id as string,
+            success: false,
+            error: { code: 'INVALID_TOTP', message: 'Invalid TOTP code' },
+          });
+          return;
+        }
+      }
+
       session.authenticated = true;
       session.scopes = result.scopes;
     } else {

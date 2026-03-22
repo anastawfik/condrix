@@ -12,6 +12,7 @@ import type { AuthManager } from './auth-manager.js';
 import type { AiConfigDistributor } from './ai-config-distributor.js';
 import type { OAuthManager } from './oauth-manager.js';
 import type { ConversationEngine } from './conversation-engine.js';
+import type { OutboundCoreConnector } from './outbound-core-connector.js';
 
 interface PendingRelay {
   clientId: string;
@@ -24,6 +25,7 @@ export class MessageRelay {
 
   private oauthManager: OAuthManager | null = null;
   private conversationEngine: ConversationEngine | null = null;
+  private outboundConnector: OutboundCoreConnector | null = null;
 
   constructor(
     private db: MaestroDatabase,
@@ -39,6 +41,10 @@ export class MessageRelay {
 
   setConversationEngine(engine: ConversationEngine): void {
     this.conversationEngine = engine;
+  }
+
+  setOutboundConnector(connector: OutboundCoreConnector): void {
+    this.outboundConnector = connector;
   }
 
   /**
@@ -58,8 +64,10 @@ export class MessageRelay {
       return;
     }
 
-    // Verify Core exists and is online
-    if (!this.coreManager.isCoreOnline(targetCoreId)) {
+    // Verify Core exists and is online (check both inbound and outbound connections)
+    const isInbound = this.coreManager.isCoreOnline(targetCoreId);
+    const isOutbound = this.outboundConnector?.isConnected(targetCoreId) ?? false;
+    if (!isInbound && !isOutbound) {
       this.sendErrorToClient(clientId, msg.id, 'CORE_OFFLINE', 'Target Core is offline');
       return;
     }
@@ -87,7 +95,12 @@ export class MessageRelay {
       this.pendingRelays.delete(relayId);
     }, 60_000);
 
-    this.coreManager.sendToCore(targetCoreId, relayMsg);
+    // Route to inbound or outbound connection
+    if (isInbound) {
+      this.coreManager.sendToCore(targetCoreId, relayMsg);
+    } else if (isOutbound && this.outboundConnector) {
+      this.outboundConnector.sendToCore(targetCoreId, relayMsg);
+    }
   }
 
   /**
@@ -203,6 +216,12 @@ export class MessageRelay {
       case 'status':
         this.handleChat(clientId, msg);
         break;
+      case 'cores.connect':
+        this.handleCoresConnect(clientId, msg);
+        break;
+      case 'cores.disconnect':
+        this.handleCoresDisconnect(clientId, msg);
+        break;
       default:
         this.sendErrorToClient(clientId, msg.id, 'UNKNOWN_ACTION', `Unknown maestro action: ${msg.action}`);
     }
@@ -234,12 +253,60 @@ export class MessageRelay {
     }
   }
 
+  private handleCoresConnect(clientId: string, msg: MessageEnvelope): void {
+    if (!this.outboundConnector) {
+      this.sendErrorToClient(clientId, msg.id, 'NOT_CONFIGURED', 'Outbound connector not available');
+      return;
+    }
+    const payload = msg.payload as { id?: string };
+    if (!payload?.id) {
+      this.sendErrorToClient(clientId, msg.id, 'MISSING_PARAM', 'Core id required');
+      return;
+    }
+    this.outboundConnector.connect(payload.id);
+    this.clientManager.sendToClient(clientId, {
+      id: generateMessageId(),
+      type: 'response',
+      namespace: 'maestro',
+      action: 'cores.connect',
+      payload: { id: payload.id, connecting: true },
+      timestamp: new Date().toISOString(),
+      success: true,
+      correlationId: msg.id,
+    });
+  }
+
+  private handleCoresDisconnect(clientId: string, msg: MessageEnvelope): void {
+    if (!this.outboundConnector) {
+      this.sendErrorToClient(clientId, msg.id, 'NOT_CONFIGURED', 'Outbound connector not available');
+      return;
+    }
+    const payload = msg.payload as { id?: string };
+    if (!payload?.id) {
+      this.sendErrorToClient(clientId, msg.id, 'MISSING_PARAM', 'Core id required');
+      return;
+    }
+    this.outboundConnector.disconnect(payload.id);
+    this.clientManager.sendToClient(clientId, {
+      id: generateMessageId(),
+      type: 'response',
+      namespace: 'maestro',
+      action: 'cores.disconnect',
+      payload: { id: payload.id, disconnected: true },
+      timestamp: new Date().toISOString(),
+      success: true,
+      correlationId: msg.id,
+    });
+  }
+
   private handleCoresList(clientId: string, msg: MessageEnvelope): void {
     const cores = this.db.listCores().map((c) => ({
       id: c.id,
       coreId: c.core_id,
       displayName: c.display_name,
-      status: this.coreManager.isCoreOnline(c.id) ? 'online' as const : 'offline' as const,
+      status: (this.coreManager.isCoreOnline(c.id) || this.outboundConnector?.isConnected(c.id)) ? 'online' as const : 'offline' as const,
+      tunnelUrl: c.tunnel_url ?? undefined,
+      connectionMode: c.connection_mode,
     }));
 
     this.sendResponse(clientId, msg, { cores });

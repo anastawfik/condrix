@@ -152,6 +152,13 @@ export class CoreRuntime {
       devMode,
       authManager: this.authManager,
     });
+
+    // Wire OAuth callback to the Core's HTTP server (same port as WebSocket)
+    this.oauthManager.setHttpCallback(
+      (path, handler) => this.connectionManager.registerHttpRoute(path, handler),
+      this.config.port,
+    );
+
     await this.connectionManager.start(this.config.host, this.config.port);
 
     // Wire event broadcasting
@@ -558,6 +565,42 @@ export class CoreRuntime {
       const repoPath = this.resolveWorkspacePath(p.workspaceId);
       return this.gitTracker.getBranches(repoPath);
     });
+
+    // ── auth / TOTP namespace ─────────────────────────────────────────────────
+    r.register('core', 'auth.tokens', async () => {
+      const tokens = this.authManager.listTokens();
+      return { tokens: tokens.map((t) => ({ ...t, token: `${t.token.slice(0, 12)}...` })) };
+    });
+
+    r.register('core', 'auth.generateToken', async (payload) => {
+      const p = payload as { name: string };
+      const token = this.authManager.generateToken(p.name);
+      return token;
+    });
+
+    r.register('core', 'totp.setup', async (payload) => {
+      const p = payload as { tokenName: string };
+      const result = this.authManager.setupTotp(p.tokenName);
+      if (!result) return { success: false, error: 'Token not found' };
+      return { success: true, ...result };
+    });
+
+    r.register('core', 'totp.enable', async (payload) => {
+      const p = payload as { tokenName: string; code: string };
+      const enabled = this.authManager.enableTotp(p.tokenName, p.code);
+      return { enabled };
+    });
+
+    r.register('core', 'totp.disable', async (payload) => {
+      const p = payload as { tokenName: string };
+      const disabled = this.authManager.disableTotp(p.tokenName);
+      return { disabled };
+    });
+
+    r.register('core', 'totp.status', async (payload) => {
+      const p = payload as { tokenName: string };
+      return this.authManager.getTotpStatus(p.tokenName);
+    });
   }
 
   // ─── Event Broadcasting ────────────────────────────────────────────────────
@@ -631,17 +674,23 @@ export class CoreRuntime {
       // Get a valid access token (refreshes if expired)
       const accessToken = await this.oauthManager.getAccessToken();
       if (accessToken) {
+        // When connected to Maestro, don't set tokenRefresher — Maestro owns
+        // the refresh lifecycle. Core independently refreshing causes token
+        // rotation conflicts that invalidate both services' tokens.
+        const isMaestroManaged = this.maestroConnector?.connected ?? false;
         const claude = new ClaudeProvider({
           authToken: accessToken,
           apiKey, // fallback if OAuth fails
           model,
           maxTokens: dbMaxTokens,
           systemPrompt,
-          tokenRefresher: () => this.oauthManager.refreshAccessToken(),
+          tokenRefresher: isMaestroManaged
+            ? undefined
+            : () => this.oauthManager.refreshAccessToken(),
         });
         this.agentManager.registerProvider(claude);
         this.agentManager.setDefaultProvider('claude');
-        console.log(`[Core] Claude provider registered via OAuth (model: ${model ?? 'claude-sonnet-4-5'})`);
+        console.log(`[Core] Claude provider registered via OAuth (model: ${model ?? 'claude-sonnet-4-5'}${isMaestroManaged ? ', refresh managed by Maestro' : ''})`);
         return;
       }
       console.warn('[Core] OAuth configured but no valid token available — trying API key');
@@ -840,45 +889,8 @@ export class CoreRuntime {
       displayName: this.config.displayName,
     });
 
-    // Forward events to Maestro
-    this.wireMaestroEventForwarding();
   }
 
-  private wireMaestroEventForwarding(): void {
-    if (!this.maestroConnector) return;
-
-    const connector = this.maestroConnector;
-
-    // Forward key events to Maestro for client relay
-    const forwardEvents: [string, string, string][] = [
-      ['project:created', 'project', 'created'],
-      ['project:deleted', 'project', 'deleted'],
-      ['workspace:created', 'workspace', 'created'],
-      ['workspace:stateChanged', 'workspace', 'stateChanged'],
-      ['workspace:destroyed', 'workspace', 'destroyed'],
-      ['agent:message', 'agent', 'message'],
-      ['terminal:output', 'terminal', 'output'],
-      ['terminal:exit', 'terminal', 'exit'],
-      ['terminal:created', 'terminal', 'created'],
-      ['file:changed', 'file', 'changed'],
-      ['agent:thinkingDelta', 'agent', 'thinkingDelta'],
-      ['agent:textDelta', 'agent', 'textDelta'],
-    ];
-
-    for (const [emitterEvent, namespace, action] of forwardEvents) {
-      this.emitter.on(emitterEvent, (payload: unknown) => {
-        if (!connector.connected) return;
-        connector.send({
-          id: generateMessageId(),
-          type: 'event',
-          namespace,
-          action,
-          payload,
-          timestamp: new Date().toISOString(),
-        });
-      });
-    }
-  }
 
   // ─── Workspace Context ─────────────────────────────────────────────────────
 

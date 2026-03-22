@@ -55,6 +55,7 @@ export const MaestroCoreAuthRequestSchema = z.object({
   coreId: z.string(),
   accessToken: z.string(),
   displayName: z.string().optional(),
+  totpCode: z.string().optional(),
 });
 
 export const MaestroCoreAuthResponseSchema = z.object({
@@ -66,6 +67,8 @@ export const MaestroCoreRegisterRequestSchema = z.object({
   coreId: z.string(),
   displayName: z.string(),
   accessToken: z.string(),
+  tunnelUrl: z.string().optional(),
+  totpSecret: z.string().optional(),
 });
 
 export const MaestroCoreRegisterResponseSchema = z.object({

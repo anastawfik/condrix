@@ -34,6 +34,10 @@ export interface CoreRow {
   access_token: string;
   status: 'online' | 'offline';
   last_heartbeat: string | null;
+  tunnel_url: string | null;
+  totp_secret: string | null;
+  totp_enabled: number;
+  connection_mode: 'inbound' | 'outbound';
   created_at: string;
 }
 
@@ -76,6 +80,10 @@ export class MaestroDatabase {
         access_token    TEXT NOT NULL,
         status          TEXT NOT NULL DEFAULT 'offline',
         last_heartbeat  TEXT,
+        tunnel_url      TEXT,
+        totp_secret     TEXT,
+        totp_enabled    INTEGER NOT NULL DEFAULT 0,
+        connection_mode TEXT NOT NULL DEFAULT 'inbound',
         created_at      TEXT NOT NULL DEFAULT (datetime('now'))
       );
 
@@ -91,6 +99,21 @@ export class MaestroDatabase {
         updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
       );
 
+      -- Migration: add new columns for existing DBs
+      -- (CREATE TABLE IF NOT EXISTS won't add columns to existing tables)
+    `);
+
+    // Safe migrations — each wrapped in try/catch for idempotency
+    for (const col of [
+      'ALTER TABLE cores ADD COLUMN tunnel_url TEXT',
+      'ALTER TABLE cores ADD COLUMN totp_secret TEXT',
+      "ALTER TABLE cores ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0",
+      "ALTER TABLE cores ADD COLUMN connection_mode TEXT NOT NULL DEFAULT 'inbound'",
+    ]) {
+      try { this.db.exec(col); } catch { /* already exists */ }
+    }
+
+    this.db.exec(`
       -- Performance indices
       CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
@@ -222,6 +245,24 @@ export class MaestroDatabase {
   deleteCore(id: string): boolean {
     const result = this.db.prepare('DELETE FROM cores WHERE id = ?').run(id);
     return result.changes > 0;
+  }
+
+  updateCoreTunnelUrl(id: string, tunnelUrl: string | null): void {
+    this.db
+      .prepare('UPDATE cores SET tunnel_url = ?, connection_mode = ? WHERE id = ?')
+      .run(tunnelUrl, tunnelUrl ? 'outbound' : 'inbound', id);
+  }
+
+  updateCoreTotp(id: string, secret: string | null, enabled: boolean): void {
+    this.db
+      .prepare('UPDATE cores SET totp_secret = ?, totp_enabled = ? WHERE id = ?')
+      .run(secret, enabled ? 1 : 0, id);
+  }
+
+  getOutboundCores(): CoreRow[] {
+    return this.db
+      .prepare("SELECT * FROM cores WHERE connection_mode = 'outbound' AND tunnel_url IS NOT NULL")
+      .all() as CoreRow[];
   }
 
   // ─── AI Config ────────────────────────────────────────────────────────────
