@@ -29,20 +29,20 @@ export function GitPanel() {
 
   if (!workspaceId) {
     return (
-      <p className="px-3 py-6 text-sm text-[var(--text-muted)] text-center">No workspace selected</p>
+      <p className="px-4 py-8 text-sm text-[var(--text-muted)] text-center">No workspace selected</p>
     );
   }
 
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex flex-col h-full" data-testid="git-panel">
-        <div className="flex items-center gap-2 px-2.5 py-1.5 border-b border-[var(--border-color)]">
-          <GitBranch size={14} className="text-[var(--accent-green)]" />
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border-color)]">
+          <GitBranch size={16} className="text-[var(--accent-green)]" />
           <span className="text-sm text-[var(--text-secondary)] truncate">{branch || '...'}</span>
           <div className="flex-1" />
           <Tooltip content="Refresh git status">
             <IconButton
-              icon={<RefreshCw size={14} className={loading ? 'animate-spin' : ''} />}
+              icon={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />}
               onClick={refresh}
               disabled={loading}
               size="sm"
@@ -50,8 +50,8 @@ export function GitPanel() {
           </Tooltip>
         </div>
 
-        <div className="p-2.5 border-b border-[var(--border-color)]">
-          <div className="flex gap-1.5">
+        <div className="p-3 border-b border-[var(--border-color)]">
+          <div className="flex gap-2">
             <input
               value={commitMsg}
               onChange={(e) => setCommitMsg(e.target.value)}
@@ -59,7 +59,7 @@ export function GitPanel() {
               placeholder="Commit message"
               aria-label="Commit message"
               data-testid="commit-message-input"
-              className="flex-1 px-2.5 py-1.5 text-sm bg-[var(--bg-input)] border border-[var(--border-color)] rounded-md text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-blue)] focus:ring-1 focus:ring-[var(--accent-blue)]"
+              className="flex-1 px-3 py-1.5 text-sm bg-[var(--bg-input)] border border-[var(--border-color)] rounded-md text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-blue)] focus:ring-1 focus:ring-[var(--accent-blue)]"
             />
             <Tooltip content="Commit (Ctrl+Enter)">
               <button
@@ -67,7 +67,7 @@ export function GitPanel() {
                 disabled={!commitMsg.trim() || staged.length === 0}
                 aria-label="Commit changes"
                 data-testid="commit-button"
-                className="p-1.5 rounded-md bg-[var(--accent-blue)] text-white disabled:opacity-30 disabled:bg-[var(--bg-tertiary)] disabled:text-[var(--text-muted)] transition-colors"
+                className="px-2.5 py-1.5 rounded-md bg-[var(--accent-blue)] text-white disabled:opacity-30 disabled:bg-[var(--bg-tertiary)] disabled:text-[var(--text-muted)] transition-colors"
               >
                 <Check size={16} />
               </button>
@@ -90,7 +90,7 @@ export function GitPanel() {
           />
 
           {staged.length === 0 && unstaged.length === 0 && !loading && (
-            <p className="px-3 py-6 text-sm text-[var(--text-muted)] text-center">No changes</p>
+            <p className="px-4 py-8 text-sm text-[var(--text-muted)] text-center">No changes</p>
           )}
         </div>
       </div>

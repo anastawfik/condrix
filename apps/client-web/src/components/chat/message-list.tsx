@@ -13,14 +13,12 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
   const lastMessageCount = useRef(messages.length);
 
   useEffect(() => {
-    // Auto-scroll on new messages or streaming updates
     if (messages.length !== lastMessageCount.current || isStreaming) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
       lastMessageCount.current = messages.length;
     }
   }, [messages, isStreaming]);
 
-  // Also scroll when streaming message content changes
   const lastMessage = messages[messages.length - 1];
   const streamingContent = lastMessage?.isStreaming ? (lastMessage.content?.length ?? 0) + (lastMessage.thinking?.length ?? 0) : 0;
   useEffect(() => {
@@ -30,19 +28,19 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
   }, [streamingContent]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-2 py-4" data-testid="message-list">
+    <div className="flex-1 overflow-y-auto py-5" data-testid="message-list">
       {messages.length === 0 && (
-        <div className="flex flex-col items-center justify-center h-full gap-3 select-none">
-          <div className="w-14 h-14 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] flex items-center justify-center">
-            <MessageSquare size={28} className="text-[var(--text-muted)]" />
+        <div className="flex flex-col items-center justify-center h-full gap-4 select-none">
+          <div className="w-16 h-16 rounded-2xl bg-[var(--bg-tertiary)] border border-[var(--border-color)] flex items-center justify-center">
+            <MessageSquare size={32} className="text-[var(--text-muted)]" />
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-[var(--text-secondary)]">No messages yet</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Send a message to start a conversation</p>
+            <p className="text-base font-medium text-[var(--text-secondary)]">No messages yet</p>
+            <p className="text-sm text-[var(--text-muted)] mt-1.5">Send a message to start a conversation</p>
           </div>
         </div>
       )}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         {messages.map((msg) => (
           <ChatMessage key={msg.id} message={msg} />
         ))}

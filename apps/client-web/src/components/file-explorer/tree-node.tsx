@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import type { FileNode } from '@nexus-core/client-shared';
 import {
@@ -21,7 +20,7 @@ interface TreeNodeProps {
 
 export function TreeNode({ node, depth, onExpand, onCollapse, onFileOpen, onRename, onDelete, onNewFile, onNewFolder, onCopyPath }: TreeNodeProps) {
   const isDir = node.type === 'directory';
-  const paddingLeft = depth * 12 + 4;
+  const paddingLeft = depth * 16 + 8;
 
   const handleClick = () => {
     if (isDir) {
@@ -41,19 +40,19 @@ export function TreeNode({ node, depth, onExpand, onCollapse, onFileOpen, onRena
         <ContextMenuTrigger asChild>
           <button
             onClick={handleClick}
-            className="flex items-center gap-1 w-full py-[2px] hover:bg-[var(--bg-hover)] text-left text-xs"
+            className="flex items-center gap-1.5 w-full h-7 hover:bg-[var(--bg-hover)] text-left text-sm"
             style={{ paddingLeft }}
           >
             {isDir && (
               node.loading ? (
-                <Loader2 size={12} className="animate-spin text-[var(--text-muted)] shrink-0" />
+                <Loader2 size={16} className="animate-spin text-[var(--text-muted)] shrink-0" />
               ) : node.expanded ? (
-                <ChevronDown size={12} className="text-[var(--text-muted)] shrink-0" />
+                <ChevronDown size={16} className="text-[var(--text-muted)] shrink-0" />
               ) : (
-                <ChevronRight size={12} className="text-[var(--text-muted)] shrink-0" />
+                <ChevronRight size={16} className="text-[var(--text-muted)] shrink-0" />
               )
             )}
-            {!isDir && <span className="w-3 shrink-0" />}
+            {!isDir && <span className="w-4 shrink-0" />}
             <FileIcon name={node.name} type={node.type} expanded={node.expanded} />
             <span className="truncate">{node.name}</span>
           </button>

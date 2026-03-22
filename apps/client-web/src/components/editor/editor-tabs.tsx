@@ -124,32 +124,32 @@ export function EditorTabs() {
 
   return (
     <div className="flex flex-col h-full" data-testid="editor-tabs">
-      <div className="flex items-center bg-[var(--bg-tertiary)] border-b border-[var(--border-color)] overflow-x-auto shrink-0" data-testid="tab-bar">
+      <div className="flex items-center h-9 bg-[var(--bg-tertiary)] border-b border-[var(--border-color)] overflow-x-auto shrink-0" data-testid="tab-bar">
         {enteredWorkspaces.length > 0 ? (
           enteredWorkspaces.map((ws) => (
             <button
               key={`chat:${ws.id}`}
               onClick={() => handleChatSelect(ws.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border-r border-[var(--border-color)] ${
+              className={`flex items-center gap-2 h-full px-4 text-sm border-r border-[var(--border-color)] transition-colors ${
                 activeView === 'chat' && workspaceId === ws.id
                   ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] border-t-2 border-t-[var(--accent-blue)]'
                   : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-t-2 border-t-transparent hover:bg-[var(--bg-hover)]'
               }`}
             >
-              <MessageSquare size={12} />
-              <span className="truncate max-w-[120px]">{wsTabName(ws)}</span>
+              <MessageSquare size={14} />
+              <span className="truncate max-w-[140px]">{wsTabName(ws)}</span>
             </button>
           ))
         ) : (
           <button
             onClick={() => handleChatSelect()}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border-r border-[var(--border-color)] ${
+            className={`flex items-center gap-2 h-full px-4 text-sm border-r border-[var(--border-color)] transition-colors ${
               activeView === 'chat'
                 ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] border-t-2 border-t-[var(--accent-blue)]'
                 : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-t-2 border-t-transparent hover:bg-[var(--bg-hover)]'
             }`}
           >
-            <MessageSquare size={12} />
+            <MessageSquare size={14} />
             Chat
           </button>
         )}
@@ -174,20 +174,20 @@ export function EditorTabs() {
                 onClick={() => handleDiffSelect(diff.path)}
                 role="tab"
                 aria-selected={activeView === 'diff' && activeDiffPath === diff.path}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs border-r border-[var(--border-color)] group cursor-pointer ${
+                className={`flex items-center gap-2 h-full px-4 text-sm border-r border-[var(--border-color)] group cursor-pointer transition-colors ${
                   activeView === 'diff' && activeDiffPath === diff.path
                     ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] border-t-2 border-t-[var(--accent-green)]'
                     : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-t-2 border-t-transparent hover:bg-[var(--bg-hover)]'
                 }`}
               >
-                <GitCompareArrows size={12} className="text-[var(--accent-green)] shrink-0" />
-                <span className="truncate max-w-[120px]">{fileName(diff.path)}</span>
+                <GitCompareArrows size={14} className="text-[var(--accent-green)] shrink-0" />
+                <span className="truncate max-w-[140px]">{fileName(diff.path)}</span>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDiffClose(diff.path); }}
                   aria-label={`Close diff ${fileName(diff.path)}`}
-                  className="p-0.5 rounded hover:bg-[var(--bg-active)] opacity-0 group-hover:opacity-100 shrink-0"
+                  className="p-1 rounded hover:bg-[var(--bg-active)] opacity-0 group-hover:opacity-100 shrink-0"
                 >
-                  <X size={12} />
+                  <X size={14} />
                 </button>
               </div>
             </ContextMenuTrigger>

@@ -55,8 +55,8 @@ export function FileExplorer() {
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex flex-col h-full" data-testid="file-explorer">
-        <div className="flex items-center gap-1.5 px-2.5 py-1.5 border-b border-[var(--border-color)]">
-          <Search size={14} className="text-[var(--text-muted)] shrink-0" />
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border-color)]">
+          <Search size={16} className="text-[var(--text-muted)] shrink-0" />
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
@@ -66,7 +66,7 @@ export function FileExplorer() {
           />
           <Tooltip content="Refresh">
             <IconButton
-              icon={<RefreshCw size={14} className={loading ? 'animate-spin' : ''} />}
+              icon={<RefreshCw size={16} className={loading ? 'animate-spin' : ''} />}
               onClick={refresh}
               disabled={loading}
               size="sm"
@@ -76,10 +76,10 @@ export function FileExplorer() {
 
         <div className="flex-1 overflow-y-auto py-1">
           {!workspaceId && (
-            <p className="px-3 py-6 text-sm text-[var(--text-muted)] text-center">No workspace selected</p>
+            <p className="px-4 py-8 text-sm text-[var(--text-muted)] text-center">No workspace selected</p>
           )}
           {workspaceId && filteredTree.length === 0 && !loading && (
-            <p className="px-3 py-6 text-sm text-[var(--text-muted)] text-center">No files found</p>
+            <p className="px-4 py-8 text-sm text-[var(--text-muted)] text-center">No files found</p>
           )}
           {filteredTree.map((node) => (
             <TreeNode
