@@ -41,7 +41,8 @@ services:
       - /app/libs/skills/node_modules
       - /app/libs/mcp-configs/node_modules
       - core-data:/root/.nexuscore
-      - ~/.claude:/root/.claude:ro
+      # Claude Code credentials persisted in core-data volume at /root/.nexuscore
+      # Auth via UI Core Terminal: `claude auth login`
     ports:
       - "9100:9100"
     networks:

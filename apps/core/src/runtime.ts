@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { homedir, platform } from 'node:os';
 import { join, resolve } from 'node:path';
-import { mkdirSync, existsSync } from 'node:fs';
+import { mkdirSync, existsSync, readFileSync } from 'node:fs';
 import type { CoreInfo, MessageEnvelope } from '@nexus-core/protocol';
 import { createEvent, generateMessageId } from '@nexus-core/protocol';
 
@@ -19,6 +19,7 @@ import { FileManager } from './managers/file-manager.js';
 import { GitTracker } from './managers/git-tracker.js';
 import { TunnelManager } from './services/tunnel-manager.js';
 import { MaestroConnector } from './services/maestro-connector.js';
+import { ClaudeAuthManager } from './services/claude-auth-manager.js';
 
 export interface CoreConfig {
   coreId: string;
@@ -57,6 +58,7 @@ export class CoreRuntime {
   private oauthManager!: OAuthTokenManager;
   private tunnelManager!: TunnelManager;
   private maestroConnector: MaestroConnector | null = null;
+  private claudeAuthManager: ClaudeAuthManager | null = null;
 
   // Managers
   private authManager!: AuthManager;
@@ -109,7 +111,7 @@ export class CoreRuntime {
     this.oauthManager.onTokenRefreshed = (accessToken) => {
       const claude = this.agentManager.getProvider('claude') as ClaudeProvider | undefined;
       if (claude) {
-        claude.reconfigure({ authToken: accessToken });
+        claude.reconfigure({ authToken: accessToken, oauthTokenJson: this.buildOAuthTokenJson() });
         console.log('[Core] Claude provider reconfigured with refreshed OAuth token');
       } else {
         // No provider yet — create one with the new token
@@ -167,6 +169,10 @@ export class CoreRuntime {
     // Init tunnel manager
     this.tunnelManager = new TunnelManager(this.emitter, this.config.port);
 
+    // Init Claude auth manager (monitors token expiry, auto-refreshes)
+    this.claudeAuthManager = new ClaudeAuthManager(this.emitter);
+    this.claudeAuthManager.start();
+
     this.running = true;
     console.log(`[Core] ${this.config.displayName} started on ${this.config.host}:${this.config.port}`);
 
@@ -186,6 +192,7 @@ export class CoreRuntime {
     console.log(`[Core] ${this.config.displayName} stopping...`);
 
     // Reverse order shutdown
+    this.claudeAuthManager?.destroy();
     this.maestroConnector?.destroy();
     this.tunnelManager?.destroy();
     this.oauthManager?.destroy();
@@ -209,6 +216,38 @@ export class CoreRuntime {
       containerized: this.isContainerized(),
       hostMounts: this.getHostMounts(),
     };
+  }
+
+  private getAuthStatus(): { authenticated: boolean; method: 'oauth' | 'apikey' | 'none'; expiresAt?: string; claudeInstalled: boolean } {
+    const method = (this.db.getSetting('auth.method') as string) ?? 'none';
+    const claudeCredPath = join(homedir(), '.claude', '.credentials.json');
+    const claudeInstalled = existsSync(join(homedir(), '.claude'));
+
+    // Check Claude Code credentials file
+    try {
+      if (existsSync(claudeCredPath)) {
+        const raw = readFileSync(claudeCredPath, 'utf-8');
+        const creds = JSON.parse(raw);
+        const oauth = creds.claudeAiOauth;
+        if (oauth?.accessToken && oauth?.refreshToken) {
+          const expired = oauth.expiresAt ? oauth.expiresAt < Date.now() : false;
+          return {
+            authenticated: !expired,
+            method: 'oauth',
+            expiresAt: oauth.expiresAt ? new Date(oauth.expiresAt).toISOString() : undefined,
+            claudeInstalled: true,
+          };
+        }
+      }
+    } catch { /* ignore parse errors */ }
+
+    // Check DB-stored API key
+    const apiKey = this.db.getSetting('model.apiKey') as string | undefined;
+    if (apiKey) {
+      return { authenticated: true, method: 'apikey', claudeInstalled };
+    }
+
+    return { authenticated: false, method: method as 'oauth' | 'apikey' | 'none', claudeInstalled };
   }
 
   private isContainerized(): boolean {
@@ -484,6 +523,17 @@ export class CoreRuntime {
       return { terminals: this.terminalManager.listTerminals(p.workspaceId) };
     });
 
+    // ── Core root terminal (for admin tasks like `claude auth login`) ─────
+    r.register('core', 'terminal.create', async (payload) => {
+      const p = payload as { shell?: string; cols?: number; rows?: number };
+      return this.terminalManager.createTerminal('__core__', p.shell, p.cols, p.rows, homedir());
+    });
+
+    // ── Auth status (checks Claude Code credentials on this Core) ─────────
+    r.register('core', 'auth.status', async () => {
+      return this.getAuthStatus();
+    });
+
     // ── file namespace ───────────────────────────────────────────────────────
     r.register('file', 'tree', async (payload) => {
       const p = payload as { workspaceId: string; path?: string; depth?: number };
@@ -654,6 +704,8 @@ export class CoreRuntime {
       ['tunnel:started', 'core', 'tunnelStarted'],
       ['tunnel:stopped', 'core', 'tunnelStopped'],
       ['tunnel:error', 'core', 'tunnelError'],
+      ['core:authRefreshed', 'core', 'authRefreshed'],
+      ['core:authExpired', 'core', 'authExpired'],
     ];
 
     for (const [emitterEvent, namespace, action] of eventMappings) {
@@ -761,7 +813,7 @@ export class CoreRuntime {
         const claude = this.agentManager.getProvider('claude') as ClaudeProvider | undefined;
         const authMethod = this.db.getSetting('auth.method') as string | undefined;
         if (authMethod === 'oauth' && claude && value) {
-          claude.reconfigure({ authToken: value as string });
+          claude.reconfigure({ authToken: value as string, oauthTokenJson: this.buildOAuthTokenJson() });
           console.log('[Core] Claude provider reconfigured with new OAuth token');
         }
       }
