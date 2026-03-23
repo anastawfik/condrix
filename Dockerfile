@@ -14,6 +14,7 @@ WORKDIR /app
 # ── Stage: deps ──────────────────────────────────────────────────────────────
 # Install all dependencies (production + dev for build step)
 FROM base AS deps
+RUN npm install -g @anthropic-ai/claude-code
 COPY package.json package-lock.json ./
 # All workspace package.json files (npm ci needs the full workspace tree)
 COPY apps/core/package.json apps/core/
@@ -39,7 +40,8 @@ RUN npx nx run-many -t build
 # ── Stage: core ──────────────────────────────────────────────────────────────
 # Production Core daemon
 FROM node:22-bookworm-slim AS core
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/* \
+    && npm install -g @anthropic-ai/claude-code
 WORKDIR /app
 
 COPY --from=build /app/package.json /app/package-lock.json ./

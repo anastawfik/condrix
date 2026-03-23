@@ -1,16 +1,15 @@
 /**
- * Claude AI provider using the Anthropic SDK.
- * Supports streaming, extended thinking, tool use with agentic loops,
- * and authentication via API key or OAuth.
+ * Claude AI provider.
  *
- * OAuth requests are intercepted at the HTTP layer to match the exact
- * request shape Anthropic expects for Claude Code OAuth tokens:
- * - ?beta=true query param
- * - User-Agent matching Claude CLI
- * - anthropic-beta header with claude-code client identity
- * - tools[] always present, no temperature/tool_choice
+ * Two modes:
+ * - API key: uses @anthropic-ai/sdk directly (standard API calls)
+ * - OAuth: spawns `claude` CLI subprocess with CLAUDE_CODE_OAUTH_TOKEN env var
+ *   (required because OAuth tokens are scoped to Claude Code and rejected
+ *   when used directly with the API for Sonnet/Opus models)
  */
 import Anthropic from '@anthropic-ai/sdk';
+import { spawn } from 'node:child_process';
+import { createInterface } from 'node:readline';
 import type { AgentMessage } from '@nexus-core/protocol';
 
 import type { AgentProviderAdapter, StreamCallback, ToolExecutorFn } from '../managers/agent-manager.js';
@@ -19,11 +18,12 @@ import { agentTools } from '../tools/tool-definitions.js';
 export interface ClaudeProviderConfig {
   apiKey?: string;
   authToken?: string;
+  /** Full OAuth token JSON for CLAUDE_CODE_OAUTH_TOKEN env var. */
+  oauthTokenJson?: string;
   model?: string;
   maxTokens?: number;
   systemPrompt?: string;
   thinkingBudget?: number;
-  /** Called to refresh the OAuth token when a 403 "revoked" error occurs. */
   tokenRefresher?: () => Promise<string>;
 }
 
@@ -31,81 +31,6 @@ const DEFAULT_MODEL = 'claude-sonnet-4-5-20250514';
 const DEFAULT_MAX_TOKENS = 16000;
 const DEFAULT_THINKING_BUDGET = 10000;
 const MAX_TOOL_TURNS = 25;
-
-/** Headers and params that make OAuth tokens work with Sonnet/Opus. */
-const OAUTH_USER_AGENT = 'claude-cli/1.0.0 (external, cli)';
-const OAUTH_BETA_FLAGS = 'claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14';
-
-/**
- * Creates a fetch wrapper that transforms requests to match the Claude Code
- * CLI request shape. This is required for OAuth tokens to work with premium
- * models (Sonnet, Opus) — Anthropic's backend validates the request shape.
- */
-function createOAuthFetch(): typeof globalThis.fetch {
-  const baseFetch = globalThis.fetch;
-
-  return async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    let url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
-
-    // Add ?beta=true to the URL
-    const separator = url.includes('?') ? '&' : '?';
-    url = `${url}${separator}beta=true`;
-
-    // Build headers — start from SDK's headers, then override specific ones
-    const existingHeaders = init?.headers;
-    const headers: Record<string, string> = {};
-
-    // Copy existing headers (SDK sets Authorization, Content-Type, etc.)
-    if (existingHeaders) {
-      if (existingHeaders instanceof Headers) {
-        existingHeaders.forEach((value, key) => { headers[key] = value; });
-      } else if (Array.isArray(existingHeaders)) {
-        for (const [key, value] of existingHeaders) { headers[key] = value; }
-      } else {
-        Object.assign(headers, existingHeaders);
-      }
-    }
-
-    // Override only the OAuth-specific headers
-    headers['user-agent'] = OAUTH_USER_AGENT;
-    headers['anthropic-beta'] = OAUTH_BETA_FLAGS;
-
-    // Modify body: ensure tools[] present, strip temperature/tool_choice
-    let body = init?.body;
-    if (body && typeof body === 'string') {
-      try {
-        const parsed = JSON.parse(body);
-        if (!parsed.tools) {
-          parsed.tools = [];
-        }
-        delete parsed.temperature;
-        delete parsed.tool_choice;
-        body = JSON.stringify(parsed);
-      } catch {
-        // Not JSON, pass through
-      }
-    }
-
-    // Debug: log the request shape for troubleshooting
-    if (url.includes('/messages')) {
-      try {
-        const parsed = typeof body === 'string' ? JSON.parse(body) : null;
-        console.log('[OAuth Fetch]', url);
-        console.log('[OAuth Fetch] Headers:', JSON.stringify(headers, null, 2));
-        if (parsed) {
-          console.log('[OAuth Fetch] Body keys:', Object.keys(parsed));
-          console.log('[OAuth Fetch] Model:', parsed.model, '| max_tokens:', parsed.max_tokens, '| tools:', parsed.tools?.length ?? 'none', '| has system:', !!parsed.system, '| has temperature:', 'temperature' in parsed, '| has thinking:', 'thinking' in parsed);
-        }
-      } catch { /* ignore */ }
-    }
-
-    return baseFetch(url, {
-      ...init,
-      headers,
-      body,
-    });
-  };
-}
 
 export class ClaudeProvider implements AgentProviderAdapter {
   readonly name = 'claude';
@@ -118,16 +43,16 @@ export class ClaudeProvider implements AgentProviderAdapter {
   private authMethod: 'oauth' | 'apikey';
   private fallbackApiKey: string | undefined;
   private tokenRefresher: (() => Promise<string>) | undefined;
+  private oauthTokenJson: string | undefined;
 
   constructor(config: ClaudeProviderConfig = {}) {
     if (config.authToken) {
-      console.log(`[Claude] Creating client with OAuth token (${config.authToken.substring(0, 15)}...)`);
-      this.client = new Anthropic({
-        authToken: config.authToken,
-        fetch: createOAuthFetch(),
-      });
+      console.log(`[Claude] Creating provider with OAuth (subprocess mode)`);
+      // For OAuth we still create an SDK client as fallback, but primary path is subprocess
+      this.client = new Anthropic({ apiKey: config.apiKey ?? 'unused' });
       this.authMethod = 'oauth';
       this.fallbackApiKey = config.apiKey ?? process.env.ANTHROPIC_API_KEY;
+      this.oauthTokenJson = config.oauthTokenJson;
     } else {
       this.client = new Anthropic({ apiKey: config.apiKey });
       this.authMethod = 'apikey';
@@ -141,11 +66,8 @@ export class ClaudeProvider implements AgentProviderAdapter {
 
   reconfigure(config: Partial<ClaudeProviderConfig>): void {
     if (config.authToken !== undefined) {
-      this.client = new Anthropic({
-        authToken: config.authToken,
-        fetch: createOAuthFetch(),
-      });
       this.authMethod = 'oauth';
+      this.oauthTokenJson = config.oauthTokenJson;
     } else if (config.apiKey !== undefined) {
       this.client = new Anthropic({ apiKey: config.apiKey });
       this.authMethod = 'apikey';
@@ -156,6 +78,7 @@ export class ClaudeProvider implements AgentProviderAdapter {
     if (config.thinkingBudget !== undefined) this.thinkingBudget = config.thinkingBudget;
     if (config.systemPrompt !== undefined) this.systemPrompt = config.systemPrompt || undefined;
     if (config.tokenRefresher !== undefined) this.tokenRefresher = config.tokenRefresher;
+    if (config.oauthTokenJson !== undefined) this.oauthTokenJson = config.oauthTokenJson;
   }
 
   async sendMessage(
@@ -164,11 +87,155 @@ export class ClaudeProvider implements AgentProviderAdapter {
     onStream?: StreamCallback,
     toolExecutor?: ToolExecutorFn,
   ): Promise<{ content: string; thinking?: string }> {
-    const messages = this.buildMessages(history, message);
+    // OAuth: use claude CLI subprocess
+    if (this.authMethod === 'oauth' && this.oauthTokenJson) {
+      try {
+        return await this.sendViaSubprocess(history, message, onStream);
+      } catch (err) {
+        console.warn('[Claude] Subprocess failed:', (err as Error).message);
+
+        // Try refreshing token
+        if (this.tokenRefresher) {
+          try {
+            await this.tokenRefresher();
+            return await this.sendViaSubprocess(history, message, onStream);
+          } catch {
+            console.warn('[Claude] Retry after refresh also failed');
+          }
+        }
+
+        // Fall back to API key if available
+        if (this.fallbackApiKey) {
+          console.warn('[Claude] Falling back to API key');
+          this.client = new Anthropic({ apiKey: this.fallbackApiKey });
+          this.authMethod = 'apikey';
+          // Fall through to SDK path below
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    // API key: use SDK directly
+    return this.sendViaSdk(history, message, onStream, toolExecutor);
+  }
+
+  // ─── Subprocess Path (OAuth) ───────────────────────────────────────────────
+
+  private async sendViaSubprocess(
+    history: AgentMessage[],
+    message: string,
+    onStream?: StreamCallback,
+  ): Promise<{ content: string; thinking?: string }> {
     const system = this.buildSystem(history);
 
-    // 4.6 models require extended thinking
-    const requiresThinking = /claude-(sonnet|opus)-4-6/.test(this.model);
+    // Build conversation as a single prompt with history context
+    const promptParts: string[] = [];
+    for (const msg of history) {
+      if (msg.role === 'system') continue;
+      const prefix = msg.role === 'user' ? 'User' : 'Assistant';
+      promptParts.push(`${prefix}: ${msg.content}`);
+    }
+    promptParts.push(`User: ${message}`);
+    const fullPrompt = promptParts.length > 1
+      ? promptParts.join('\n\n')
+      : message;
+
+    const args = [
+      '-p', fullPrompt,
+      '--output-format', 'stream-json',
+      '--model', this.model,
+      '--verbose',
+    ];
+
+    if (system) {
+      args.push('--system-prompt', system);
+    }
+
+    return new Promise((resolve, reject) => {
+      let content = '';
+      let thinking = '';
+      let stderr = '';
+
+      const child = spawn('claude', args, {
+        env: {
+          ...process.env,
+          CLAUDE_CODE_OAUTH_TOKEN: this.oauthTokenJson,
+        },
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+
+      // Parse NDJSON from stdout
+      const rl = createInterface({ input: child.stdout });
+      rl.on('line', (line) => {
+        if (!line.trim()) return;
+        try {
+          const event = JSON.parse(line);
+
+          // Handle different event types from stream-json output
+          if (event.type === 'content_block_delta') {
+            const delta = event.delta;
+            if (delta?.type === 'thinking_delta' && delta.thinking) {
+              thinking += delta.thinking;
+              if (onStream) onStream({ type: 'thinking', delta: delta.thinking });
+            } else if (delta?.type === 'text_delta' && delta.text) {
+              content += delta.text;
+              if (onStream) onStream({ type: 'text', delta: delta.text });
+            }
+          } else if (event.type === 'result') {
+            // Final result event — may contain the full text
+            if (event.result && !content) {
+              content = event.result;
+            }
+          } else if (event.type === 'assistant' && event.message?.content) {
+            // Full message event
+            for (const block of event.message.content) {
+              if (block.type === 'text' && block.text && !content) {
+                content = block.text;
+              } else if (block.type === 'thinking' && block.thinking) {
+                thinking = block.thinking;
+              }
+            }
+          }
+        } catch {
+          // Not JSON, ignore
+        }
+      });
+
+      child.stderr.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+
+      child.on('close', (code) => {
+        if (code === 0 || content) {
+          resolve({
+            content: content || '[No response]',
+            thinking: thinking || undefined,
+          });
+        } else {
+          reject(new Error(`Claude CLI exited with code ${code}: ${stderr.trim().slice(0, 500)}`));
+        }
+      });
+
+      child.on('error', (err) => {
+        reject(new Error(`Failed to spawn claude CLI: ${err.message}. Is Claude Code installed?`));
+      });
+
+      // Close stdin immediately (we passed prompt via -p flag)
+      child.stdin.end();
+    });
+  }
+
+  // ─── SDK Path (API Key) ────────────────────────────────────────────────────
+
+  private async sendViaSdk(
+    history: AgentMessage[],
+    message: string,
+    onStream?: StreamCallback,
+    toolExecutor?: ToolExecutorFn,
+  ): Promise<{ content: string; thinking?: string }> {
+    const messages = this.buildMessages(history, message);
+    const system = this.buildSystem(history);
 
     const baseParams: Anthropic.MessageCreateParams = {
       model: this.model,
@@ -178,87 +245,15 @@ export class ClaudeProvider implements AgentProviderAdapter {
       ...(toolExecutor ? { tools: agentTools } : {}),
     };
 
-    if (requiresThinking) {
-      const budgetTokens = Math.min(this.thinkingBudget, this.maxTokens - 1024);
-      const effectiveBudget = Math.max(budgetTokens, 1024);
-      baseParams.max_tokens = Math.max(this.maxTokens, effectiveBudget + 1024);
-      (baseParams as unknown as Record<string, unknown>).thinking = {
-        type: 'enabled',
-        budget_tokens: effectiveBudget,
-      };
+    if (toolExecutor) {
+      return this.agenticLoop(baseParams, onStream, toolExecutor);
     }
-
-    try {
-      if (toolExecutor) {
-        return await this.agenticLoop(baseParams, onStream, toolExecutor);
-      }
-      if (onStream) {
-        return await this.streamResponse(baseParams, onStream);
-      }
-      return await this.nonStreamResponse(baseParams);
-    } catch (err) {
-      if (this.authMethod !== 'oauth' || !(err instanceof Error)) throw err;
-
-      const msg = err.message;
-      const isOAuthError =
-        msg.includes('authentication_error') || msg.includes('401') ||
-        msg.includes('permission_error') || msg.includes('403') ||
-        msg.includes('revoked') || msg.includes('not authorized');
-
-      if (!isOAuthError) throw err;
-
-      console.warn('[Claude] OAuth API error:', msg);
-
-      // Step 1: Try refreshing the token
-      if (this.tokenRefresher) {
-        let newToken: string | undefined;
-        try {
-          console.warn('[Claude] Attempting token refresh...');
-          newToken = await this.tokenRefresher();
-          console.log('[Claude] Token refresh succeeded, retrying request...');
-        } catch (refreshErr) {
-          console.warn('[Claude] Token refresh failed:', refreshErr instanceof Error ? refreshErr.message : refreshErr);
-        }
-
-        // Step 2: If refresh succeeded, retry
-        if (newToken) {
-          this.client = new Anthropic({
-            authToken: newToken,
-            fetch: createOAuthFetch(),
-          });
-          try {
-            if (toolExecutor) return await this.agenticLoop(baseParams, onStream, toolExecutor);
-            if (onStream) return await this.streamResponse(baseParams, onStream);
-            return await this.nonStreamResponse(baseParams);
-          } catch (retryErr) {
-            console.warn('[Claude] Retry with refreshed token also failed:', retryErr instanceof Error ? retryErr.message : retryErr);
-          }
-        }
-      }
-
-      // Step 3: Fall back to API key if available
-      if (this.fallbackApiKey) {
-        console.warn('[Claude] Falling back to API key');
-        this.client = new Anthropic({ apiKey: this.fallbackApiKey });
-        this.authMethod = 'apikey';
-        this.tokenRefresher = undefined;
-        if (toolExecutor) return await this.agenticLoop(baseParams, onStream, toolExecutor);
-        if (onStream) return await this.streamResponse(baseParams, onStream);
-        return await this.nonStreamResponse(baseParams);
-      }
-
-      throw new Error(
-        'OAuth authentication failed — your authorization may have been fully revoked by Anthropic. ' +
-        'Please sign in again via Settings → Authentication → "Sign in with Claude" (browser login), ' +
-        'or configure an API key instead.',
-      );
+    if (onStream) {
+      return this.streamResponse(baseParams, onStream);
     }
+    return this.nonStreamResponse(baseParams);
   }
 
-  /**
-   * Agentic loop: send messages, handle tool_use blocks, execute tools,
-   * send results back, and repeat until Claude responds with text only.
-   */
   private async agenticLoop(
     baseParams: Anthropic.MessageCreateParams,
     onStream: StreamCallback | undefined,
@@ -271,12 +266,7 @@ export class ClaudeProvider implements AgentProviderAdapter {
 
     while (turns < MAX_TOOL_TURNS) {
       turns++;
-
-      const params: Anthropic.MessageCreateParams = {
-        ...baseParams,
-        messages,
-      };
-
+      const params: Anthropic.MessageCreateParams = { ...baseParams, messages };
       const stream = this.client.messages.stream(params);
       let turnThinking = '';
       let turnContent = '';
@@ -346,7 +336,6 @@ export class ClaudeProvider implements AgentProviderAdapter {
     onStream: StreamCallback,
   ): Promise<{ content: string; thinking?: string }> {
     const stream = this.client.messages.stream(params);
-
     let thinking = '';
     let content = '';
 
@@ -361,7 +350,6 @@ export class ClaudeProvider implements AgentProviderAdapter {
     });
 
     await stream.finalMessage();
-
     return { content: content || '[No response]', thinking: thinking || undefined };
   }
 
@@ -386,15 +374,14 @@ export class ClaudeProvider implements AgentProviderAdapter {
     return { content: content || '[No response]', thinking: thinking || undefined };
   }
 
+  // ─── Message Building ──────────────────────────────────────────────────────
+
   private buildMessages(history: AgentMessage[], message: string): Anthropic.MessageParam[] {
     const raw: Anthropic.MessageParam[] = [];
 
     for (const msg of history) {
       if (msg.role === 'system') continue;
-      raw.push({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      });
+      raw.push({ role: msg.role as 'user' | 'assistant', content: msg.content });
     }
 
     const lastMsg = raw[raw.length - 1];
@@ -406,7 +393,6 @@ export class ClaudeProvider implements AgentProviderAdapter {
       raw.shift();
     }
 
-    // Merge consecutive same-role messages (API requires alternating roles)
     const messages: Anthropic.MessageParam[] = [];
     for (const msg of raw) {
       const prev = messages[messages.length - 1];

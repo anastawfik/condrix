@@ -713,13 +713,14 @@ export class CoreRuntime {
         const isMaestroManaged = this.maestroConnector?.connected ?? false;
         const claude = new ClaudeProvider({
           authToken: accessToken,
+          oauthTokenJson: this.buildOAuthTokenJson(),
           apiKey, // fallback if OAuth fails
           model,
           maxTokens: dbMaxTokens,
           systemPrompt,
           tokenRefresher: isMaestroManaged
             ? undefined
-            : () => this.oauthManager.refreshAccessToken(),
+            : () => this.oauthManager.refreshAccessToken().then((t) => { this.updateProviderTokenJson(); return t; }),
         });
         this.agentManager.registerProvider(claude);
         this.agentManager.setDefaultProvider('claude');
@@ -811,26 +812,44 @@ export class CoreRuntime {
 
     const apiKey = (settings['model.apiKey'] as string | undefined) ?? process.env.ANTHROPIC_API_KEY;
     if (authMethod === 'oauth' && accessToken) {
-      // When connected to Maestro, don't set tokenRefresher — Maestro owns the refresh lifecycle
       const isMaestroManaged = !!this.maestroConnector?.connected;
       const claude = new ClaudeProvider({
         authToken: accessToken,
+        oauthTokenJson: this.buildOAuthTokenJson(),
         apiKey,
         model,
         maxTokens,
         systemPrompt,
         tokenRefresher: isMaestroManaged
           ? undefined
-          : () => this.oauthManager.refreshAccessToken(),
+          : () => this.oauthManager.refreshAccessToken().then((t) => { this.updateProviderTokenJson(); return t; }),
       });
       this.agentManager.registerProvider(claude);
       this.agentManager.setDefaultProvider('claude');
-      console.log('[Core] Claude provider (re)created with OAuth');
+      console.log('[Core] Claude provider (re)created with OAuth (subprocess mode)');
     } else if (apiKey) {
       const claude = new ClaudeProvider({ apiKey, model, maxTokens, systemPrompt });
       this.agentManager.registerProvider(claude);
       this.agentManager.setDefaultProvider('claude');
       console.log('[Core] Claude provider (re)created with API key');
+    }
+  }
+
+  /** Build the JSON string for CLAUDE_CODE_OAUTH_TOKEN env var. */
+  private buildOAuthTokenJson(): string {
+    const accessToken = this.db.getSetting('oauth.accessToken') as string ?? '';
+    const refreshToken = this.db.getSetting('oauth.refreshToken') as string ?? '';
+    const expiresAt = this.db.getSetting('oauth.expiresAt') as string ?? '';
+    // expiresAt is stored as ISO string, convert to Unix ms for Claude Code
+    const expiresAtMs = expiresAt ? new Date(expiresAt).getTime() : 0;
+    return JSON.stringify({ accessToken, refreshToken, expiresAt: expiresAtMs });
+  }
+
+  /** Update the provider's oauthTokenJson after a token refresh. */
+  private updateProviderTokenJson(): void {
+    const claude = this.agentManager.getProvider('claude') as ClaudeProvider | undefined;
+    if (claude) {
+      claude.reconfigure({ oauthTokenJson: this.buildOAuthTokenJson() });
     }
   }
 
