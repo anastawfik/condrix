@@ -51,10 +51,24 @@ function createOAuthFetch(): typeof globalThis.fetch {
     const separator = url.includes('?') ? '&' : '?';
     url = `${url}${separator}beta=true`;
 
-    // Override headers
-    const headers = new Headers(init?.headers);
-    headers.set('User-Agent', OAUTH_USER_AGENT);
-    headers.set('anthropic-beta', OAUTH_BETA_FLAGS);
+    // Build headers — start from SDK's headers, then override specific ones
+    const existingHeaders = init?.headers;
+    const headers: Record<string, string> = {};
+
+    // Copy existing headers (SDK sets Authorization, Content-Type, etc.)
+    if (existingHeaders) {
+      if (existingHeaders instanceof Headers) {
+        existingHeaders.forEach((value, key) => { headers[key] = value; });
+      } else if (Array.isArray(existingHeaders)) {
+        for (const [key, value] of existingHeaders) { headers[key] = value; }
+      } else {
+        Object.assign(headers, existingHeaders);
+      }
+    }
+
+    // Override only the OAuth-specific headers
+    headers['user-agent'] = OAUTH_USER_AGENT;
+    headers['anthropic-beta'] = OAUTH_BETA_FLAGS;
 
     // Modify body: ensure tools[] present, strip temperature/tool_choice
     let body = init?.body;
