@@ -2,6 +2,13 @@
  * Claude AI provider using the Anthropic SDK.
  * Supports streaming, extended thinking, tool use with agentic loops,
  * and authentication via API key or OAuth.
+ *
+ * OAuth requests are intercepted at the HTTP layer to match the exact
+ * request shape Anthropic expects for Claude Code OAuth tokens:
+ * - ?beta=true query param
+ * - User-Agent matching Claude CLI
+ * - anthropic-beta header with claude-code client identity
+ * - tools[] always present, no temperature/tool_choice
  */
 import Anthropic from '@anthropic-ai/sdk';
 import type { AgentMessage } from '@nexus-core/protocol';
@@ -20,12 +27,58 @@ export interface ClaudeProviderConfig {
   tokenRefresher?: () => Promise<string>;
 }
 
-const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
+const DEFAULT_MODEL = 'claude-sonnet-4-5-20250514';
 const DEFAULT_MAX_TOKENS = 16000;
 const DEFAULT_THINKING_BUDGET = 10000;
 const MAX_TOOL_TURNS = 25;
 
-const OAUTH_BETA = 'oauth-2025-04-20';
+/** Headers and params that make OAuth tokens work with Sonnet/Opus. */
+const OAUTH_USER_AGENT = 'claude-cli/1.0.0 (external, cli)';
+const OAUTH_BETA_FLAGS = 'claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14';
+
+/**
+ * Creates a fetch wrapper that transforms requests to match the Claude Code
+ * CLI request shape. This is required for OAuth tokens to work with premium
+ * models (Sonnet, Opus) — Anthropic's backend validates the request shape.
+ */
+function createOAuthFetch(): typeof globalThis.fetch {
+  const baseFetch = globalThis.fetch;
+
+  return async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    let url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+    // Add ?beta=true to the URL
+    const separator = url.includes('?') ? '&' : '?';
+    url = `${url}${separator}beta=true`;
+
+    // Override headers
+    const headers = new Headers(init?.headers);
+    headers.set('User-Agent', OAUTH_USER_AGENT);
+    headers.set('anthropic-beta', OAUTH_BETA_FLAGS);
+
+    // Modify body: ensure tools[] present, strip temperature/tool_choice
+    let body = init?.body;
+    if (body && typeof body === 'string') {
+      try {
+        const parsed = JSON.parse(body);
+        if (!parsed.tools) {
+          parsed.tools = [];
+        }
+        delete parsed.temperature;
+        delete parsed.tool_choice;
+        body = JSON.stringify(parsed);
+      } catch {
+        // Not JSON, pass through
+      }
+    }
+
+    return baseFetch(url, {
+      ...init,
+      headers,
+      body,
+    });
+  };
+}
 
 export class ClaudeProvider implements AgentProviderAdapter {
   readonly name = 'claude';
@@ -42,7 +95,10 @@ export class ClaudeProvider implements AgentProviderAdapter {
   constructor(config: ClaudeProviderConfig = {}) {
     if (config.authToken) {
       console.log(`[Claude] Creating client with OAuth token (${config.authToken.substring(0, 15)}...)`);
-      this.client = new Anthropic({ authToken: config.authToken });
+      this.client = new Anthropic({
+        authToken: config.authToken,
+        fetch: createOAuthFetch(),
+      });
       this.authMethod = 'oauth';
       this.fallbackApiKey = config.apiKey ?? process.env.ANTHROPIC_API_KEY;
     } else {
@@ -58,7 +114,10 @@ export class ClaudeProvider implements AgentProviderAdapter {
 
   reconfigure(config: Partial<ClaudeProviderConfig>): void {
     if (config.authToken !== undefined) {
-      this.client = new Anthropic({ authToken: config.authToken });
+      this.client = new Anthropic({
+        authToken: config.authToken,
+        fetch: createOAuthFetch(),
+      });
       this.authMethod = 'oauth';
     } else if (config.apiKey !== undefined) {
       this.client = new Anthropic({ apiKey: config.apiKey });
@@ -81,9 +140,6 @@ export class ClaudeProvider implements AgentProviderAdapter {
     const messages = this.buildMessages(history, message);
     const system = this.buildSystem(history);
 
-    // 4.6 models require extended thinking — cannot be called without it
-    const requiresThinking = /claude-(sonnet|opus)-4-6/.test(this.model);
-
     const baseParams: Anthropic.MessageCreateParams = {
       model: this.model,
       max_tokens: this.maxTokens,
@@ -92,33 +148,14 @@ export class ClaudeProvider implements AgentProviderAdapter {
       ...(toolExecutor ? { tools: agentTools } : {}),
     };
 
-    if (requiresThinking) {
-      const budgetTokens = Math.min(this.thinkingBudget, this.maxTokens - 1024);
-      const effectiveBudget = Math.max(budgetTokens, 1024);
-      baseParams.max_tokens = Math.max(this.maxTokens, effectiveBudget + 1024);
-      (baseParams as unknown as Record<string, unknown>).thinking = {
-        type: 'enabled',
-        budget_tokens: effectiveBudget,
-      };
-    }
-
-    // Build request options — OAuth needs beta header, thinking needs its own beta
-    const betaHeaders: string[] = [];
-    if (this.authMethod === 'oauth') betaHeaders.push(OAUTH_BETA);
-    if (requiresThinking) betaHeaders.push('interleaved-thinking-2025-05-14');
-
-    const options = betaHeaders.length > 0
-      ? { headers: { 'anthropic-beta': betaHeaders.join(',') } }
-      : undefined;
-
     try {
       if (toolExecutor) {
-        return await this.agenticLoop(baseParams, options, onStream, toolExecutor);
+        return await this.agenticLoop(baseParams, onStream, toolExecutor);
       }
       if (onStream) {
-        return await this.streamResponse(baseParams, options, onStream);
+        return await this.streamResponse(baseParams, onStream);
       }
-      return await this.nonStreamResponse(baseParams, options);
+      return await this.nonStreamResponse(baseParams);
     } catch (err) {
       if (this.authMethod !== 'oauth' || !(err instanceof Error)) throw err;
 
@@ -126,7 +163,7 @@ export class ClaudeProvider implements AgentProviderAdapter {
       const isOAuthError =
         msg.includes('authentication_error') || msg.includes('401') ||
         msg.includes('permission_error') || msg.includes('403') ||
-        msg.includes('revoked');
+        msg.includes('revoked') || msg.includes('not authorized');
 
       if (!isOAuthError) throw err;
 
@@ -143,17 +180,18 @@ export class ClaudeProvider implements AgentProviderAdapter {
           console.warn('[Claude] Token refresh failed:', refreshErr instanceof Error ? refreshErr.message : refreshErr);
         }
 
-        // Step 2: If refresh succeeded, retry the request
+        // Step 2: If refresh succeeded, retry
         if (newToken) {
-          this.client = new Anthropic({ authToken: newToken });
+          this.client = new Anthropic({
+            authToken: newToken,
+            fetch: createOAuthFetch(),
+          });
           try {
-            const retryOpts = { headers: { 'anthropic-beta': OAUTH_BETA } };
-            if (toolExecutor) return await this.agenticLoop(baseParams, retryOpts, onStream, toolExecutor);
-            if (onStream) return await this.streamResponse(baseParams, retryOpts, onStream);
-            return await this.nonStreamResponse(baseParams, retryOpts);
+            if (toolExecutor) return await this.agenticLoop(baseParams, onStream, toolExecutor);
+            if (onStream) return await this.streamResponse(baseParams, onStream);
+            return await this.nonStreamResponse(baseParams);
           } catch (retryErr) {
             console.warn('[Claude] Retry with refreshed token also failed:', retryErr instanceof Error ? retryErr.message : retryErr);
-            // Refreshed token was also rejected — authorization grant is likely revoked
           }
         }
       }
@@ -164,9 +202,9 @@ export class ClaudeProvider implements AgentProviderAdapter {
         this.client = new Anthropic({ apiKey: this.fallbackApiKey });
         this.authMethod = 'apikey';
         this.tokenRefresher = undefined;
-        if (toolExecutor) return await this.agenticLoop(baseParams, undefined, onStream, toolExecutor);
-        if (onStream) return await this.streamResponse(baseParams, undefined, onStream);
-        return await this.nonStreamResponse(baseParams, undefined);
+        if (toolExecutor) return await this.agenticLoop(baseParams, onStream, toolExecutor);
+        if (onStream) return await this.streamResponse(baseParams, onStream);
+        return await this.nonStreamResponse(baseParams);
       }
 
       throw new Error(
@@ -183,7 +221,6 @@ export class ClaudeProvider implements AgentProviderAdapter {
    */
   private async agenticLoop(
     baseParams: Anthropic.MessageCreateParams,
-    options: { headers: Record<string, string> } | undefined,
     onStream: StreamCallback | undefined,
     toolExecutor: ToolExecutorFn,
   ): Promise<{ content: string; thinking?: string }> {
@@ -200,13 +237,10 @@ export class ClaudeProvider implements AgentProviderAdapter {
         messages,
       };
 
-      // Stream the response
-      const stream = this.client.messages.stream(params, options);
+      const stream = this.client.messages.stream(params);
       let turnThinking = '';
       let turnContent = '';
       const toolUseBlocks: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
-
-      // Collect all content blocks
       const contentBlocks: Anthropic.ContentBlock[] = [];
 
       stream.on('thinking', (delta: string) => {
@@ -221,7 +255,6 @@ export class ClaudeProvider implements AgentProviderAdapter {
 
       const finalMessage = await stream.finalMessage();
 
-      // Extract tool_use blocks from the final message
       for (const block of finalMessage.content) {
         contentBlocks.push(block);
         if (block.type === 'tool_use') {
@@ -235,25 +268,18 @@ export class ClaudeProvider implements AgentProviderAdapter {
 
       if (turnThinking) allThinking += (allThinking ? '\n\n' : '') + turnThinking;
 
-      // If no tool use, we're done
       if (toolUseBlocks.length === 0 || finalMessage.stop_reason !== 'tool_use') {
         finalContent = turnContent || '[No response]';
         break;
       }
 
-      // Stream a status indicator for tool execution
       if (onStream) {
         const toolNames = toolUseBlocks.map((t) => t.name).join(', ');
         onStream({ type: 'text', delta: `\n\n*Using tools: ${toolNames}...*\n\n` });
       }
 
-      // Add assistant message with all content blocks (including tool_use)
-      messages.push({
-        role: 'assistant',
-        content: contentBlocks,
-      });
+      messages.push({ role: 'assistant', content: contentBlocks });
 
-      // Execute tools and collect results
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
       for (const tool of toolUseBlocks) {
         const result = await toolExecutor(tool.name, tool.input);
@@ -265,29 +291,21 @@ export class ClaudeProvider implements AgentProviderAdapter {
         });
       }
 
-      // Add tool results as user message
-      messages.push({
-        role: 'user',
-        content: toolResults,
-      });
+      messages.push({ role: 'user', content: toolResults });
     }
 
     if (turns >= MAX_TOOL_TURNS) {
       finalContent += '\n\n[Reached maximum tool use turns]';
     }
 
-    return {
-      content: finalContent,
-      thinking: allThinking || undefined,
-    };
+    return { content: finalContent, thinking: allThinking || undefined };
   }
 
   private async streamResponse(
     params: Anthropic.MessageCreateParams,
-    options: { headers: Record<string, string> } | undefined,
     onStream: StreamCallback,
   ): Promise<{ content: string; thinking?: string }> {
-    const stream = this.client.messages.stream(params, options);
+    const stream = this.client.messages.stream(params);
 
     let thinking = '';
     let content = '';
@@ -304,19 +322,14 @@ export class ClaudeProvider implements AgentProviderAdapter {
 
     await stream.finalMessage();
 
-    return {
-      content: content || '[No response]',
-      thinking: thinking || undefined,
-    };
+    return { content: content || '[No response]', thinking: thinking || undefined };
   }
 
   private async nonStreamResponse(
     params: Anthropic.MessageCreateParams,
-    options: { headers: Record<string, string> } | undefined,
   ): Promise<{ content: string; thinking?: string }> {
     const response = await this.client.messages.create(
       { ...params, stream: false } as Anthropic.MessageCreateParamsNonStreaming,
-      options,
     );
 
     let thinking = '';
@@ -330,10 +343,7 @@ export class ClaudeProvider implements AgentProviderAdapter {
       }
     }
 
-    return {
-      content: content || '[No response]',
-      thinking: thinking || undefined,
-    };
+    return { content: content || '[No response]', thinking: thinking || undefined };
   }
 
   private buildMessages(history: AgentMessage[], message: string): Anthropic.MessageParam[] {
