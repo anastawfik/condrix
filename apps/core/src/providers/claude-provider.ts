@@ -81,6 +81,9 @@ export class ClaudeProvider implements AgentProviderAdapter {
     const messages = this.buildMessages(history, message);
     const system = this.buildSystem(history);
 
+    // 4.6 models require extended thinking — cannot be called without it
+    const requiresThinking = /claude-(sonnet|opus)-4-6/.test(this.model);
+
     const baseParams: Anthropic.MessageCreateParams = {
       model: this.model,
       max_tokens: this.maxTokens,
@@ -89,8 +92,23 @@ export class ClaudeProvider implements AgentProviderAdapter {
       ...(toolExecutor ? { tools: agentTools } : {}),
     };
 
-    const options = this.authMethod === 'oauth'
-      ? { headers: { 'anthropic-beta': OAUTH_BETA } }
+    if (requiresThinking) {
+      const budgetTokens = Math.min(this.thinkingBudget, this.maxTokens - 1024);
+      const effectiveBudget = Math.max(budgetTokens, 1024);
+      baseParams.max_tokens = Math.max(this.maxTokens, effectiveBudget + 1024);
+      (baseParams as unknown as Record<string, unknown>).thinking = {
+        type: 'enabled',
+        budget_tokens: effectiveBudget,
+      };
+    }
+
+    // Build request options — OAuth needs beta header, thinking needs its own beta
+    const betaHeaders: string[] = [];
+    if (this.authMethod === 'oauth') betaHeaders.push(OAUTH_BETA);
+    if (requiresThinking) betaHeaders.push('interleaved-thinking-2025-05-14');
+
+    const options = betaHeaders.length > 0
+      ? { headers: { 'anthropic-beta': betaHeaders.join(',') } }
       : undefined;
 
     try {
