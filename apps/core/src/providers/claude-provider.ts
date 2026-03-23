@@ -86,6 +86,19 @@ function createOAuthFetch(): typeof globalThis.fetch {
       }
     }
 
+    // Debug: log the request shape for troubleshooting
+    if (url.includes('/messages')) {
+      try {
+        const parsed = typeof body === 'string' ? JSON.parse(body) : null;
+        console.log('[OAuth Fetch]', url);
+        console.log('[OAuth Fetch] Headers:', JSON.stringify(headers, null, 2));
+        if (parsed) {
+          console.log('[OAuth Fetch] Body keys:', Object.keys(parsed));
+          console.log('[OAuth Fetch] Model:', parsed.model, '| max_tokens:', parsed.max_tokens, '| tools:', parsed.tools?.length ?? 'none', '| has system:', !!parsed.system, '| has temperature:', 'temperature' in parsed, '| has thinking:', 'thinking' in parsed);
+        }
+      } catch { /* ignore */ }
+    }
+
     return baseFetch(url, {
       ...init,
       headers,
@@ -154,6 +167,9 @@ export class ClaudeProvider implements AgentProviderAdapter {
     const messages = this.buildMessages(history, message);
     const system = this.buildSystem(history);
 
+    // 4.6 models require extended thinking
+    const requiresThinking = /claude-(sonnet|opus)-4-6/.test(this.model);
+
     const baseParams: Anthropic.MessageCreateParams = {
       model: this.model,
       max_tokens: this.maxTokens,
@@ -161,6 +177,16 @@ export class ClaudeProvider implements AgentProviderAdapter {
       messages,
       ...(toolExecutor ? { tools: agentTools } : {}),
     };
+
+    if (requiresThinking) {
+      const budgetTokens = Math.min(this.thinkingBudget, this.maxTokens - 1024);
+      const effectiveBudget = Math.max(budgetTokens, 1024);
+      baseParams.max_tokens = Math.max(this.maxTokens, effectiveBudget + 1024);
+      (baseParams as unknown as Record<string, unknown>).thinking = {
+        type: 'enabled',
+        budget_tokens: effectiveBudget,
+      };
+    }
 
     try {
       if (toolExecutor) {
