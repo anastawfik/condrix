@@ -9,10 +9,19 @@ interface ChatMessageProps {
   message: ChatMessageType;
 }
 
-function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreaming?: boolean }) {
+function ThinkingIndicator() {
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+      <Brain size={14} className="animate-pulse text-primary" />
+      <span className="font-medium">Thinking...</span>
+    </div>
+  );
+}
+
+function ThinkingBlock({ thinking }: { thinking: string }) {
   const [expanded, setExpanded] = useState(false);
 
-  if (!thinking && !isStreaming) return null;
+  if (!thinking.trim()) return null;
 
   return (
     <button
@@ -24,12 +33,10 @@ function ThinkingBlock({ thinking, isStreaming }: { thinking: string; isStreamin
           size={14}
           className={`transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
         />
-        <Brain size={14} className={isStreaming ? 'animate-pulse text-primary' : ''} />
-        <span className="font-medium">
-          {isStreaming && !thinking ? 'Thinking...' : isStreaming ? 'Thinking...' : 'Thinking'}
-        </span>
+        <Brain size={14} />
+        <span className="font-medium">Thinking</span>
       </div>
-      {expanded && thinking && (
+      {expanded && (
         <div className="mt-2 pl-5 text-xs text-muted-foreground italic leading-relaxed whitespace-pre-wrap border-l-2 border-border max-h-[300px] overflow-y-auto">
           {thinking}
         </div>
@@ -72,7 +79,8 @@ export function ChatMessage({ message }: ChatMessageProps) {
     );
   }
 
-  const showThinking = !isUser && (message.thinking || (message.isStreaming && !message.content));
+  const isWaitingForContent = message.isStreaming && !message.content && !message.thinking;
+  const hasThinkingText = !!(message.thinking && message.thinking.trim());
   const showCursor = message.isStreaming && message.role === 'assistant';
 
   return (
@@ -104,13 +112,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
               : 'bg-secondary text-foreground rounded-2xl rounded-bl-sm border border-border'
           }`}
         >
-          {/* Thinking block */}
-          {showThinking && (
-            <ThinkingBlock
-              thinking={message.thinking ?? ''}
-              isStreaming={message.isStreaming}
-            />
-          )}
+          {/* Thinking indicator (shown while waiting for content) */}
+          {isWaitingForContent && <ThinkingIndicator />}
+          {/* Thinking block (shown when actual thinking text exists) */}
+          {hasThinkingText && <ThinkingBlock thinking={message.thinking!} />}
 
           {/* Main content */}
           {message.content ? (
