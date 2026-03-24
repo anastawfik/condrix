@@ -9,6 +9,8 @@
  *   Supports sessions for multi-turn conversation context per workspace.
  */
 import Anthropic from '@anthropic-ai/sdk';
+import { spawn } from 'node:child_process';
+import { createInterface } from 'node:readline';
 import type { AgentMessage } from '@nexus-core/protocol';
 
 import type { AgentProviderAdapter, StreamCallback, ToolExecutorFn } from '../managers/agent-manager.js';
@@ -84,21 +86,18 @@ export class ClaudeProvider implements AgentProviderAdapter {
     toolExecutor?: ToolExecutorFn,
   ): Promise<{ content: string; thinking?: string }> {
     if (this.authMethod === 'oauth') {
-      return this.sendViaAgentSdk(history, message, onStream);
+      return this.sendViaSubprocess(history, message, onStream);
     }
     return this.sendViaSdk(history, message, onStream, toolExecutor);
   }
 
   // ─── Agent SDK Path (OAuth) ────────────────────────────────────────────────
 
-  private async sendViaAgentSdk(
+  private async sendViaSubprocess(
     history: AgentMessage[],
     message: string,
     onStream?: StreamCallback,
   ): Promise<{ content: string; thinking?: string }> {
-    // Dynamic import — the Agent SDK is only needed for OAuth path
-    const { query } = await import('@anthropic-ai/claude-agent-sdk');
-
     const system = this.buildSystem(history);
 
     // Build prompt with history context
@@ -113,60 +112,75 @@ export class ClaudeProvider implements AgentProviderAdapter {
       ? promptParts.join('\n\n')
       : message;
 
-    console.log(`[Claude] Agent SDK query (model: ${this.model})`);
+    const args = [
+      '-p', fullPrompt,
+      '--verbose',
+      '--output-format', 'stream-json',
+      '--model', this.model,
+    ];
+    if (system) {
+      args.push('--system-prompt', system);
+    }
 
-    const messages = query({
-      prompt: fullPrompt,
-      options: {
-        model: this.model,
-        systemPrompt: system,
-        permissionMode: 'bypassPermissions',
-        allowedTools: [],
-      },
-    });
+    console.log(`[Claude] Subprocess query (model: ${this.model})`);
 
-    let content = '';
-    let thinking = '';
+    return new Promise((resolve, reject) => {
+      let content = '';
+      let thinking = '';
+      let stderr = '';
 
-    try {
-      for await (const msg of messages) {
-        if (msg.type === 'assistant') {
-          // Assistant message with content blocks
-          const assistantMsg = msg as { type: 'assistant'; message: { content: Array<{ type: string; text?: string; thinking?: string }> } };
-          if (assistantMsg.message?.content) {
-            for (const block of assistantMsg.message.content) {
+      const child = spawn('claude', args, {
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+
+      const rl = createInterface({ input: child.stdout });
+      rl.on('line', (line) => {
+        if (!line.trim()) return;
+        try {
+          const event = JSON.parse(line);
+
+          if (event.type === 'assistant' && event.message?.content) {
+            for (const block of event.message.content) {
               if (block.type === 'text' && block.text) {
                 const delta = block.text.slice(content.length);
                 if (delta && onStream) onStream({ type: 'text', delta });
                 content = block.text;
               } else if (block.type === 'thinking' && block.thinking) {
+                const delta = block.thinking.slice(thinking.length);
+                if (delta && onStream) onStream({ type: 'thinking', delta });
                 thinking = block.thinking;
               }
             }
-          }
-        } else if (msg.type === 'result') {
-          // Final result
-          const resultMsg = msg as { type: 'result'; subtype: string; result?: string; is_error?: boolean; error?: string };
-          if (resultMsg.subtype === 'success' && resultMsg.result) {
-            if (!content) {
-              content = resultMsg.result;
+          } else if (event.type === 'result') {
+            if (event.subtype === 'success' && event.result && !content) {
+              content = event.result;
               if (onStream) onStream({ type: 'text', delta: content });
+            } else if (event.is_error) {
+              stderr += event.result ?? '';
             }
-          } else if (resultMsg.subtype === 'error' || resultMsg.is_error) {
-            throw new Error(`Claude Agent SDK error: ${resultMsg.error ?? resultMsg.result ?? 'Unknown error'}`);
           }
-        }
-      }
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      console.error('[Claude] Agent SDK error:', errMsg);
-      throw new Error(`Claude Agent SDK failed: ${errMsg}`);
-    }
+        } catch { /* not JSON */ }
+      });
 
-    return {
-      content: content || '[No response]',
-      thinking: thinking || undefined,
-    };
+      child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+
+      child.on('close', (code) => {
+        if (content) {
+          resolve({ content, thinking: thinking || undefined });
+        } else if (code === 0) {
+          resolve({ content: '[No response]', thinking: thinking || undefined });
+        } else {
+          console.error(`[Claude] Subprocess failed (code ${code}): ${stderr.slice(0, 300)}`);
+          reject(new Error(`Claude CLI failed (code ${code}): ${stderr.slice(0, 200) || 'unknown error'}`));
+        }
+      });
+
+      child.on('error', (err) => {
+        reject(new Error(`Failed to spawn claude CLI: ${err.message}`));
+      });
+
+      child.stdin.end();
+    });
   }
 
   // ─── Anthropic SDK Path (API Key) ──────────────────────────────────────────
