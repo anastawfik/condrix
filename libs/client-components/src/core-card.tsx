@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Collapsible } from 'radix-ui';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Terminal } from 'lucide-react';
 import { cn } from './lib/utils.js';
 import { Button } from './button.js';
 
@@ -14,6 +14,8 @@ export interface CoreCardProps {
   onConnect?: () => void;
   onDisconnect?: () => void;
   onRemove?: () => void;
+  onTerminal?: () => void;
+  authStatus?: { authenticated: boolean; method: string };
   children?: React.ReactNode;
 }
 
@@ -41,6 +43,8 @@ export function CoreCard({
   onConnect,
   onDisconnect,
   onRemove,
+  onTerminal,
+  authStatus,
   children,
 }: CoreCardProps) {
   const [renaming, setRenaming] = useState(false);
@@ -131,6 +135,18 @@ export function CoreCard({
               >
                 Connect
               </button>
+            )}
+            {isConnected && onTerminal && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onTerminal(); }}
+                className="w-5 h-5 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--bg-hover)]"
+                title="Open Core Terminal"
+              >
+                <Terminal size={12} />
+              </button>
+            )}
+            {isConnected && authStatus && !authStatus.authenticated && (
+              <span className="text-[10px] text-[var(--accent-red)]" title="Auth required">&#x26A0;</span>
             )}
             {onRemove && (
               <button

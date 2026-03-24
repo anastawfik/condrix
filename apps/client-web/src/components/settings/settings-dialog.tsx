@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef, useMemo, type ComponentType } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { GeneralSettings } from './general-settings.js';
 import { ThemeSettings } from './theme-settings.js';
 import { NotificationSettings } from './notification-settings.js';
 import { CoresSettingsTab, AiSettingsTab, AuthenticationSettingsTab } from '@nexus-core/client-components';
 import { maestroStore } from '@nexus-core/client-shared';
 import type { MaestroConnectionState } from '@nexus-core/client-shared';
+import { CoreTerminalModal } from '../core-terminal-modal.js';
 
 interface TabDefinition {
   id: string;
@@ -51,8 +52,11 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     return STATIC_TABS;
   }, [maestroState]);
 
-  const ActiveComponent = tabs.find((t) => t.id === activeTab)?.component ?? CoresSettingsTab;
+  const activeTabDef = tabs.find((t) => t.id === activeTab) ?? tabs[0];
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Core Terminal modal state
+  const [terminalTarget, setTerminalTarget] = useState<{ coreId: string; coreName: string } | null>(null);
 
   // Focus trap + Escape key
   useEffect(() => {
@@ -128,9 +132,22 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               &#x2715;
             </button>
           </div>
-          <ActiveComponent />
+          {activeTabDef.id === 'cores' ? (
+            <CoresSettingsTab onOpenTerminal={(coreId, coreName) => setTerminalTarget({ coreId, coreName })} />
+          ) : (
+            <activeTabDef.component />
+          )}
         </div>
       </div>
+
+      {terminalTarget && (
+        <CoreTerminalModal
+          coreId={terminalTarget.coreId}
+          coreName={terminalTarget.coreName}
+          open={true}
+          onClose={() => setTerminalTarget(null)}
+        />
+      )}
     </div>
   );
 }
