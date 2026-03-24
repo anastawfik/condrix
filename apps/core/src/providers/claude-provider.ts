@@ -116,6 +116,7 @@ export class ClaudeProvider implements AgentProviderAdapter {
       '-p', fullPrompt,
       '--verbose',
       '--output-format', 'stream-json',
+      '--include-partial-messages',
       '--model', this.model,
     ];
     if (system) {
