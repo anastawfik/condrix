@@ -11,9 +11,14 @@ interface ChatMessageProps {
 
 function ThinkingIndicator() {
   return (
-    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-      <Brain size={14} className="animate-pulse text-primary" />
-      <span className="font-medium">Thinking...</span>
+    <div className="flex items-center gap-2 py-1">
+      <Brain size={16} className="animate-pulse text-primary" />
+      <span className="text-sm font-medium text-muted-foreground">Thinking...</span>
+      <span className="flex gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+      </span>
     </div>
   );
 }
