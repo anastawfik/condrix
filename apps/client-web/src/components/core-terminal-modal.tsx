@@ -3,10 +3,14 @@
  * like `claude auth login`, `claude auth status`, etc.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { ExternalLink, Copy } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import type { MessageEnvelope } from '@nexus-core/protocol';
 import { multiCoreStore } from '@nexus-core/client-shared';
 import { TerminalTab } from './terminal/terminal-tab.js';
+
+const URL_REGEX = /https?:\/\/[^\s\x1b\x07]+/g;
 
 interface CoreTerminalModalProps {
   coreId: string;
@@ -18,10 +22,13 @@ interface CoreTerminalModalProps {
 export function CoreTerminalModal({ coreId, coreName, open, onClose }: CoreTerminalModalProps) {
   const [terminalId, setTerminalId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Create terminal on open
   useEffect(() => {
     if (!open || terminalId) return;
+    setDetectedUrl(null);
 
     multiCoreStore.getState().requestOnCore<{ id: string; title: string }>(
       coreId, 'core', 'terminal.create', { cols: 120, rows: 30 },
@@ -41,6 +48,7 @@ export function CoreTerminalModal({ coreId, coreName, open, onClose }: CoreTermi
       setTerminalId(null);
     }
     setError(null);
+    setDetectedUrl(null);
     onClose();
   }, [terminalId, coreId, onClose]);
 
@@ -52,14 +60,23 @@ export function CoreTerminalModal({ coreId, coreName, open, onClose }: CoreTermi
     multiCoreStore.getState().requestOnCore(coreId, 'terminal', 'resize', { terminalId: tid, cols, rows }).catch(() => {});
   }, [coreId]);
 
-  // Direct WebSocket subscription for terminal output — bypasses terminalStore
-  // since the __core__ terminal isn't registered in the workspace terminal flow
+  // Direct WebSocket subscription for terminal output
   const outputListeners = useRef<Map<string, Set<(data: string) => void>>>(new Map());
 
   useEffect(() => {
-    // Subscribe to terminal:output events from this Core
     const unsub = multiCoreStore.getState().subscribeOnCore(coreId, 'terminal:output', (event: MessageEnvelope) => {
       const payload = event.payload as { terminalId: string; data: string };
+
+      // Detect URLs in output (for claude auth login flow)
+      if (payload.data) {
+        const urls = payload.data.match(URL_REGEX);
+        if (urls) {
+          // Pick the most relevant URL (prefer claude.ai/oauth or platform.claude.com)
+          const authUrl = urls.find(u => u.includes('claude.ai') || u.includes('platform.claude.com')) ?? urls[0];
+          if (authUrl) setDetectedUrl(authUrl);
+        }
+      }
+
       const listeners = outputListeners.current.get(payload.terminalId);
       if (listeners) {
         for (const listener of listeners) listener(payload.data);
@@ -76,17 +93,52 @@ export function CoreTerminalModal({ coreId, coreName, open, onClose }: CoreTermi
     return () => { outputListeners.current.get(tid)?.delete(listener); };
   }, []);
 
+  const handleCopyUrl = useCallback(() => {
+    if (detectedUrl) {
+      navigator.clipboard.writeText(detectedUrl).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  }, [detectedUrl]);
+
   return (
-    // Stop click propagation so clicking inside the modal doesn't close the settings dialog behind it
+    // Re-enable right-click context menu inside the modal (disabled globally on the app)
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
-    <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+    <div
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onContextMenu={(e) => e.stopPropagation()}
+    >
       <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
-        <DialogContent className="max-w-4xl h-[500px] p-0 gap-0 flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-4xl h-[550px] p-0 gap-0 flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader className="px-4 py-3 border-b border-border shrink-0">
-            <DialogTitle className="text-sm font-medium">
-              Core Terminal — {coreName}
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-sm font-medium">
+                Core Terminal — {coreName}
+              </DialogTitle>
+              <span className="text-xs text-muted-foreground">
+                Run <code className="px-1 py-0.5 rounded bg-secondary text-foreground">claude auth login</code> to authenticate
+              </span>
+            </div>
           </DialogHeader>
+
+          {/* URL detection bar — shows when a URL is detected in terminal output */}
+          {detectedUrl && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 border-b border-border shrink-0">
+              <ExternalLink className="size-4 text-primary shrink-0" />
+              <span className="text-sm text-foreground truncate flex-1">{detectedUrl}</span>
+              <Button size="sm" variant="outline" onClick={handleCopyUrl}>
+                <Copy className="size-3.5 mr-1.5" />
+                {copied ? 'Copied!' : 'Copy'}
+              </Button>
+              <Button size="sm" onClick={() => window.open(detectedUrl, '_blank', 'noopener')}>
+                <ExternalLink className="size-3.5 mr-1.5" />
+                Open in Browser
+              </Button>
+            </div>
+          )}
+
           <div className="flex-1 min-h-0">
             {error && (
               <div className="flex items-center justify-center h-full text-destructive text-sm">
