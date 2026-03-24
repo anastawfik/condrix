@@ -132,6 +132,7 @@ export class ClaudeProvider implements AgentProviderAdapter {
 
       const child = spawn('claude', args, {
         stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, FORCE_COLOR: '0', NODE_OPTIONS: '' },
       });
 
       const rl = createInterface({ input: child.stdout });
@@ -140,19 +141,19 @@ export class ClaudeProvider implements AgentProviderAdapter {
         try {
           const event = JSON.parse(line);
 
-          if (event.type === 'assistant' && event.message?.content) {
-            for (const block of event.message.content) {
-              if (block.type === 'text' && block.text) {
-                const delta = block.text.slice(content.length);
-                if (delta && onStream) onStream({ type: 'text', delta });
-                content = block.text;
-              } else if (block.type === 'thinking' && block.thinking) {
-                const delta = block.thinking.slice(thinking.length);
-                if (delta && onStream) onStream({ type: 'thinking', delta });
-                thinking = block.thinking;
-              }
+          // Stream deltas from content_block_delta events
+          if (event.type === 'stream_event' && event.event?.type === 'content_block_delta') {
+            const delta = event.event.delta;
+            if (delta?.type === 'text_delta' && delta.text) {
+              content += delta.text;
+              if (onStream) onStream({ type: 'text', delta: delta.text });
+            } else if (delta?.type === 'thinking_delta' && delta.thinking) {
+              thinking += delta.thinking;
+              if (onStream) onStream({ type: 'thinking', delta: delta.thinking });
             }
-          } else if (event.type === 'result') {
+          }
+          // Final result
+          else if (event.type === 'result') {
             if (event.subtype === 'success' && event.result && !content) {
               content = event.result;
               if (onStream) onStream({ type: 'text', delta: content });
