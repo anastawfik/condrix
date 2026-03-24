@@ -25,8 +25,6 @@ export function CoreTerminalModal({ coreId, coreName, open, onClose }: CoreTermi
     multiCoreStore.getState().requestOnCore<{ id: string; title: string }>(
       coreId, 'core', 'terminal.create', { cols: 120, rows: 30 },
     ).then((result) => {
-      // Register in terminal store so events flow
-      terminalStore.getState().addTerminal('__core__', result.id, result.title ?? 'Core Shell');
       setTerminalId(result.id);
     }).catch((err) => {
       setError(err instanceof Error ? err.message : 'Failed to create terminal');
@@ -58,35 +56,39 @@ export function CoreTerminalModal({ coreId, coreName, open, onClose }: CoreTermi
   }, []);
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
-      <DialogContent className="max-w-4xl h-[500px] p-0 gap-0 flex flex-col">
-        <DialogHeader className="px-4 py-3 border-b border-border shrink-0">
-          <DialogTitle className="text-sm font-medium">
-            Core Terminal — {coreName}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="flex-1 min-h-0">
-          {error && (
-            <div className="flex items-center justify-center h-full text-destructive text-sm">
-              {error}
-            </div>
-          )}
-          {!error && !terminalId && (
-            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              Connecting...
-            </div>
-          )}
-          {terminalId && (
-            <TerminalTab
-              terminalId={terminalId}
-              active={true}
-              onData={handleData}
-              onResize={handleResize}
-              onOutput={handleOutput}
-            />
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+    // Stop click propagation so clicking inside the modal doesn't close the settings dialog behind it
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
+    <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+      <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
+        <DialogContent className="max-w-4xl h-[500px] p-0 gap-0 flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader className="px-4 py-3 border-b border-border shrink-0">
+            <DialogTitle className="text-sm font-medium">
+              Core Terminal — {coreName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            {error && (
+              <div className="flex items-center justify-center h-full text-destructive text-sm">
+                {error}
+              </div>
+            )}
+            {!error && !terminalId && (
+              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                Connecting...
+              </div>
+            )}
+            {terminalId && (
+              <TerminalTab
+                terminalId={terminalId}
+                active={true}
+                onData={handleData}
+                onResize={handleResize}
+                onOutput={handleOutput}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
