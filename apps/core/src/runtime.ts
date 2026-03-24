@@ -1,7 +1,8 @@
 import { EventEmitter } from 'node:events';
 import { homedir, platform } from 'node:os';
 import { join, resolve } from 'node:path';
-import { mkdirSync, existsSync, readFileSync } from 'node:fs';
+import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawn as spawnChild } from 'node:child_process';
 import type { CoreInfo, MessageEnvelope } from '@nexus-core/protocol';
 import { createEvent, generateMessageId } from '@nexus-core/protocol';
 
@@ -258,8 +259,6 @@ export class CoreRuntime {
   } | null = null;
 
   private startClaudeAuthLogin(): Promise<{ url: string }> {
-    const { spawn: spawnChild } = require('node:child_process') as typeof import('node:child_process');
-
     if (this.pendingAuthProcess) {
       this.pendingAuthProcess.process.kill();
       this.pendingAuthProcess = null;
@@ -655,7 +654,6 @@ export class CoreRuntime {
       try { if (existsSync(credPath)) existing = JSON.parse(readFileSync(credPath, 'utf-8')); } catch { /* ignore */ }
 
       existing.claudeAiOauth = p.credentials;
-      const { writeFileSync } = await import('node:fs');
       writeFileSync(credPath, JSON.stringify(existing, null, 2));
 
       console.log('[Core] Claude credentials imported successfully');
