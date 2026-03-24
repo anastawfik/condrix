@@ -534,6 +534,29 @@ export class CoreRuntime {
       return this.getAuthStatus();
     });
 
+    // ── Import Claude credentials from client (paste from host) ─────────────
+    r.register('core', 'auth.import', async (payload) => {
+      const p = payload as { credentials: { accessToken: string; refreshToken: string; expiresAt: number; scopes?: string[] } };
+      if (!p.credentials?.accessToken || !p.credentials?.refreshToken) {
+        throw new Error('Missing accessToken or refreshToken');
+      }
+      const credDir = join(homedir(), '.claude');
+      const credPath = join(credDir, '.credentials.json');
+      mkdirSync(credDir, { recursive: true });
+
+      // Read existing or create new
+      let existing: Record<string, unknown> = {};
+      try { if (existsSync(credPath)) existing = JSON.parse(readFileSync(credPath, 'utf-8')); } catch { /* ignore */ }
+
+      existing.claudeAiOauth = p.credentials;
+      const { writeFileSync } = await import('node:fs');
+      writeFileSync(credPath, JSON.stringify(existing, null, 2));
+
+      console.log('[Core] Claude credentials imported successfully');
+      this.emitter.emit('core:authRefreshed', this.getAuthStatus());
+      return { success: true, expiresAt: new Date(p.credentials.expiresAt).toISOString() };
+    });
+
     // ── file namespace ───────────────────────────────────────────────────────
     r.register('file', 'tree', async (payload) => {
       const p = payload as { workspaceId: string; path?: string; depth?: number };
