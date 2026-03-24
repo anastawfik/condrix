@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { AppLayout, TitleBar, MaestroLoginDialog } from '@nexus-core/client-components';
+import { AppLayout, MaestroLoginDialog } from '@nexus-core/client-components';
+import { TitleBar } from './components/title-bar.js';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { maestroStore, multiCoreStore, workspaceStore, fileStore, terminalStore, getSavedUIState } from '@nexus-core/client-shared';
 import type { MaestroConnectionState } from '@nexus-core/client-shared';

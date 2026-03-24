@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { TitleBar } from '@nexus-core/client-components';
+import { TitleBar } from './title-bar.js';
 import { workspaceStore } from '@nexus-core/client-shared';
 import { Sidebar } from './sidebar.js';
 import { EditorTabs } from './editor/editor-tabs.js';
