@@ -50,6 +50,11 @@ packages/client-mobile/ios/
 # Screenshots
 *.png
 
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
 # Misc
 *.tgz
 .cache/

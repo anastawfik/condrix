@@ -6,6 +6,7 @@ import { CoresSettingsTab, AiSettingsTab, AuthenticationSettingsTab } from '@nex
 import { maestroStore } from '@nexus-core/client-shared';
 import type { MaestroConnectionState } from '@nexus-core/client-shared';
 import { CoreTerminalModal } from '../core-terminal-modal.js';
+import { CoreSignInModal } from '../core-signin-modal.js';
 
 interface TabDefinition {
   id: string;
@@ -55,8 +56,9 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const activeTabDef = tabs.find((t) => t.id === activeTab) ?? tabs[0];
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Core Terminal modal state
+  // Modal state
   const [terminalTarget, setTerminalTarget] = useState<{ coreId: string; coreName: string } | null>(null);
+  const [signInTarget, setSignInTarget] = useState<{ coreId: string; coreName: string } | null>(null);
 
   // Focus trap + Escape key
   useEffect(() => {
@@ -133,7 +135,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             </button>
           </div>
           {activeTabDef.id === 'cores' ? (
-            <CoresSettingsTab onOpenTerminal={(coreId, coreName) => setTerminalTarget({ coreId, coreName })} />
+            <CoresSettingsTab
+              onOpenTerminal={(coreId, coreName) => setTerminalTarget({ coreId, coreName })}
+              onOpenSignIn={(coreId, coreName) => setSignInTarget({ coreId, coreName })}
+            />
           ) : (
             <activeTabDef.component />
           )}
@@ -146,6 +151,14 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           coreName={terminalTarget.coreName}
           open={true}
           onClose={() => setTerminalTarget(null)}
+        />
+      )}
+      {signInTarget && (
+        <CoreSignInModal
+          coreId={signInTarget.coreId}
+          coreName={signInTarget.coreName}
+          open={true}
+          onClose={() => setSignInTarget(null)}
         />
       )}
     </div>

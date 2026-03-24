@@ -1,7 +1,16 @@
 #!/usr/bin/env node
 
+import { join } from 'node:path';
+import { homedir } from 'node:os';
+import { mkdirSync } from 'node:fs';
 import { MaestroService } from './maestro-service.js';
 import { logger } from './logger.js';
+
+function getDefaultDbPath(): string {
+  const dir = join(homedir(), '.nexuscore');
+  mkdirSync(dir, { recursive: true });
+  return join(dir, 'maestro.db');
+}
 
 // ─── Global Error Handlers ─────────────────────────────────────────────────
 
@@ -19,7 +28,7 @@ const config = {
   maestroId: process.env.NEXUS_MAESTRO_ID ?? 'maestro-primary',
   host: process.env.NEXUS_MAESTRO_HOST ?? '0.0.0.0',
   port: Number(process.env.NEXUS_MAESTRO_PORT ?? 9200),
-  databasePath: process.env.NEXUS_MAESTRO_DB ?? './maestro.db',
+  databasePath: process.env.NEXUS_MAESTRO_DB ?? getDefaultDbPath(),
   tunnel: process.env.NEXUS_MAESTRO_TUNNEL === 'true',
   tunnelMode: (process.env.NEXUS_MAESTRO_TUNNEL_MODE ?? 'quick') as 'quick' | 'named',
   tunnelToken: process.env.NEXUS_MAESTRO_TUNNEL_TOKEN,

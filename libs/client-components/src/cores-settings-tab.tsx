@@ -15,9 +15,10 @@ type ConnectMode = 'direct' | 'maestro';
 
 export interface CoresSettingsTabProps {
   onOpenTerminal?: (coreId: string, coreName: string) => void;
+  onOpenSignIn?: (coreId: string, coreName: string) => void;
 }
 
-export function CoresSettingsTab({ onOpenTerminal }: CoresSettingsTabProps = {}) {
+export function CoresSettingsTab({ onOpenTerminal, onOpenSignIn }: CoresSettingsTabProps = {}) {
   const [mode, setMode] = useState<ConnectMode>(() => {
     const maestro = maestroStore.getState();
     return maestro.state === 'connected' ? 'maestro' : 'direct';
@@ -73,14 +74,14 @@ export function CoresSettingsTab({ onOpenTerminal }: CoresSettingsTabProps = {})
         </p>
       </div>
 
-      {mode === 'direct' ? <DirectCoresPanel onOpenTerminal={onOpenTerminal} /> : <MaestroSection maestroState={maestroState} onOpenTerminal={onOpenTerminal} />}
+      {mode === 'direct' ? <DirectCoresPanel onOpenTerminal={onOpenTerminal} onOpenSignIn={onOpenSignIn} /> : <MaestroSection maestroState={maestroState} onOpenTerminal={onOpenTerminal} onOpenSignIn={onOpenSignIn} />}
     </div>
   );
 }
 
 /* ─── Direct Cores Panel ─────────────────────────────────────────────────── */
 
-function DirectCoresPanel({ onOpenTerminal }: { onOpenTerminal?: (coreId: string, coreName: string) => void }) {
+function DirectCoresPanel({ onOpenTerminal, onOpenSignIn }: { onOpenTerminal?: (coreId: string, coreName: string) => void; onOpenSignIn?: (coreId: string, coreName: string) => void }) {
   const [cores, setCores] = useState<CoreEntry[]>(() => coreRegistryStore.getState().cores);
   const [connections, setConnections] = useState<Map<string, CoreConnection>>(
     () => multiCoreStore.getState().connections,
@@ -152,6 +153,7 @@ function DirectCoresPanel({ onOpenTerminal }: { onOpenTerminal?: (coreId: string
               onDisconnect={() => handleDisconnect(entry.id)}
               onRemove={() => handleRemoveCore(entry.id)}
               onTerminal={isConnected && onOpenTerminal ? () => onOpenTerminal(entry.id, entry.name) : undefined}
+              onSignIn={isConnected && onOpenSignIn ? () => onOpenSignIn(entry.id, entry.name) : undefined}
             >
               {isConnected ? (
                 <div className="divide-y divide-[var(--border-color)]">
@@ -370,11 +372,11 @@ function TunnelSection({ coreId }: { coreId: string }) {
 
 /* ─── Maestro Section ───────────────────────────────────────────────────── */
 
-function MaestroSection({ maestroState, onOpenTerminal }: { maestroState: MaestroConnectionState; onOpenTerminal?: (coreId: string, coreName: string) => void }) {
+function MaestroSection({ maestroState, onOpenTerminal, onOpenSignIn }: { maestroState: MaestroConnectionState; onOpenTerminal?: (coreId: string, coreName: string) => void; onOpenSignIn?: (coreId: string, coreName: string) => void }) {
   return (
     <div>
       <MaestroConnectionPanel maestroState={maestroState} />
-      {maestroState === 'connected' && <MaestroCoresPanel onOpenTerminal={onOpenTerminal} />}
+      {maestroState === 'connected' && <MaestroCoresPanel onOpenTerminal={onOpenTerminal} onOpenSignIn={onOpenSignIn} />}
     </div>
   );
 }
@@ -474,7 +476,7 @@ function MaestroConnectionPanel({ maestroState }: { maestroState: MaestroConnect
 
 /* ─── Maestro Cores Panel ───────────────────────────────────────────────── */
 
-function MaestroCoresPanel({ onOpenTerminal }: { onOpenTerminal?: (coreId: string, coreName: string) => void }) {
+function MaestroCoresPanel({ onOpenTerminal, onOpenSignIn }: { onOpenTerminal?: (coreId: string, coreName: string) => void; onOpenSignIn?: (coreId: string, coreName: string) => void }) {
   const [cores, setCores] = useState<MaestroCore[]>(() => maestroStore.getState().maestroCores);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(() => maestroStore.getState().user);
@@ -551,6 +553,7 @@ function MaestroCoresPanel({ onOpenTerminal }: { onOpenTerminal?: (coreId: strin
               onRename={(name) => handleRename(core.id, name)}
               onRemove={isAdmin ? () => handleRemove(core.id) : undefined}
               onTerminal={core.status === 'online' && onOpenTerminal ? () => onOpenTerminal(core.id, core.displayName) : undefined}
+              onSignIn={core.status === 'online' && onOpenSignIn ? () => onOpenSignIn(core.id, core.displayName) : undefined}
             >
               <div className="px-4 py-3 space-y-2">
                 <div className="flex items-center justify-between text-xs">
