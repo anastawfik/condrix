@@ -250,6 +250,99 @@ export class CoreRuntime {
     return { authenticated: false, method: method as 'oauth' | 'apikey' | 'none', claudeInstalled };
   }
 
+  // ─── Claude Auth Login via CLI ──────────────────────────────────────────
+
+  private pendingAuthProcess: {
+    process: import('node:child_process').ChildProcess;
+    resolve: (result: { success: boolean; message: string }) => void;
+  } | null = null;
+
+  private startClaudeAuthLogin(): Promise<{ url: string }> {
+    const { spawn: spawnChild } = require('node:child_process') as typeof import('node:child_process');
+
+    if (this.pendingAuthProcess) {
+      this.pendingAuthProcess.process.kill();
+      this.pendingAuthProcess = null;
+    }
+
+    return new Promise((resolve, reject) => {
+      const child = spawnChild('claude', ['auth', 'login'], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, FORCE_COLOR: '0' },
+      });
+
+      let stdout = '';
+      let foundUrl = false;
+      const urlRegex = /https?:\/\/[^\s]+/g;
+
+      child.stdout?.on('data', (chunk: Buffer) => {
+        stdout += chunk.toString();
+        if (!foundUrl) {
+          const urls = stdout.match(urlRegex);
+          const authUrl = urls?.find(u => u.includes('claude.ai') || u.includes('anthropic.com'));
+          if (authUrl) {
+            foundUrl = true;
+            resolve({ url: authUrl });
+          }
+        }
+      });
+
+      child.stderr?.on('data', (chunk: Buffer) => {
+        stdout += chunk.toString();
+        if (!foundUrl) {
+          const urls = stdout.match(urlRegex);
+          const authUrl = urls?.find(u => u.includes('claude.ai') || u.includes('anthropic.com'));
+          if (authUrl) {
+            foundUrl = true;
+            resolve({ url: authUrl });
+          }
+        }
+      });
+
+      // Store the process so submitCode can write to stdin
+      const completionPromise = new Promise<{ success: boolean; message: string }>((res) => {
+        this.pendingAuthProcess = { process: child, resolve: res };
+      });
+
+      child.on('close', (code) => {
+        const success = code === 0;
+        const msg = success ? 'Authentication successful!' : `Auth failed (exit ${code})`;
+        this.pendingAuthProcess?.resolve({ success, message: msg });
+        this.pendingAuthProcess = null;
+
+        if (success) {
+          console.log('[Core] Claude auth login completed successfully');
+          this.emitter.emit('core:authRefreshed', this.getAuthStatus());
+        }
+
+        if (!foundUrl) {
+          reject(new Error(`claude auth login exited without showing URL: ${stdout.slice(0, 200)}`));
+        }
+      });
+
+      child.on('error', (err) => {
+        if (!foundUrl) reject(new Error(`Failed to start claude auth login: ${err.message}`));
+      });
+
+      // Timeout — if no URL found in 15s
+      setTimeout(() => {
+        if (!foundUrl) {
+          child.kill();
+          reject(new Error('Timed out waiting for auth URL'));
+        }
+      }, 15000);
+    });
+  }
+
+  private submitClaudeAuthCode(code: string): { submitted: boolean; message: string } {
+    if (!this.pendingAuthProcess) {
+      return { submitted: false, message: 'No pending auth login. Start auth.login first.' };
+    }
+    // Write the code + Enter to the subprocess stdin
+    this.pendingAuthProcess.process.stdin?.write(code + '\n');
+    return { submitted: true, message: 'Code submitted. Waiting for authentication to complete...' };
+  }
+
   private isContainerized(): boolean {
     return existsSync('/.dockerenv')
       || process.env.NEXUS_CORE_CONTAINER === 'true'
@@ -532,6 +625,19 @@ export class CoreRuntime {
     // ── Auth status (checks Claude Code credentials on this Core) ─────────
     r.register('core', 'auth.status', async () => {
       return this.getAuthStatus();
+    });
+
+    // ── OAuth login flow via claude CLI ──────────────────────────────────────
+    // Step 1: Start `claude auth login`, capture URL, return it to client
+    r.register('core', 'auth.login', async () => {
+      return this.startClaudeAuthLogin();
+    });
+
+    // Step 2: User got auth code from browser, feed it to the waiting subprocess
+    r.register('core', 'auth.submitCode', async (payload) => {
+      const p = payload as { code: string };
+      if (!p.code) throw new Error('Auth code required');
+      return this.submitClaudeAuthCode(p.code);
     });
 
     // ── Import Claude credentials from client (paste from host) ─────────────
