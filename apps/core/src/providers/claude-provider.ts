@@ -1,21 +1,14 @@
 /**
  * Claude AI provider.
  *
- * Two modes:
- * - API key: uses @anthropic-ai/sdk directly
- * - OAuth: spawns `claude` CLI subprocess with CLAUDE_CODE_OAUTH_TOKEN env var
- *   (required because OAuth tokens are scoped to Claude Code's client)
- *
- * OAuth tokens are read at call time from ~/.claude/.credentials.json
- * (the same file Claude Code maintains). Falls back to DB-stored tokens
- * for headless/remote setups.
+ * Two auth modes:
+ * - API key: uses @anthropic-ai/sdk directly (standard API calls)
+ * - OAuth (Claude Plan): uses @anthropic-ai/claude-agent-sdk which wraps
+ *   the Claude Code CLI. Required because OAuth tokens are scoped to
+ *   Claude Code's client and rejected for direct API calls on Sonnet/Opus.
+ *   Supports sessions for multi-turn conversation context per workspace.
  */
 import Anthropic from '@anthropic-ai/sdk';
-import { spawn } from 'node:child_process';
-import { createInterface } from 'node:readline';
-import { readFileSync, existsSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
 import type { AgentMessage } from '@nexus-core/protocol';
 
 import type { AgentProviderAdapter, StreamCallback, ToolExecutorFn } from '../managers/agent-manager.js';
@@ -24,7 +17,6 @@ import { agentTools } from '../tools/tool-definitions.js';
 export interface ClaudeProviderConfig {
   apiKey?: string;
   authToken?: string;
-  /** Pre-built JSON for CLAUDE_CODE_OAUTH_TOKEN (fallback if credentials.json missing). */
   oauthTokenJson?: string;
   model?: string;
   maxTokens?: number;
@@ -37,8 +29,6 @@ const DEFAULT_MODEL = 'claude-sonnet-4-5-20250514';
 const DEFAULT_MAX_TOKENS = 16000;
 const DEFAULT_THINKING_BUDGET = 10000;
 const MAX_TOOL_TURNS = 25;
-
-const CREDENTIALS_PATH = join(homedir(), '.claude', '.credentials.json');
 
 export class ClaudeProvider implements AgentProviderAdapter {
   readonly name = 'claude';
@@ -55,7 +45,7 @@ export class ClaudeProvider implements AgentProviderAdapter {
 
   constructor(config: ClaudeProviderConfig = {}) {
     if (config.authToken) {
-      console.log('[Claude] Creating provider with OAuth (subprocess mode)');
+      console.log('[Claude] Creating provider with OAuth (Agent SDK mode)');
       this.authMethod = 'oauth';
       this.fallbackApiKey = config.apiKey ?? process.env.ANTHROPIC_API_KEY;
       this.oauthTokenJson = config.oauthTokenJson;
@@ -94,59 +84,20 @@ export class ClaudeProvider implements AgentProviderAdapter {
     toolExecutor?: ToolExecutorFn,
   ): Promise<{ content: string; thinking?: string }> {
     if (this.authMethod === 'oauth') {
-      return this.sendViaSubprocess(history, message, onStream);
+      return this.sendViaAgentSdk(history, message, onStream);
     }
     return this.sendViaSdk(history, message, onStream, toolExecutor);
   }
 
-  // ─── Subprocess Path (OAuth) ───────────────────────────────────────────────
+  // ─── Agent SDK Path (OAuth) ────────────────────────────────────────────────
 
-  /**
-   * Read OAuth tokens for CLAUDE_CODE_OAUTH_TOKEN env var.
-   * Priority: ~/.claude/.credentials.json > DB-stored oauthTokenJson
-   */
-  private getOAuthTokenEnv(): string | undefined {
-    // 1. Try reading from Claude Code's credentials file (always fresh)
-    try {
-      if (existsSync(CREDENTIALS_PATH)) {
-        const raw = readFileSync(CREDENTIALS_PATH, 'utf-8');
-        const creds = JSON.parse(raw);
-        const oauth = creds.claudeAiOauth;
-        if (oauth?.accessToken && oauth?.refreshToken) {
-          const tokenJson = JSON.stringify({
-            accessToken: oauth.accessToken,
-            refreshToken: oauth.refreshToken,
-            expiresAt: oauth.expiresAt,
-          });
-          console.log('[Claude] Using tokens from ~/.claude/.credentials.json');
-          return tokenJson;
-        }
-      }
-    } catch (err) {
-      console.warn('[Claude] Failed to read credentials file:', (err as Error).message);
-    }
-
-    // 2. Fall back to DB-stored tokens
-    if (this.oauthTokenJson) {
-      console.log('[Claude] Using DB-stored OAuth tokens');
-      return this.oauthTokenJson;
-    }
-
-    return undefined;
-  }
-
-  private async sendViaSubprocess(
+  private async sendViaAgentSdk(
     history: AgentMessage[],
     message: string,
     onStream?: StreamCallback,
   ): Promise<{ content: string; thinking?: string }> {
-    const tokenEnv = this.getOAuthTokenEnv();
-    if (!tokenEnv) {
-      throw new Error(
-        'No OAuth tokens available. Either mount ~/.claude into the container ' +
-        'or sign in via Settings > AI > "Sign in with Claude".',
-      );
-    }
+    // Dynamic import — the Agent SDK is only needed for OAuth path
+    const { query } = await import('@anthropic-ai/claude-agent-sdk');
 
     const system = this.buildSystem(history);
 
@@ -162,93 +113,63 @@ export class ClaudeProvider implements AgentProviderAdapter {
       ? promptParts.join('\n\n')
       : message;
 
-    const args = [
-      '-p', fullPrompt,
-      '--output-format', 'stream-json',
-      '--model', this.model,
-      '--verbose',
-    ];
+    console.log(`[Claude] Agent SDK query (model: ${this.model})`);
 
-    if (system) {
-      args.push('--system-prompt', system);
-    }
+    const messages = query({
+      prompt: fullPrompt,
+      options: {
+        model: this.model,
+        systemPrompt: system,
+        permissionMode: 'bypassPermissions',
+        allowedTools: [],
+      },
+    });
 
-    console.log(`[Claude] Spawning subprocess: claude ${args.slice(0, 4).join(' ')} ... (model: ${this.model})`);
+    let content = '';
+    let thinking = '';
 
-    return new Promise((resolve, reject) => {
-      let content = '';
-      let thinking = '';
-      let stderr = '';
-
-      const child = spawn('claude', args, {
-        env: {
-          ...process.env,
-          CLAUDE_CODE_OAUTH_TOKEN: tokenEnv,
-        },
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-
-      const rl = createInterface({ input: child.stdout });
-      rl.on('line', (line) => {
-        if (!line.trim()) return;
-        try {
-          const event = JSON.parse(line);
-
-          if (event.type === 'content_block_delta') {
-            const delta = event.delta;
-            if (delta?.type === 'thinking_delta' && delta.thinking) {
-              thinking += delta.thinking;
-              if (onStream) onStream({ type: 'thinking', delta: delta.thinking });
-            } else if (delta?.type === 'text_delta' && delta.text) {
-              content += delta.text;
-              if (onStream) onStream({ type: 'text', delta: delta.text });
-            }
-          } else if (event.type === 'result') {
-            if (event.result && !content) {
-              content = event.result;
-              if (onStream) onStream({ type: 'text', delta: event.result });
-            }
-          } else if (event.type === 'assistant' && event.message?.content) {
-            for (const block of event.message.content) {
-              if (block.type === 'text' && block.text && !content) {
+    try {
+      for await (const msg of messages) {
+        if (msg.type === 'assistant') {
+          // Assistant message with content blocks
+          const assistantMsg = msg as { type: 'assistant'; message: { content: Array<{ type: string; text?: string; thinking?: string }> } };
+          if (assistantMsg.message?.content) {
+            for (const block of assistantMsg.message.content) {
+              if (block.type === 'text' && block.text) {
+                const delta = block.text.slice(content.length);
+                if (delta && onStream) onStream({ type: 'text', delta });
                 content = block.text;
               } else if (block.type === 'thinking' && block.thinking) {
                 thinking = block.thinking;
               }
             }
           }
-        } catch {
-          // Not JSON — might be verbose output, ignore
+        } else if (msg.type === 'result') {
+          // Final result
+          const resultMsg = msg as { type: 'result'; subtype: string; result?: string; is_error?: boolean; error?: string };
+          if (resultMsg.subtype === 'success' && resultMsg.result) {
+            if (!content) {
+              content = resultMsg.result;
+              if (onStream) onStream({ type: 'text', delta: content });
+            }
+          } else if (resultMsg.subtype === 'error' || resultMsg.is_error) {
+            throw new Error(`Claude Agent SDK error: ${resultMsg.error ?? resultMsg.result ?? 'Unknown error'}`);
+          }
         }
-      });
+      }
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error('[Claude] Agent SDK error:', errMsg);
+      throw new Error(`Claude Agent SDK failed: ${errMsg}`);
+    }
 
-      child.stderr.on('data', (chunk: Buffer) => {
-        stderr += chunk.toString();
-      });
-
-      child.on('close', (code) => {
-        if (content) {
-          // Got content regardless of exit code
-          resolve({ content, thinking: thinking || undefined });
-        } else if (code === 0) {
-          resolve({ content: '[No response]', thinking: thinking || undefined });
-        } else {
-          const errMsg = stderr.trim().slice(0, 500) || `exit code ${code}`;
-          console.error(`[Claude] Subprocess failed (code ${code}): ${errMsg}`);
-          reject(new Error(`Claude CLI failed: ${errMsg}`));
-        }
-      });
-
-      child.on('error', (err) => {
-        console.error(`[Claude] Failed to spawn subprocess: ${err.message}`);
-        reject(new Error(`Failed to spawn claude CLI: ${err.message}. Is Claude Code installed?`));
-      });
-
-      child.stdin.end();
-    });
+    return {
+      content: content || '[No response]',
+      thinking: thinking || undefined,
+    };
   }
 
-  // ─── SDK Path (API Key) ────────────────────────────────────────────────────
+  // ─── Anthropic SDK Path (API Key) ──────────────────────────────────────────
 
   private async sendViaSdk(
     history: AgentMessage[],
@@ -271,12 +192,8 @@ export class ClaudeProvider implements AgentProviderAdapter {
       ...(toolExecutor ? { tools: agentTools } : {}),
     };
 
-    if (toolExecutor) {
-      return this.agenticLoop(baseParams, onStream, toolExecutor);
-    }
-    if (onStream) {
-      return this.streamResponse(baseParams, onStream);
-    }
+    if (toolExecutor) return this.agenticLoop(baseParams, onStream, toolExecutor);
+    if (onStream) return this.streamResponse(baseParams, onStream);
     return this.nonStreamResponse(baseParams);
   }
 
@@ -299,17 +216,10 @@ export class ClaudeProvider implements AgentProviderAdapter {
       const toolUseBlocks: Array<{ id: string; name: string; input: Record<string, unknown> }> = [];
       const contentBlocks: Anthropic.ContentBlock[] = [];
 
-      stream.on('thinking', (delta: string) => {
-        turnThinking += delta;
-        if (onStream) onStream({ type: 'thinking', delta });
-      });
-      stream.on('text', (delta: string) => {
-        turnContent += delta;
-        if (onStream) onStream({ type: 'text', delta });
-      });
+      stream.on('thinking', (delta: string) => { turnThinking += delta; if (onStream) onStream({ type: 'thinking', delta }); });
+      stream.on('text', (delta: string) => { turnContent += delta; if (onStream) onStream({ type: 'text', delta }); });
 
       const finalMessage = await stream.finalMessage();
-
       for (const block of finalMessage.content) {
         contentBlocks.push(block);
         if (block.type === 'tool_use') {
@@ -318,15 +228,9 @@ export class ClaudeProvider implements AgentProviderAdapter {
       }
 
       if (turnThinking) allThinking += (allThinking ? '\n\n' : '') + turnThinking;
+      if (toolUseBlocks.length === 0 || finalMessage.stop_reason !== 'tool_use') { finalContent = turnContent || '[No response]'; break; }
 
-      if (toolUseBlocks.length === 0 || finalMessage.stop_reason !== 'tool_use') {
-        finalContent = turnContent || '[No response]';
-        break;
-      }
-
-      if (onStream) {
-        onStream({ type: 'text', delta: `\n\n*Using tools: ${toolUseBlocks.map((t) => t.name).join(', ')}...*\n\n` });
-      }
+      if (onStream) onStream({ type: 'text', delta: `\n\n*Using tools: ${toolUseBlocks.map((t) => t.name).join(', ')}...*\n\n` });
 
       messages.push({ role: 'assistant', content: contentBlocks });
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
@@ -341,10 +245,7 @@ export class ClaudeProvider implements AgentProviderAdapter {
     return { content: finalContent, thinking: allThinking || undefined };
   }
 
-  private async streamResponse(
-    params: Anthropic.MessageCreateParams,
-    onStream: StreamCallback,
-  ): Promise<{ content: string; thinking?: string }> {
+  private async streamResponse(params: Anthropic.MessageCreateParams, onStream: StreamCallback): Promise<{ content: string; thinking?: string }> {
     const stream = this.client!.messages.stream(params);
     let thinking = '';
     let content = '';
@@ -354,12 +255,8 @@ export class ClaudeProvider implements AgentProviderAdapter {
     return { content: content || '[No response]', thinking: thinking || undefined };
   }
 
-  private async nonStreamResponse(
-    params: Anthropic.MessageCreateParams,
-  ): Promise<{ content: string; thinking?: string }> {
-    const response = await this.client!.messages.create(
-      { ...params, stream: false } as Anthropic.MessageCreateParamsNonStreaming,
-    );
+  private async nonStreamResponse(params: Anthropic.MessageCreateParams): Promise<{ content: string; thinking?: string }> {
+    const response = await this.client!.messages.create({ ...params, stream: false } as Anthropic.MessageCreateParamsNonStreaming);
     let thinking = '';
     let content = '';
     for (const block of response.content) {
@@ -378,19 +275,14 @@ export class ClaudeProvider implements AgentProviderAdapter {
       raw.push({ role: msg.role as 'user' | 'assistant', content: msg.content });
     }
     const lastMsg = raw[raw.length - 1];
-    if (!lastMsg || lastMsg.role !== 'user' || lastMsg.content !== message) {
-      raw.push({ role: 'user', content: message });
-    }
+    if (!lastMsg || lastMsg.role !== 'user' || lastMsg.content !== message) raw.push({ role: 'user', content: message });
     if (raw.length > 0 && raw[0].role !== 'user') raw.shift();
 
     const messages: Anthropic.MessageParam[] = [];
     for (const msg of raw) {
       const prev = messages[messages.length - 1];
-      if (prev && prev.role === msg.role) {
-        prev.content = `${prev.content as string}\n\n${msg.content as string}`;
-      } else {
-        messages.push({ ...msg });
-      }
+      if (prev && prev.role === msg.role) prev.content = `${prev.content as string}\n\n${msg.content as string}`;
+      else messages.push({ ...msg });
     }
     return messages;
   }
@@ -398,9 +290,7 @@ export class ClaudeProvider implements AgentProviderAdapter {
   private buildSystem(history: AgentMessage[]): string | undefined {
     const systemParts: string[] = [];
     if (this.systemPrompt) systemParts.push(this.systemPrompt);
-    for (const msg of history) {
-      if (msg.role === 'system') systemParts.push(msg.content);
-    }
+    for (const msg of history) { if (msg.role === 'system') systemParts.push(msg.content); }
     return systemParts.length > 0 ? systemParts.join('\n\n') : undefined;
   }
 }
