@@ -2,9 +2,10 @@
  * Modal that opens a root shell on a Core for admin tasks
  * like `claude auth login`, `claude auth status`, etc.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { multiCoreStore, terminalStore } from '@nexus-core/client-shared';
+import type { MessageEnvelope } from '@nexus-core/protocol';
+import { multiCoreStore } from '@nexus-core/client-shared';
 import { TerminalTab } from './terminal/terminal-tab.js';
 
 interface CoreTerminalModalProps {
@@ -51,8 +52,28 @@ export function CoreTerminalModal({ coreId, coreName, open, onClose }: CoreTermi
     multiCoreStore.getState().requestOnCore(coreId, 'terminal', 'resize', { terminalId: tid, cols, rows }).catch(() => {});
   }, [coreId]);
 
+  // Direct WebSocket subscription for terminal output — bypasses terminalStore
+  // since the __core__ terminal isn't registered in the workspace terminal flow
+  const outputListeners = useRef<Map<string, Set<(data: string) => void>>>(new Map());
+
+  useEffect(() => {
+    // Subscribe to terminal:output events from this Core
+    const unsub = multiCoreStore.getState().subscribeOnCore(coreId, 'terminal:output', (event: MessageEnvelope) => {
+      const payload = event.payload as { terminalId: string; data: string };
+      const listeners = outputListeners.current.get(payload.terminalId);
+      if (listeners) {
+        for (const listener of listeners) listener(payload.data);
+      }
+    });
+    return unsub;
+  }, [coreId]);
+
   const handleOutput = useCallback((tid: string, listener: (data: string) => void) => {
-    return terminalStore.getState().onTerminalOutput(tid, listener);
+    if (!outputListeners.current.has(tid)) {
+      outputListeners.current.set(tid, new Set());
+    }
+    outputListeners.current.get(tid)!.add(listener);
+    return () => { outputListeners.current.get(tid)?.delete(listener); };
   }, []);
 
   return (
