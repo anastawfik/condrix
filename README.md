@@ -9,10 +9,30 @@
 <p align="center">
   <a href="#quick-start">Quick Start</a> &bull;
   <a href="#architecture">Architecture</a> &bull;
+  <a href="#authentication">Authentication</a> &bull;
   <a href="#deployment">Deployment</a> &bull;
   <a href="#development">Development</a> &bull;
+  <a href="#roadmap">Roadmap</a> &bull;
   <a href="#documentation">Docs</a>
 </p>
+
+---
+
+> **Early Development Notice**
+>
+> NexusCore is under **active, heavy development**. The architecture, APIs, database schemas, and configuration formats may change without notice between commits. This is a pre-release project — expect breaking changes, incomplete features, and rough edges.
+>
+> **What works today:**
+> - Core daemon with full workspace, terminal, file, and git management
+> - Web client with IDE-like interface (Monaco editor, xterm.js, git panel)
+> - AI chat via Claude (OAuth/Claude Plan or API key)
+> - Maestro orchestration with multi-core relay
+> - Docker deployment with Cloudflare Tunnel
+> - Per-Core OAuth authentication via UI
+>
+> **What's still in progress:** See [Roadmap](#roadmap) below.
+>
+> Contributions, bug reports, and feedback are welcome!
 
 ---
 
@@ -24,9 +44,9 @@
 - **Multiple clients** — Web, Desktop (Tauri), Mobile (React Native), CLI (Ink)
 - **Messaging bridge** — WhatsApp and Telegram notifications when agents need human input
 - **Secure remote access** — Cloudflare Tunnel integration with zero port forwarding
-- **Private repo support** — Clone private GitHub repos via `GITHUB_TOKEN`
+- **Per-Core authentication** — Each Core authenticates independently via OAuth or API key, with auto-refresh and UI-based sign-in flow
 - **Docker-ready** — One-command deployment with Docker Compose (dev and production)
-- **Pluggable AI** — Anthropic Claude (API key or OAuth), extensible to other providers
+- **Pluggable AI** — Anthropic Claude (via Claude Code subprocess for OAuth, or direct SDK for API keys)
 - **Skills & MCP** — Equip agents with domain-specific capabilities and tool access
 
 ---
@@ -117,6 +137,65 @@ All services run in Docker Compose with persistent volumes and optional Cloudfla
 
 ---
 
+## Authentication
+
+NexusCore supports two authentication methods for AI access:
+
+### OAuth (Claude Plan — Recommended)
+
+Uses your Claude Pro/Max subscription via the Claude Code CLI subprocess. **Each Core authenticates independently.**
+
+**How it works:**
+1. Open **Settings → Cores** in the web client
+2. Click the **Sign In** icon (🔑) next to a connected Core
+3. Click **Start Authentication** → browser opens Claude's auth page
+4. Sign in and copy the auth code shown on the success page
+5. Paste the code back in the NexusCore UI → click **Submit**
+6. Done — the Core can now use all Claude models (Haiku, Sonnet, Opus)
+
+**Token lifecycle:**
+- Tokens are stored in `~/.claude/.credentials.json` on each Core
+- The `ClaudeAuthManager` service monitors token expiry every 5 minutes
+- Tokens are auto-refreshed 30 minutes before expiry
+- A red warning icon appears in the sidebar if a Core needs re-authentication
+- Credentials persist across container restarts via Docker named volumes (`claude-data`)
+
+**How OAuth calls work:**
+- OAuth tokens are scoped to Claude Code — they cannot be used directly with the Anthropic API for premium models (Sonnet/Opus)
+- NexusCore spawns a `claude` CLI subprocess (from the installed Claude Code package) which handles the API call internally
+- Streaming responses are parsed from the subprocess's NDJSON output
+
+**Requirements:**
+- Claude Code CLI must be installed on each Core host (included in Docker images via `@anthropic-ai/claude-code`)
+- A Claude Pro or Max subscription
+
+### API Key
+
+Uses a standard Anthropic API key for direct SDK access.
+
+```bash
+# Environment variable
+ANTHROPIC_API_KEY=sk-ant-xxx
+
+# CLI flag
+npm run dev:core -- --api-key sk-ant-xxx
+```
+
+Or configure via **Settings → AI** in the web client.
+
+**Note:** API key auth uses the `@anthropic-ai/sdk` directly (no subprocess). Extended thinking is not available for 4.6 models via API key — use OAuth for full model capabilities.
+
+### Core Terminal
+
+Each Core has a remote terminal accessible from **Settings → Cores → Terminal icon** (⬛). This opens a root shell on the Core where you can run admin commands:
+
+```bash
+claude auth login          # Authenticate (alternative to UI flow)
+claude auth status --text  # Check current auth state
+```
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -128,7 +207,7 @@ All services run in Docker Compose with persistent volumes and optional Cloudfla
 
 ```bash
 # Clone and install
-git clone <repo-url> nexus-core && cd nexus-core
+git clone https://github.com/anastawfik/nexus-core.git && cd nexus-core
 npm install && npm run build
 
 # Start Core + Web Client
@@ -141,11 +220,11 @@ npm run dev:web
 ### Option 2: Docker Compose (Recommended for Deployment)
 
 ```bash
-git clone <repo-url> nexus-core && cd nexus-core
+git clone https://github.com/anastawfik/nexus-core.git && cd nexus-core
 
 # Configure environment
 cp .env.example .env
-# Edit .env — set ANTHROPIC_API_KEY at minimum
+# Edit .env — set ANTHROPIC_API_KEY or use OAuth after startup
 
 # Production (optimized builds, Nginx)
 docker compose up -d
@@ -159,22 +238,7 @@ docker compose -f docker-compose.dev.yml up
 | Production | `http://localhost` | `ws://localhost:9200` | Internal |
 | Development | `http://localhost:5173` | `ws://localhost:9200` | `ws://localhost:9100` |
 
-### Configure AI Authentication
-
-Choose one method:
-
-```bash
-# Environment variable (recommended for Docker)
-ANTHROPIC_API_KEY=sk-ant-xxx
-
-# CLI flag
-npm run dev:core -- --api-key sk-ant-xxx
-
-# OAuth — sign in with your Claude Pro/Max plan (opens browser)
-npm run dev:core -- --oauth-login
-```
-
-Or configure after startup: **Web Client → Settings → Model → Authentication**.
+After startup, authenticate each Core via the web UI: **Settings → Cores → Sign In icon**.
 
 ---
 
@@ -195,6 +259,7 @@ docker compose --profile tunnel up   # All + Cloudflare Tunnel
 **Persistent data** is stored in Docker named volumes:
 - `maestro-data` — Maestro database (users, registered cores, settings)
 - `core-data` — Core database, cloned repositories, workspaces
+- `claude-data` — Claude Code credentials (OAuth tokens)
 
 These survive `docker compose down`. Only `docker compose down -v` removes them.
 
@@ -240,8 +305,6 @@ Set `GITHUB_TOKEN` in `.env` to clone private GitHub repos when adding projects:
 GITHUB_TOKEN=ghp_xxxx   # GitHub PAT with `repo` scope
 ```
 
-The Core automatically injects the token into HTTPS GitHub URLs during cloning.
-
 ### Desktop App
 
 A thin Tauri 2.0 shell (~10-15MB) that loads the web client:
@@ -249,12 +312,8 @@ A thin Tauri 2.0 shell (~10-15MB) that loads the web client:
 ```bash
 # Requires: Rust toolchain + Tauri prerequisites
 # https://v2.tauri.app/start/prerequisites/
-
-npm run dev:web &                            # Start web client first
-cd apps/client-desktop && npm run dev        # Tauri dev mode
-
-# Production build → .msi/.exe (Windows), .dmg (macOS), .deb/.AppImage (Linux)
-npm run build                                # Bundles web assets into binary
+npm run dev:web &
+cd apps/client-desktop && npm run dev
 ```
 
 ---
@@ -276,23 +335,7 @@ npm run build                                # Bundles web assets into binary
 | `npm run typecheck` | Type-check all packages |
 | `npm run docker:up` | Docker Compose production |
 | `npm run docker:dev` | Docker Compose dev mode |
-| `npm run docker:down` | Stop Docker Compose |
-| `npm run docker:build` | Build Docker images |
 | `npx nx graph` | Visualize dependency graph |
-| `npx nx affected -t test` | Test only affected packages |
-
-> `npm run dev:*` automatically builds dependency libraries first via NX.
-
-### Core CLI Options
-
-```bash
-npm run dev:core -- --oauth-login          # Authenticate via OAuth (opens browser)
-npm run dev:core -- --api-key sk-ant-xxx   # Set API key
-npm run dev:core -- --generate-token NAME  # Generate auth token for remote clients
-npm run dev:core -- --list-tokens          # List existing auth tokens
-npm run dev:core -- --tunnel               # Start with Cloudflare Tunnel
-npm run dev:core -- --production           # Production mode (requires auth for all connections)
-```
 
 ### Monorepo Structure
 
@@ -301,7 +344,7 @@ nexus-core/
 ├── apps/
 │   ├── core/                # Core daemon (Node.js, WebSocket, SQLite)
 │   ├── maestro/             # Maestro orchestration service
-│   ├── client-web/          # Web client (Vite + React)
+│   ├── client-web/          # Web client (Vite + React + shadcn/ui)
 │   ├── client-desktop/      # Desktop client (Tauri 2.0 shell)
 │   ├── client-mobile/       # Mobile client (React Native / Expo)
 │   ├── client-cli/          # CLI client (Ink + Commander)
@@ -309,7 +352,7 @@ nexus-core/
 ├── libs/
 │   ├── protocol/            # Shared types & message schemas (foundation)
 │   ├── client-shared/       # Shared React hooks/stores
-│   ├── client-components/   # Shared UI components (shadcn/ui-style)
+│   ├── client-components/   # Shared UI components
 │   ├── skills/              # Built-in agent skill definitions
 │   └── mcp-configs/         # MCP server configurations
 ├── docker-compose.yml       # Production deployment
@@ -325,7 +368,6 @@ nexus-core/
 | Core | 9100 | 9100 | Internal |
 | Maestro | 9200 | 9200 | Internal |
 | Web Client | 5173 | 5173 | 80 |
-| Docs | 5174 | — | — |
 
 ---
 
@@ -337,23 +379,61 @@ An isolated environment within a project — its own agent session, terminals, g
 
 ### Real-time Updates
 
-The file explorer and source control panel update automatically when files change. The Core watches workspace directories and broadcasts events to connected clients — no manual refresh needed.
+The file explorer and source control panel update automatically when files change. The Core watches workspace directories and broadcasts events to connected clients.
 
 ### Source Control
 
 Built-in Git panel with staging, unstaging, colored diffs in the Monaco editor, and committing with `Ctrl+Enter`.
 
-### Skills
+### Skills & MCP
 
-Composable capability packages that equip agents with domain-specific knowledge (TypeScript, React, DevOps, etc.) and tool access.
-
-### MCP Servers
-
-[Model Context Protocol](https://modelcontextprotocol.io/) servers extend agent capabilities with tools for filesystem, git, database, browser, search, and more.
+Composable capability packages that equip agents with domain-specific knowledge. [MCP servers](https://modelcontextprotocol.io/) extend capabilities with filesystem, git, database, browser, and search tools.
 
 ### Messaging Bridge
 
-Maestro integrates with WhatsApp and Telegram for proactive notifications when agents need human input, enabling approval/rejection directly from your phone.
+Maestro integrates with WhatsApp and Telegram for proactive notifications when agents need human input.
+
+---
+
+## Roadmap
+
+### Milestone 1: Core Platform (Current)
+- [x] Core daemon with workspace, terminal, file, git management
+- [x] Web client with IDE-like interface (Monaco, xterm.js, git panel)
+- [x] Maestro orchestration with multi-core relay
+- [x] OAuth authentication (Claude Plan) via Claude Code subprocess
+- [x] Per-Core auth with UI sign-in flow and auto-refresh
+- [x] Docker deployment with Cloudflare Tunnel
+- [x] shadcn/ui component migration (in progress)
+- [x] Production hardening (rate limiting, structured logging, DB indices)
+- [ ] Complete shadcn/ui migration (replace all old CSS variables)
+- [ ] Vitest unit tests for protocol schemas and Core managers
+- [ ] E2E tests with Playwright
+
+### Milestone 2: Desktop & CLI Clients
+- [ ] Desktop client (Tauri wrapper for web client)
+- [ ] CLI client with Ink components (chat, file ops, terminal, git)
+- [ ] Desktop-specific features (system tray, native notifications)
+
+### Milestone 3: Mobile Client
+- [ ] React Native (Expo) mobile app
+- [ ] Core browsing, workspace management, chat
+- [ ] Push notifications for workspace events
+
+### Milestone 4: Advanced Orchestration
+- [ ] ConversationEngine — AI-powered Maestro natural language queries
+- [ ] NotificationRouter — WhatsApp/Telegram message adapters
+- [ ] Cross-agent communication (route messages between workspaces)
+- [ ] MCP server marketplace/discovery
+- [ ] Session-per-workspace for multi-turn context in Claude subprocess
+
+### Milestone 5: Security & Enterprise
+- [ ] TOTP 2FA for Core WebSocket connections
+- [ ] Bidirectional Core↔Maestro connections (outbound via tunnel)
+- [ ] Role-based access control (RBAC)
+- [ ] Audit logging
+- [ ] TLS enforcement in production mode
+- [ ] PostgreSQL support for team deployments
 
 ---
 
@@ -368,13 +448,15 @@ Maestro integrates with WhatsApp and Telegram for proactive notifications when a
 | `NEXUS_CORE_NAME` | `NexusCore` | Display name |
 | `NEXUS_CORE_ID` | `core-default` | Core identifier |
 | `NEXUS_CORE_DB_PATH` | `~/.nexuscore/core.db` | Database file path |
-| `NEXUS_CORE_DEV_MODE` | `true` | `false` for production (requires auth) |
-| `ANTHROPIC_API_KEY` | — | Anthropic API key |
+| `NEXUS_CORE_DEV_MODE` | `true` | `false` for production |
+| `NEXUS_CORE_CONTAINER` | — | Set `true` when running in Docker |
+| `NEXUS_CORE_EXTERNAL_URL` | — | Public URL for OAuth callback (tunnel URL) |
+| `ANTHROPIC_API_KEY` | — | Anthropic API key (alternative to OAuth) |
 | `GITHUB_TOKEN` | — | GitHub PAT for cloning private repos |
-| `NEXUS_CLAUDE_MODEL` | `claude-sonnet-4-5` | Claude model ID |
-| `NEXUS_CLAUDE_MAX_TOKENS` | `16000` | Max output tokens |
-| `NEXUS_MAESTRO_URL` | — | Maestro WebSocket URL |
+| `NEXUS_CLAUDE_MODEL` | `claude-sonnet-4-5` | Default Claude model |
+| `NEXUS_MAESTRO_URL` | — | Maestro WebSocket URL (for Core→Maestro connection) |
 | `NEXUS_MAESTRO_TOKEN` | — | Access token for Maestro auth |
+| `NEXUS_HOST_MOUNTS` | — | Host folder mounts for containerized Cores (e.g., `Projects=/host/projects`) |
 
 ### Maestro
 
@@ -382,9 +464,9 @@ Maestro integrates with WhatsApp and Telegram for proactive notifications when a
 |----------|---------|-------------|
 | `NEXUS_MAESTRO_HOST` | `0.0.0.0` | Bind host |
 | `NEXUS_MAESTRO_PORT` | `9200` | WebSocket port |
-| `NEXUS_MAESTRO_DB` | `./maestro.db` | Database file path |
+| `NEXUS_MAESTRO_DB` | `~/.nexuscore/maestro.db` | Database file path |
 | `NEXUS_MAESTRO_TUNNEL` | `false` | Enable built-in Cloudflare Tunnel |
-| `NEXUS_MAESTRO_TUNNEL_MODE` | `quick` | `quick` (temporary) or `named` (persistent) |
+| `NEXUS_MAESTRO_TUNNEL_MODE` | `quick` | `quick` or `named` |
 | `NEXUS_MAESTRO_TUNNEL_TOKEN` | — | Cloudflare tunnel token |
 
 ### Docker / Tunnel
@@ -392,83 +474,7 @@ Maestro integrates with WhatsApp and Telegram for proactive notifications when a
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CF_TUNNEL_TOKEN` | — | Cloudflare tunnel token (Docker tunnel profile) |
-| `VITE_DEFAULT_MAESTRO_URL` | — | Pre-filled Maestro URL in web client login |
-| `MAESTRO_PUBLIC_URL` | — | Public Maestro URL (reference only) |
-| `WEB_PUBLIC_URL` | — | Public web URL (reference only) |
-
----
-
-## FAQ
-
-<details>
-<summary><strong>How do I connect a Core on another machine?</strong></summary>
-
-Start Maestro with a Cloudflare Tunnel (Docker or native), then on the remote machine:
-
-```bash
-NEXUS_MAESTRO_URL="wss://maestro.yourdomain.com" \
-NEXUS_MAESTRO_TOKEN="<token>" \
-npm run dev:core
-```
-
-The Core registers with Maestro and appears in the UI. No Docker required on the remote machine.
-
-</details>
-
-<details>
-<summary><strong>Can I run just the Core without Maestro?</strong></summary>
-
-Yes. In Direct Mode, clients connect straight to the Core:
-
-```bash
-npm run dev:core    # or: docker compose up core
-```
-
-Connect via the web client → "Direct Connect" → `ws://localhost:9100`.
-
-</details>
-
-<details>
-<summary><strong>How do I access NexusCore from outside my network?</strong></summary>
-
-Use Cloudflare Tunnel. In Docker: `docker compose --profile tunnel up -d`. Natively: `npm run dev:maestro` with `NEXUS_MAESTRO_TUNNEL=true`. Both give you a public `wss://` URL.
-
-</details>
-
-<details>
-<summary><strong>Does restarting containers lose my data?</strong></summary>
-
-No. Maestro and Core data are stored in Docker named volumes (`maestro-data`, `core-data`) that persist across restarts and `docker compose down`. Only `docker compose down -v` removes them. Web client settings are stored in your browser's localStorage.
-
-</details>
-
-<details>
-<summary><strong>Can I clone private GitHub repositories?</strong></summary>
-
-Yes. Set `GITHUB_TOKEN` in your `.env` file with a GitHub Personal Access Token that has `repo` scope. The Core injects the token into HTTPS GitHub URLs automatically.
-
-</details>
-
-<details>
-<summary><strong>What's the difference between Quick and Named tunnels?</strong></summary>
-
-**Quick tunnels** give you a temporary random URL (e.g., `random-name.trycloudflare.com`) — no Cloudflare account needed, but the URL changes on restart. **Named tunnels** give you persistent custom subdomains (e.g., `maestro.yourdomain.com`) — requires a Cloudflare account and domain.
-
-</details>
-
-<details>
-<summary><strong>How does the Desktop app work?</strong></summary>
-
-The desktop app is a thin Tauri 2.0 shell (~10-15MB) that loads the web client. In dev mode it connects to `localhost:5173`; in production it bundles the built web assets. This avoids duplicating the UI and keeps the binary small.
-
-</details>
-
-<details>
-<summary><strong>Which AI models are supported?</strong></summary>
-
-Currently Anthropic Claude models via API key or OAuth (Claude Pro/Max plan). The default model is `claude-sonnet-4-5`. Configure via `NEXUS_CLAUDE_MODEL` env var or the web UI settings.
-
-</details>
+| `VITE_DEFAULT_MAESTRO_URL` | — | Pre-filled Maestro URL in web client |
 
 ---
 
