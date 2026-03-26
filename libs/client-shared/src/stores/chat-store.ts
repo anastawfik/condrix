@@ -495,11 +495,42 @@ export function initChatSync(): () => void {
         connectedCores.add(coreId);
         chatStore.getState().subscribeToBroadcasts(coreId);
 
-        // Reload history for active workspace on (re)connect — catches responses
-        // that completed while the client was disconnected or refreshed
+        // On (re)connect: check for in-flight streams, then reload history
         const wsId = workspaceStore.getState().currentWorkspaceId;
         if (wsId) {
-          chatStore.getState().loadHistory(wsId).catch(() => {});
+          // Check if Core has an active stream for this workspace
+          multiCoreStore.getState().requestOnCore<{
+            active: boolean; content?: string; thinking?: string;
+          }>(coreId, 'agent', 'activeStream', { workspaceId: wsId })
+            .then((stream) => {
+              if (stream.active && (stream.content || stream.thinking)) {
+                // Restore the streaming state with accumulated content
+                const placeholder: ChatMessage = {
+                  id: `reconnect_${Date.now()}`,
+                  role: 'assistant',
+                  content: stream.content ?? '',
+                  thinking: stream.thinking,
+                  timestamp: new Date().toISOString(),
+                  isStreaming: true,
+                };
+                const msgs = chatStore.getState().messages.get(wsId) ?? [];
+                const last = msgs[msgs.length - 1];
+                // Only add if there isn't already a streaming message
+                if (!last?.isStreaming) {
+                  const newMsgs = new Map(chatStore.getState().messages);
+                  newMsgs.set(wsId, [...msgs, placeholder]);
+                  const newStreaming = new Set(chatStore.getState().streamingWorkspaces);
+                  newStreaming.add(wsId);
+                  chatStore.setState({ messages: newMsgs, streamingWorkspaces: newStreaming });
+                }
+              } else {
+                // No active stream — just reload history
+                chatStore.getState().loadHistory(wsId).catch(() => {});
+              }
+            })
+            .catch(() => {
+              chatStore.getState().loadHistory(wsId).catch(() => {});
+            });
         }
       }
     }

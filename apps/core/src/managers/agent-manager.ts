@@ -61,6 +61,14 @@ interface AgentSession {
  * Responsible for spawning agent processes, managing context windows,
  * routing tool calls, and handling conversation history.
  */
+/** Tracks an in-flight streaming response so reconnecting clients can catch up. */
+interface ActiveStream {
+  workspaceId: string;
+  content: string;
+  thinking: string;
+  startedAt: string;
+}
+
 export class AgentManager {
   private sessions = new Map<string, AgentSession>();
   private workspaceToSession = new Map<string, string>();
@@ -68,6 +76,8 @@ export class AgentManager {
   private defaultProvider = 'echo';
   private contextProvider: WorkspaceContextProvider | null = null;
   private pathResolver: WorkspacePathResolver | null = null;
+  /** Active streaming responses — keyed by workspaceId. */
+  private activeStreams = new Map<string, ActiveStream>();
 
   constructor(
     private db: CoreDatabase,
@@ -174,8 +184,21 @@ export class AgentManager {
       }
     }
 
-    // Stream callback: emit events for real-time UI updates
+    // Track active stream so reconnecting clients can catch up
+    this.activeStreams.set(workspaceId, {
+      workspaceId,
+      content: '',
+      thinking: '',
+      startedAt: timestamp,
+    });
+
+    // Stream callback: emit events for real-time UI updates + accumulate in buffer
     const onStream: StreamCallback = (event) => {
+      const stream = this.activeStreams.get(workspaceId);
+      if (stream) {
+        if (event.type === 'text') stream.content += event.delta;
+        else if (event.type === 'thinking') stream.thinking += event.delta;
+      }
       this.emitter.emit(`agent:${event.type}Delta`, {
         workspaceId,
         delta: event.delta,
@@ -225,6 +248,7 @@ export class AgentManager {
       console.log(`[AgentManager] Sending to provider "${session.provider.name}" for workspace ${workspaceId}`);
       result = await session.provider.sendMessage(agentHistory, message, onStream, toolExecutor);
     } catch (err) {
+      this.activeStreams.delete(workspaceId);
       console.error(`[AgentManager] Provider error:`, err instanceof Error ? err.message : err);
       throw err;
     } finally {
@@ -236,6 +260,9 @@ export class AgentManager {
         provider.reconfigure(originalConfig);
       }
     }
+
+    // Clear active stream
+    this.activeStreams.delete(workspaceId);
 
     // Persist assistant message
     const assistantMsgId = generateId('msg');
@@ -267,6 +294,16 @@ export class AgentManager {
       timestamp: r.timestamp,
     }));
     return { messages, hasMore };
+  }
+
+  /** Get active streaming response for a workspace (for reconnecting clients). */
+  getActiveStream(workspaceId: string): ActiveStream | undefined {
+    return this.activeStreams.get(workspaceId);
+  }
+
+  /** Get all active streams (for status queries). */
+  getActiveStreams(): ActiveStream[] {
+    return Array.from(this.activeStreams.values());
   }
 
   cancelSession(workspaceId: string): boolean {

@@ -580,6 +580,14 @@ export class CoreRuntime {
       return { cancelled };
     });
 
+    // Get active streaming response (for reconnecting clients to catch up)
+    r.register('agent', 'activeStream', async (payload) => {
+      const p = payload as { workspaceId: string };
+      const stream = this.agentManager.getActiveStream(p.workspaceId);
+      if (!stream) return { active: false };
+      return { active: true, content: stream.content, thinking: stream.thinking, startedAt: stream.startedAt };
+    });
+
     r.register('agent', 'history', async (payload) => {
       const p = payload as { workspaceId: string; limit?: number; before?: string };
       return this.agentManager.getHistory(p.workspaceId, p.limit, p.before);
