@@ -19,6 +19,7 @@ services:
       CONDRIX_CORE_HOST: "0.0.0.0"
     volumes:
       - core-data:/root/.condrix
+      - claude-data:/root/.claude
     networks:
       - condrix
     restart: unless-stopped
@@ -53,6 +54,7 @@ services:
 volumes:
   maestro-data:
   core-data:
+  claude-data:
 
 networks:
   condrix:
