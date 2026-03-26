@@ -3,7 +3,7 @@ services:
     build:
       context: .
       target: deps
-    command: npx tsx watch apps/maestro/src/cli.ts
+    command: sh -c "npm install --legacy-peer-deps 2>/dev/null; exec npx tsx watch apps/maestro/src/cli.ts"
     env_file: .env
     environment:
       CONDRIX_MAESTRO_HOST: "0.0.0.0"
@@ -26,7 +26,7 @@ services:
     build:
       context: .
       target: deps
-    command: npx tsx watch apps/core/src/cli.ts
+    command: sh -c "npm install --legacy-peer-deps 2>/dev/null; exec npx tsx watch apps/core/src/cli.ts"
     env_file: .env
     environment:
       CONDRIX_CORE_HOST: "0.0.0.0"
@@ -52,10 +52,11 @@ services:
     build:
       context: .
       target: deps
-    # Fix React 18/19 conflict: root node_modules hoists React 18 from ink/cli,
-    # but web needs React 19. Symlink root react to client-web's copy before Vite starts.
+    # Install deps on startup (anonymous volumes override build-time node_modules),
+    # then fix React 18/19 conflict and start Vite.
     command: >-
-      sh -c "rm -rf /app/node_modules/react &&
+      sh -c "npm install --legacy-peer-deps 2>/dev/null;
+             rm -rf /app/node_modules/react &&
              ln -sf /app/apps/client-web/node_modules/react /app/node_modules/react &&
              rm -rf /app/apps/client-web/node_modules/.vite &&
              exec npx vite apps/client-web --host 0.0.0.0 --port 80"
