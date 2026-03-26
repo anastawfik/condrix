@@ -109,15 +109,8 @@ export class CoreRuntime {
 
     // Init OAuth token manager + Claude provider
     this.oauthManager = new OAuthTokenManager(this.db);
-    this.oauthManager.onTokenRefreshed = (accessToken) => {
-      const claude = this.agentManager.getProvider('claude') as ClaudeProvider | undefined;
-      if (claude) {
-        claude.reconfigure({ authToken: accessToken, oauthTokenJson: this.buildOAuthTokenJson() });
-        console.log('[Core] Claude provider reconfigured with refreshed OAuth token');
-      } else {
-        // No provider yet — create one with the new token
-        this.reinitClaudeProvider();
-      }
+    this.oauthManager.onTokenRefreshed = () => {
+      this.reinitClaudeProvider();
     };
     this.oauthManager.onLoginComplete = (result) => {
       if (result.success) {
@@ -311,6 +304,7 @@ export class CoreRuntime {
 
         if (success) {
           console.log('[Core] Claude auth login completed successfully');
+          this.reinitClaudeProvider();
           this.emitter.emit('core:authRefreshed', this.getAuthStatus());
           // Broadcast auth complete event so the UI can close the sign-in modal
           this.emitter.emit('core:authLoginComplete', { success: true, message: msg });
@@ -883,80 +877,13 @@ export class CoreRuntime {
   // ─── Settings / Provider ──────────────────────────────────────────────────
 
   private async initClaudeProvider(): Promise<void> {
-    // DB settings take priority, env vars as fallback
-    const dbApiKey = this.db.getSetting('model.apiKey') as string | undefined;
-    const dbModel = this.db.getSetting('model.id') as string | undefined;
-    const dbMaxTokens = this.db.getSetting('model.maxTokens') as number | undefined;
-    const dbSystemPrompt = this.db.getSetting('model.systemPrompt') as string | undefined;
-    const dbAuthMethod = this.db.getSetting('auth.method') as string | undefined;
-
-    const model = dbModel ?? process.env.CONDRIX_CLAUDE_MODEL;
-    const systemPrompt = dbSystemPrompt ?? process.env.CONDRIX_CLAUDE_SYSTEM_PROMPT;
-    const apiKey = dbApiKey ?? process.env.ANTHROPIC_API_KEY;
-
-    // OAuth takes precedence when auth.method is 'oauth'
-    if (dbAuthMethod === 'oauth') {
-      // Get a valid access token (refreshes if expired)
-      const accessToken = await this.oauthManager.getAccessToken();
-      if (accessToken) {
-        // When connected to Maestro, don't set tokenRefresher — Maestro owns
-        // the refresh lifecycle. Core independently refreshing causes token
-        // rotation conflicts that invalidate both services' tokens.
-        const isMaestroManaged = this.maestroConnector?.connected ?? false;
-        const claude = new ClaudeProvider({
-          authToken: accessToken,
-          oauthTokenJson: this.buildOAuthTokenJson(),
-          apiKey, // fallback if OAuth fails
-          model,
-          maxTokens: dbMaxTokens,
-          systemPrompt,
-          tokenRefresher: isMaestroManaged
-            ? undefined
-            : () => this.oauthManager.refreshAccessToken().then((t) => { this.updateProviderTokenJson(); return t; }),
-        });
-        this.agentManager.registerProvider(claude);
-        this.agentManager.setDefaultProvider('claude');
-        console.log(`[Core] Claude provider registered via OAuth (model: ${model ?? 'claude-sonnet-4-5'}${isMaestroManaged ? ', refresh managed by Maestro' : ''})`);
-        return;
-      }
-      console.warn('[Core] OAuth configured but no valid token available — trying API key');
-    }
-
-    // API key authentication
-    if (apiKey) {
-      const claude = new ClaudeProvider({
-        apiKey,
-        model,
-        maxTokens: dbMaxTokens,
-        systemPrompt,
-      });
-      this.agentManager.registerProvider(claude);
-      this.agentManager.setDefaultProvider('claude');
-      console.log(`[Core] Claude provider registered (model: ${model ?? 'claude-sonnet-4-5'})`);
-    } else {
-      console.log('[Core] No authentication configured — using echo provider');
-      console.log('[Core] Sign in via Settings → Model → "Sign in with Claude" or set an API key');
-    }
+    this.reinitClaudeProvider();
   }
 
   private applySettingChange(key: string, value: unknown): void {
-    // Handle auth method switch
-    if (key === 'auth.method') {
+    // Handle API key change — reinit provider
+    if (key === 'model.apiKey') {
       this.reinitClaudeProvider();
-      return;
-    }
-
-    // Handle OAuth token changes
-    if (key.startsWith('oauth.')) {
-      // Provider will be reconfigured via onTokenRefreshed callback or reinit
-      if (key === 'oauth.accessToken') {
-        const claude = this.agentManager.getProvider('claude') as ClaudeProvider | undefined;
-        const authMethod = this.db.getSetting('auth.method') as string | undefined;
-        if (authMethod === 'oauth' && claude && value) {
-          claude.reconfigure({ authToken: value as string, oauthTokenJson: this.buildOAuthTokenJson() });
-          console.log('[Core] Claude provider reconfigured with new OAuth token');
-        }
-      }
       return;
     }
 
@@ -993,56 +920,55 @@ export class CoreRuntime {
   }
 
   /** Re-initialize the Claude provider from current DB settings (used on auth method switch / login). */
+  /**
+   * (Re)initialize the Claude provider from the best available auth source.
+   * Priority: 1) ~/.claude/.credentials.json (OAuth subprocess)
+   *           2) model.apiKey DB setting or ANTHROPIC_API_KEY env var (SDK)
+   *           3) No provider → echo fallback
+   */
   private reinitClaudeProvider(): void {
     const settings = this.db.getSettingsByPrefix('model.');
-    const authMethod = (this.db.getSetting('auth.method') as string) ?? 'apikey';
-    const accessToken = this.db.getSetting('oauth.accessToken') as string | undefined;
-
-    const model = settings['model.id'] as string | undefined;
+    const model = (settings['model.id'] as string | undefined) ?? process.env.CONDRIX_CLAUDE_MODEL;
     const maxTokens = settings['model.maxTokens'] as number | undefined;
-    const systemPrompt = settings['model.systemPrompt'] as string | undefined;
-
+    const systemPrompt = (settings['model.systemPrompt'] as string | undefined) ?? process.env.CONDRIX_CLAUDE_SYSTEM_PROMPT;
     const apiKey = (settings['model.apiKey'] as string | undefined) ?? process.env.ANTHROPIC_API_KEY;
-    if (authMethod === 'oauth' && accessToken) {
-      const isMaestroManaged = !!this.maestroConnector?.connected;
-      const claude = new ClaudeProvider({
-        authToken: accessToken,
-        oauthTokenJson: this.buildOAuthTokenJson(),
-        apiKey,
-        model,
-        maxTokens,
-        systemPrompt,
-        tokenRefresher: isMaestroManaged
-          ? undefined
-          : () => this.oauthManager.refreshAccessToken().then((t) => { this.updateProviderTokenJson(); return t; }),
-      });
-      this.agentManager.registerProvider(claude);
-      this.agentManager.setDefaultProvider('claude');
-      console.log('[Core] Claude provider (re)created with OAuth (subprocess mode)');
-    } else if (apiKey) {
+
+    // 1. Check ~/.claude/.credentials.json for OAuth (subprocess mode)
+    const credPath = join(homedir(), '.claude', '.credentials.json');
+    try {
+      if (existsSync(credPath)) {
+        const creds = JSON.parse(readFileSync(credPath, 'utf-8'));
+        const oauth = creds.claudeAiOauth;
+        if (oauth?.accessToken && oauth?.refreshToken) {
+          const expired = oauth.expiresAt ? oauth.expiresAt < Date.now() : false;
+          if (!expired) {
+            const claude = new ClaudeProvider({
+              authToken: 'oauth-subprocess',
+              apiKey, // fallback
+              model,
+              maxTokens,
+              systemPrompt,
+            });
+            this.agentManager.registerProvider(claude);
+            this.agentManager.setDefaultProvider('claude');
+            console.log(`[Core] Claude provider registered via OAuth subprocess (model: ${model ?? 'default'})`);
+            return;
+          }
+          console.warn('[Core] OAuth tokens expired — trying API key');
+        }
+      }
+    } catch { /* ignore parse errors */ }
+
+    // 2. Check API key
+    if (apiKey) {
       const claude = new ClaudeProvider({ apiKey, model, maxTokens, systemPrompt });
       this.agentManager.registerProvider(claude);
       this.agentManager.setDefaultProvider('claude');
-      console.log('[Core] Claude provider (re)created with API key');
+      console.log(`[Core] Claude provider registered via API key (model: ${model ?? 'default'})`);
+      return;
     }
-  }
 
-  /** Build the JSON string for CLAUDE_CODE_OAUTH_TOKEN env var. */
-  private buildOAuthTokenJson(): string {
-    const accessToken = this.db.getSetting('oauth.accessToken') as string ?? '';
-    const refreshToken = this.db.getSetting('oauth.refreshToken') as string ?? '';
-    const expiresAt = this.db.getSetting('oauth.expiresAt') as string ?? '';
-    // expiresAt is stored as ISO string, convert to Unix ms for Claude Code
-    const expiresAtMs = expiresAt ? new Date(expiresAt).getTime() : 0;
-    return JSON.stringify({ accessToken, refreshToken, expiresAt: expiresAtMs });
-  }
-
-  /** Update the provider's oauthTokenJson after a token refresh. */
-  private updateProviderTokenJson(): void {
-    const claude = this.agentManager.getProvider('claude') as ClaudeProvider | undefined;
-    if (claude) {
-      claude.reconfigure({ oauthTokenJson: this.buildOAuthTokenJson() });
-    }
+    console.log('[Core] No authentication configured — sign in via Settings → Authentication');
   }
 
   private static readonly SENSITIVE_KEYS = new Set([
