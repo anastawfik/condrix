@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Collapsible } from 'radix-ui';
-import { ChevronRight, Terminal, LogIn } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { cn } from './lib/utils.js';
 import { Button } from './button.js';
 
@@ -14,9 +14,6 @@ export interface CoreCardProps {
   onConnect?: () => void;
   onDisconnect?: () => void;
   onRemove?: () => void;
-  onTerminal?: () => void;
-  onSignIn?: () => void;
-  authStatus?: { authenticated: boolean; method: string };
   children?: React.ReactNode;
 }
 
@@ -44,9 +41,6 @@ export function CoreCard({
   onConnect,
   onDisconnect,
   onRemove,
-  onTerminal,
-  onSignIn,
-  authStatus,
   children,
 }: CoreCardProps) {
   const [renaming, setRenaming] = useState(false);
@@ -136,29 +130,6 @@ export function CoreCard({
                 className="px-1.5 py-0.5 rounded text-[10px] text-[var(--accent-blue)] hover:bg-[var(--bg-hover)]"
               >
                 Connect
-              </button>
-            )}
-            {isConnected && onSignIn && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onSignIn(); }}
-                className={cn(
-                  'w-5 h-5 flex items-center justify-center rounded hover:bg-[var(--bg-hover)]',
-                  authStatus && !authStatus.authenticated
-                    ? 'text-[var(--accent-red)]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--accent-blue)]',
-                )}
-                title={authStatus?.authenticated ? 'Re-authenticate' : 'Sign in with Claude'}
-              >
-                <LogIn size={12} />
-              </button>
-            )}
-            {isConnected && onTerminal && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onTerminal(); }}
-                className="w-5 h-5 flex items-center justify-center rounded text-[var(--text-muted)] hover:text-[var(--accent-blue)] hover:bg-[var(--bg-hover)]"
-                title="Open Core Terminal"
-              >
-                <Terminal size={12} />
               </button>
             )}
             {onRemove && (

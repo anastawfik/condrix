@@ -17,7 +17,7 @@ interface TabDefinition {
 
 const STATIC_TABS: TabDefinition[] = [
   { id: 'cores', label: 'Cores', icon: '\u26A1', component: CoresSettingsTab },
-  { id: 'ai', label: 'AI', icon: '\u2728', component: AiSettingsTab },
+  { id: 'auth', label: 'Authentication', icon: '\uD83D\uDD11', component: AiSettingsTab },
   { id: 'theme', label: 'Theme', icon: '\u263E', component: ThemeSettings },
   { id: 'notifications', label: 'Notifications', icon: '\u266A', component: NotificationSettings },
   { id: 'general', label: 'General', icon: '\u2630', component: GeneralSettings },
@@ -44,10 +44,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
   const tabs = useMemo(() => {
     if (maestroState === 'connected') {
-      // Insert Account tab after AI
+      // Insert Account tab after Authentication
       const result = [...STATIC_TABS];
-      const aiIdx = result.findIndex((t) => t.id === 'ai');
-      result.splice(aiIdx + 1, 0, AUTH_TAB);
+      const authIdx = result.findIndex((t) => t.id === 'auth');
+      result.splice(authIdx + 1, 0, AUTH_TAB);
       return result;
     }
     return STATIC_TABS;
@@ -134,11 +134,12 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               &#x2715;
             </button>
           </div>
-          {activeTabDef.id === 'cores' ? (
-            <CoresSettingsTab
-              onOpenTerminal={(coreId, coreName) => setTerminalTarget({ coreId, coreName })}
-              onOpenSignIn={(coreId, coreName) => setSignInTarget({ coreId, coreName })}
+          {activeTabDef.id === 'auth' ? (
+            <AiSettingsTab
+              onSignIn={(coreId, coreName) => setSignInTarget({ coreId, coreName })}
             />
+          ) : activeTabDef.id === 'cores' ? (
+            <CoresSettingsTab />
           ) : (
             <activeTabDef.component />
           )}

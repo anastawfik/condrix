@@ -42,8 +42,8 @@ export { AddProjectDialog, type AddProjectDialogProps } from './add-project-dial
 export { TitleBar, type TitleBarProps } from './title-bar.js';
 
 // Settings components
-export { CoresSettingsTab } from './cores-settings-tab.js';
-export { AiSettingsTab } from './ai-settings-tab.js';
+export { CoresSettingsTab, type CoresSettingsTabProps } from './cores-settings-tab.js';
+export { AiSettingsTab, type AiSettingsTabProps } from './ai-settings-tab.js';
 export { AuthenticationSettingsTab } from './authentication-settings-tab.js';
 export { MaestroLoginDialog, type MaestroLoginDialogProps } from './maestro-login-dialog.js';
 

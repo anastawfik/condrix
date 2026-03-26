@@ -1,19 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  maestroStore, multiCoreStore,
+  maestroStore, multiCoreStore, coreRegistryStore,
 } from '@condrix/client-shared';
 import type { MaestroConnectionState } from '@condrix/client-shared';
 import { cn } from './lib/utils.js';
-import { AuthConfigSection } from './auth-config-section.js';
+import { Button } from './button.js';
 
 const MASK_CHAR = '\u2022';
-const DIRECT_AUTH_KEY = 'condrix-direct-auth';
+
+export interface AiSettingsTabProps {
+  onSignIn?: (coreId: string, coreName: string) => void;
+}
 
 /**
- * AI Settings Tab — unified Claude auth configuration.
- * Routes to Maestro or client localStorage depending on connection mode.
+ * Authentication Tab — API Key + OAuth (Claude Plan) sections.
+ * Replaces old inline AuthConfigSection flow with per-core sign-in buttons.
  */
-export function AiSettingsTab() {
+export function AiSettingsTab({ onSignIn }: AiSettingsTabProps) {
   const [maestroState, setMaestroState] = useState<MaestroConnectionState>(
     () => maestroStore.getState().state,
   );
@@ -23,255 +26,297 @@ export function AiSettingsTab() {
     return unsub;
   }, []);
 
-  if (maestroState === 'connected') {
-    return <MaestroAiConfig />;
-  }
-
-  return <DirectAiConfig />;
-}
-
-/* ─── Maestro Mode ──────────────────────────────────────────────────────── */
-
-function MaestroAiConfig() {
-  const [initialMethod, setInitialMethod] = useState<'apikey' | 'oauth'>('apikey');
-  const [initialApiKey, setInitialApiKey] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadConfig();
-  }, []);
-
-  const loadConfig = async () => {
-    setLoading(true);
-    try {
-      const config = await maestroStore.getState().getAiConfig();
-      if (config.method === 'apikey' || config.method === 'oauth') {
-        setInitialMethod(config.method as 'apikey' | 'oauth');
-      }
-      if (config.apiKey && typeof config.apiKey === 'string') setInitialApiKey(config.apiKey as string);
-    } catch {
-      // Non-critical
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async (config: { method: 'apikey' | 'oauth'; apiKey?: string }) => {
-    const payload: Record<string, unknown> = { method: config.method };
-    if (config.apiKey && !config.apiKey.startsWith(MASK_CHAR)) {
-      payload.apiKey = config.apiKey;
-    }
-    await maestroStore.getState().setAiConfig(payload);
-  };
-
-  const handleOAuthLogin = async () => {
-    return maestroStore.getState().request<{ url: string }>('maestro', 'ai.oauth.login', {});
-  };
-
-  const handleOAuthStatus = async () => {
-    return maestroStore.getState().request<{ authenticated: boolean; method: 'oauth' | 'apikey' | 'none'; expiresAt?: string }>('maestro', 'ai.oauth.status', {});
-  };
-
-  const handleOAuthImport = async () => {
-    return maestroStore.getState().request<{ success: boolean; message: string }>('maestro', 'ai.oauth.import', {});
-  };
-
-  const handleOAuthRefresh = async () => {
-    return maestroStore.getState().request<{ success: boolean }>('maestro', 'ai.oauth.refresh', {});
-  };
-
-  const handleOAuthComplete = (handler: (result: { success: boolean; message: string }) => void) => {
-    return maestroStore.getState().subscribe('maestro:ai.oauthComplete', (event) => {
-      handler(event.payload as { success: boolean; message: string });
-    });
-  };
-
-  if (loading) {
-    return <p className="text-xs text-[var(--text-muted)] px-6 py-4">Loading AI config...</p>;
-  }
-
   return (
-    <div className="px-6 py-4 space-y-4">
-      <div>
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Claude AI Configuration</h3>
+    <div className="h-full overflow-y-auto">
+      <div className="px-6 pt-4 pb-2">
+        <h2 className="text-sm font-semibold text-[var(--text-primary)]">Authentication</h2>
         <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
-          Managed by Maestro. Auth is pushed to all connected Cores.
+          Configure how Cores authenticate with the Claude API.
         </p>
       </div>
 
-      <AuthConfigSection
-        onSave={handleSave}
-        onOAuthLogin={handleOAuthLogin}
-        onOAuthStatus={handleOAuthStatus}
-        onOAuthImport={handleOAuthImport}
-        onOAuthRefresh={handleOAuthRefresh}
-        onOAuthComplete={handleOAuthComplete}
-        initialMethod={initialMethod}
-        initialApiKey={initialApiKey}
-        saveLabel="Save & Push to Cores"
-      />
+      {/* API Key Section */}
+      <ApiKeySection maestroConnected={maestroState === 'connected'} />
+
+      {/* OAuth (Claude Plan) Section */}
+      <OAuthCoresSection maestroConnected={maestroState === 'connected'} onSignIn={onSignIn} />
     </div>
   );
 }
 
-/* ─── Direct Mode ───────────────────────────────────────────────────────── */
+/* ─── API Key Section ────────────────────────────────────────────────────── */
 
-function DirectAiConfig() {
-  const [initialMethod, setInitialMethod] = useState<'apikey' | 'oauth'>('apikey');
-  const [initialApiKey, setInitialApiKey] = useState('');
+function ApiKeySection({ maestroConnected }: { maestroConnected: boolean }) {
+  const [apiKey, setApiKey] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Load saved direct auth from localStorage
+  // Load existing key (masked)
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(DIRECT_AUTH_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as { method?: string; apiKey?: string };
-        if (parsed.method === 'apikey' || parsed.method === 'oauth') setInitialMethod(parsed.method);
-        if (parsed.apiKey) setInitialApiKey(parsed.apiKey);
-      }
-    } catch { /* ignore */ }
+    loadApiKey();
+  }, [maestroConnected]);
 
-    // Also try to load from first connected Core
-    loadFromCore();
-  }, []);
-
-  const loadFromCore = async () => {
-    const connections = multiCoreStore.getState().connections;
-    const firstCoreId = connections.keys().next().value;
-    if (!firstCoreId) return;
-
-    try {
-      const authResult = await multiCoreStore.getState().requestOnCore<{ key: string; value: unknown }>(
-        firstCoreId, 'core', 'config.get', { key: 'auth.method' },
-      );
-      if (authResult.value === 'apikey' || authResult.value === 'oauth') {
-        setInitialMethod(authResult.value as 'apikey' | 'oauth');
-      }
-    } catch { /* ignore */ }
-  };
-
-  const handleSave = async (config: { method: 'apikey' | 'oauth'; apiKey?: string }) => {
-    // Store in localStorage
-    try {
-      const saved: Record<string, unknown> = { method: config.method };
-      if (config.apiKey) saved.apiKey = config.apiKey;
-      localStorage.setItem(DIRECT_AUTH_KEY, JSON.stringify(saved));
-    } catch { /* ignore */ }
-
-    // Push to ALL connected Cores
-    const connections = multiCoreStore.getState().connections;
-    for (const [coreId] of connections) {
+  const loadApiKey = async () => {
+    if (maestroConnected) {
       try {
-        await multiCoreStore.getState().requestOnCore(coreId, 'core', 'config.set', { key: 'auth.method', value: config.method });
-        if (config.method === 'apikey' && config.apiKey) {
-          await multiCoreStore.getState().requestOnCore(coreId, 'core', 'config.set', { key: 'model.apiKey', value: config.apiKey });
+        const config = await maestroStore.getState().getAiConfig();
+        if (config.apiKey && typeof config.apiKey === 'string') setApiKey(config.apiKey as string);
+      } catch { /* ignore */ }
+    } else {
+      const connections = multiCoreStore.getState().connections;
+      const firstCoreId = connections.keys().next().value;
+      if (!firstCoreId) return;
+      try {
+        const result = await multiCoreStore.getState().requestOnCore<{ key: string; value: unknown }>(
+          firstCoreId, 'core', 'config.get', { key: 'model.apiKey' },
+        );
+        if (result.value && typeof result.value === 'string') {
+          setApiKey(result.value as string);
         }
-      } catch {
-        // Core may be offline
-      }
+      } catch { /* ignore */ }
     }
   };
 
-  const handleOAuthLogin = async () => {
-    const connections = multiCoreStore.getState().connections;
-    const firstCoreId = connections.keys().next().value;
-    if (!firstCoreId) throw new Error('No Core connected');
-    return multiCoreStore.getState().requestOnCore<{ url: string }>(firstCoreId, 'core', 'oauth.login', {});
-  };
-
-  const handleOAuthStatus = async () => {
-    const connections = multiCoreStore.getState().connections;
-    const firstCoreId = connections.keys().next().value;
-    if (!firstCoreId) return { authenticated: false, method: 'none' as const };
-    return multiCoreStore.getState().requestOnCore<{ authenticated: boolean; method: 'oauth' | 'apikey' | 'none'; expiresAt?: string }>(
-      firstCoreId, 'core', 'config.oauthStatus', {},
-    );
-  };
-
-  const handleOAuthImport = async () => {
-    const connections = multiCoreStore.getState().connections;
-    const firstCoreId = connections.keys().next().value;
-    if (!firstCoreId) throw new Error('No Core connected');
-    return multiCoreStore.getState().requestOnCore<{ success: boolean; message: string }>(firstCoreId, 'core', 'config.importOAuth', {});
-  };
-
-  const handleOAuthRefresh = async () => {
-    const connections = multiCoreStore.getState().connections;
-    const firstCoreId = connections.keys().next().value;
-    if (!firstCoreId) throw new Error('No Core connected');
-    return multiCoreStore.getState().requestOnCore<{ success: boolean }>(firstCoreId, 'core', 'config.refreshOAuth', {});
-  };
-
-  const handleOAuthComplete = (handler: (result: { success: boolean; message: string }) => void) => {
-    const connections = multiCoreStore.getState().connections;
-    const firstCoreId = connections.keys().next().value;
-    if (!firstCoreId) return () => {};
-
-    const conn = multiCoreStore.getState().getConnection(firstCoreId);
-    if (!conn) return () => {};
-
-    return conn.store.getState().subscribe('core:oauthComplete', (event) => {
-      const payload = event.payload as { success: boolean; message: string; accessToken?: string; refreshToken?: string; expiresAt?: string };
-      handler(payload);
-
-      // If successful, store tokens in localStorage and push to other Cores
-      if (payload.success && payload.accessToken) {
-        try {
-          localStorage.setItem(DIRECT_AUTH_KEY, JSON.stringify({
-            method: 'oauth',
-            accessToken: payload.accessToken,
-            refreshToken: payload.refreshToken,
-            expiresAt: payload.expiresAt,
-          }));
-        } catch { /* ignore */ }
-
-        // Push to other connected Cores
-        for (const [coreId] of multiCoreStore.getState().connections) {
-          if (coreId === firstCoreId) continue;
+  const handleSave = async () => {
+    if (!apiKey.trim() || apiKey.startsWith(MASK_CHAR)) return;
+    setSaving(true);
+    setStatus(null);
+    try {
+      if (maestroConnected) {
+        await maestroStore.getState().setAiConfig({ method: 'apikey', apiKey });
+      } else {
+        // Push to ALL connected Cores
+        const connections = multiCoreStore.getState().connections;
+        for (const [coreId] of connections) {
           try {
-            multiCoreStore.getState().requestOnCore(coreId, 'core', 'config.set', { key: 'auth.method', value: 'oauth' });
-            multiCoreStore.getState().requestOnCore(coreId, 'core', 'config.set', { key: 'oauth.accessToken', value: payload.accessToken });
-            if (payload.refreshToken) {
-              multiCoreStore.getState().requestOnCore(coreId, 'core', 'config.set', { key: 'oauth.refreshToken', value: payload.refreshToken });
-            }
-          } catch { /* ignore */ }
+            await multiCoreStore.getState().requestOnCore(
+              coreId, 'core', 'config.set', { key: 'model.apiKey', value: apiKey },
+            );
+          } catch { /* Core may be offline */ }
         }
       }
-    });
+      setStatus({ type: 'success', message: 'API key saved' });
+    } catch (err) {
+      setStatus({ type: 'error', message: (err as Error).message });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const hasConnectedCore = multiCoreStore.getState().connections.size > 0;
+  return (
+    <div className="px-6 py-4 border-b border-[var(--border-color)]">
+      <h3 className="text-xs font-semibold text-[var(--text-primary)] mb-1">API Key</h3>
+      <p className="text-[10px] text-[var(--text-muted)] mb-3">
+        {maestroConnected
+          ? 'Managed by Maestro. Key is pushed to all connected Cores.'
+          : 'Saved locally and pushed to all connected Cores.'}
+      </p>
 
-  if (!hasConnectedCore) {
-    return (
-      <div className="px-6 py-8 text-center">
-        <p className="text-sm text-[var(--text-muted)]">
-          Connect to a Core to configure AI authentication.
-        </p>
+      <div className="flex items-center gap-2">
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => { setApiKey(e.target.value); setStatus(null); }}
+          placeholder="sk-ant-..."
+          className="flex-1 px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-blue)] font-mono"
+        />
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={saving || !apiKey.trim() || apiKey.startsWith(MASK_CHAR)}
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
       </div>
-    );
-  }
+      {status && (
+        <p className={cn('text-[11px] mt-1.5', status.type === 'success' ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]')}>
+          {status.message}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ─── OAuth (Claude Plan) Section ────────────────────────────────────────── */
+
+interface CoreAuthInfo {
+  coreId: string;
+  name: string;
+  connected: boolean;
+  authStatus: 'authenticated' | 'expired' | 'not-configured' | 'loading';
+}
+
+function OAuthCoresSection({ maestroConnected, onSignIn }: { maestroConnected: boolean; onSignIn?: (coreId: string, coreName: string) => void }) {
+  const [cores, setCores] = useState<CoreAuthInfo[]>([]);
+
+  const fetchCoreList = useCallback(() => {
+    if (maestroConnected) {
+      const maestroCores = maestroStore.getState().maestroCores;
+      const initial: CoreAuthInfo[] = maestroCores.map((mc) => ({
+        coreId: mc.id,
+        name: mc.displayName,
+        connected: mc.status === 'online',
+        authStatus: mc.status === 'online' ? 'loading' : 'not-configured',
+      }));
+      setCores(initial);
+
+      // Fetch auth status for each online core
+      for (const mc of maestroCores) {
+        if (mc.status !== 'online') continue;
+        multiCoreStore.getState().requestOnCore<{ authenticated: boolean; method: string; expiresAt?: string }>(
+          mc.id, 'core', 'auth.status', {},
+        ).then((result) => {
+          setCores((prev) => prev.map((c) =>
+            c.coreId === mc.id
+              ? { ...c, authStatus: resolveAuthStatus(result) }
+              : c,
+          ));
+        }).catch(() => {
+          setCores((prev) => prev.map((c) =>
+            c.coreId === mc.id ? { ...c, authStatus: 'not-configured' } : c,
+          ));
+        });
+      }
+    } else {
+      const connections = multiCoreStore.getState().connections;
+      const registry = coreRegistryStore.getState().cores;
+      const initial: CoreAuthInfo[] = registry.map((entry) => {
+        const conn = connections.get(entry.id);
+        const isConnected = conn?.connState === 'connected';
+        return {
+          coreId: entry.id,
+          name: entry.name,
+          connected: isConnected,
+          authStatus: isConnected ? 'loading' : 'not-configured',
+        };
+      });
+      setCores(initial);
+
+      // Fetch auth status for each connected core
+      for (const entry of registry) {
+        const conn = connections.get(entry.id);
+        if (conn?.connState !== 'connected') continue;
+        multiCoreStore.getState().requestOnCore<{ authenticated: boolean; method: string; expiresAt?: string }>(
+          entry.id, 'core', 'auth.status', {},
+        ).then((result) => {
+          setCores((prev) => prev.map((c) =>
+            c.coreId === entry.id
+              ? { ...c, authStatus: resolveAuthStatus(result) }
+              : c,
+          ));
+        }).catch(() => {
+          setCores((prev) => prev.map((c) =>
+            c.coreId === entry.id ? { ...c, authStatus: 'not-configured' } : c,
+          ));
+        });
+      }
+    }
+  }, [maestroConnected]);
+
+  useEffect(() => {
+    fetchCoreList();
+
+    // Re-fetch when connections change
+    const unsub1 = multiCoreStore.subscribe(() => fetchCoreList());
+    const unsub2 = maestroConnected
+      ? maestroStore.subscribe(() => fetchCoreList())
+      : coreRegistryStore.subscribe(() => fetchCoreList());
+    return () => { unsub1(); unsub2(); };
+  }, [fetchCoreList]);
 
   return (
-    <div className="px-6 py-4 space-y-4">
-      <div>
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Claude AI Configuration</h3>
-        <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
-          Managed locally. Auth is pushed to all connected Cores.
-        </p>
-      </div>
+    <div className="px-6 py-4">
+      <h3 className="text-xs font-semibold text-[var(--text-primary)] mb-1">OAuth (Claude Plan)</h3>
+      <p className="text-[10px] text-[var(--text-muted)] mb-3">
+        Sign in with your Claude account on each Core.
+      </p>
 
-      <AuthConfigSection
-        onSave={handleSave}
-        onOAuthLogin={handleOAuthLogin}
-        onOAuthStatus={handleOAuthStatus}
-        onOAuthImport={handleOAuthImport}
-        onOAuthRefresh={handleOAuthRefresh}
-        onOAuthComplete={handleOAuthComplete}
-        initialMethod={initialMethod}
-        initialApiKey={initialApiKey}
-        saveLabel="Save & Push to Cores"
-      />
+      {cores.length === 0 ? (
+        <p className="text-xs text-[var(--text-muted)] py-4 text-center">
+          No Cores registered. Add a Core in the Cores tab first.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {cores.map((core) => (
+            <div
+              key={core.coreId}
+              className="flex items-center justify-between p-2.5 rounded border border-[var(--border-color)] bg-[var(--bg-primary)]"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className={cn(
+                    'w-2 h-2 rounded-full shrink-0',
+                    core.connected ? 'bg-[var(--accent-green)]' : 'bg-[var(--text-muted)]',
+                  )}
+                />
+                <span className="text-xs font-medium text-[var(--text-primary)] truncate">
+                  {core.name}
+                </span>
+                <AuthBadge status={core.authStatus} />
+              </div>
+
+              <div className="shrink-0 ml-2">
+                {core.connected && onSignIn && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => onSignIn(core.coreId, core.name)}
+                  >
+                    Sign In
+                  </Button>
+                )}
+                {!core.connected && (
+                  <span className="text-[10px] text-[var(--text-muted)]">Offline</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
+  );
+}
+
+/* ─── Helpers ────────────────────────────────────────────────────────────── */
+
+function resolveAuthStatus(result: { authenticated: boolean; method: string; expiresAt?: string }): CoreAuthInfo['authStatus'] {
+  if (!result.authenticated) return 'not-configured';
+
+  // Check for expiry
+  if (result.expiresAt) {
+    const expiresAtMs = Number(result.expiresAt);
+    if (!isNaN(expiresAtMs) && expiresAtMs < Date.now()) {
+      return 'expired';
+    }
+  }
+  return 'authenticated';
+}
+
+function AuthBadge({ status }: { status: CoreAuthInfo['authStatus'] }) {
+  if (status === 'loading') {
+    return (
+      <span className="px-1.5 py-0.5 rounded text-[10px] bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
+        ...
+      </span>
+    );
+  }
+  if (status === 'authenticated') {
+    return (
+      <span className="px-1.5 py-0.5 rounded text-[10px] bg-[var(--accent-green)]/10 text-[var(--accent-green)] font-medium">
+        Authenticated
+      </span>
+    );
+  }
+  if (status === 'expired') {
+    return (
+      <span className="px-1.5 py-0.5 rounded text-[10px] bg-[var(--accent-yellow,#eab308)]/10 text-[var(--accent-yellow,#eab308)] font-medium">
+        Expired
+      </span>
+    );
+  }
+  return (
+    <span className="px-1.5 py-0.5 rounded text-[10px] bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
+      Not configured
+    </span>
   );
 }

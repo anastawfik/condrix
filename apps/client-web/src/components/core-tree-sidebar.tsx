@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { AddProjectDialog } from '@condrix/client-components';
+import { CoreTerminalModal } from './core-terminal-modal.js';
 
 const STATE_DOT_COLOR: Record<string, string> = {
   CREATING: 'bg-primary',
@@ -105,6 +106,9 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
 
   // Auth status per core
   const [authStatuses, setAuthStatuses] = useState<Map<string, SidebarCore['authStatus']>>(new Map());
+
+  // Terminal modal state
+  const [terminalTarget, setTerminalTarget] = useState<{ coreId: string; coreName: string } | null>(null);
 
   const isOnline = useCallback((status: string) => {
     return status === 'connected' || status === 'online';
@@ -282,29 +286,47 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
           return (
             <div key={core.coreId}>
               {/* Level 0: Core node */}
-              <button
-                onClick={online ? () => toggleCore(core.coreId) : undefined}
-                disabled={!online}
-                className={cn(
-                  'flex items-center gap-1.5 w-full pl-3 pr-2 py-2 transition-colors',
-                  online ? 'hover:bg-accent' : 'opacity-50',
-                )}
-              >
-                {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-                <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', CONN_DOT[core.status] ?? CONN_DOT.disconnected)} />
-                <Server className="size-4 text-muted-foreground" />
-                <span className="truncate font-medium text-foreground">{core.name}</span>
-                {online && authStatuses.get(core.coreId) && !authStatuses.get(core.coreId)!.authenticated && (
+              <div className="group/core flex items-center w-full pr-1 transition-colors">
+                <button
+                  onClick={online ? () => toggleCore(core.coreId) : undefined}
+                  disabled={!online}
+                  className={cn(
+                    'flex items-center gap-1.5 flex-1 min-w-0 pl-3 pr-2 py-2 transition-colors',
+                    online ? 'hover:bg-accent' : 'opacity-50',
+                  )}
+                >
+                  {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                  <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', CONN_DOT[core.status] ?? CONN_DOT.disconnected)} />
+                  <Server className="size-4 text-muted-foreground" />
+                  <span className="truncate font-medium text-foreground">{core.name}</span>
+                  {online && authStatuses.get(core.coreId) && !authStatuses.get(core.coreId)!.authenticated && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="ml-auto shrink-0">
+                          <AlertCircle className="size-4 text-destructive" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Authentication required — open Settings &gt; Authentication to sign in</TooltipContent>
+                    </Tooltip>
+                  )}
+                </button>
+                {online && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className="ml-auto shrink-0">
-                        <AlertCircle className="size-4 text-destructive" />
-                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); setTerminalTarget({ coreId: core.coreId, coreName: core.name }); }}
+                        className="hidden group-hover/core:flex p-1 h-auto text-muted-foreground hover:text-primary shrink-0"
+                        aria-label="Open Core Terminal"
+                      >
+                        <Terminal className="size-4" />
+                      </Button>
                     </TooltipTrigger>
-                    <TooltipContent>Authentication required — open Core Terminal to run `claude auth login`</TooltipContent>
+                    <TooltipContent>Open Core Terminal</TooltipContent>
                   </Tooltip>
                 )}
-              </button>
+              </div>
 
               {isExpanded && online && (
                 <>
@@ -467,6 +489,15 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
           open={true}
           onClose={() => setAddProjectCoreId(null)}
           onCreated={() => fetchProjects(addProjectCoreId)}
+        />
+      )}
+
+      {terminalTarget && (
+        <CoreTerminalModal
+          coreId={terminalTarget.coreId}
+          coreName={terminalTarget.coreName}
+          open={true}
+          onClose={() => setTerminalTarget(null)}
         />
       )}
     </div>
