@@ -278,7 +278,7 @@ export class CoreRuntime {
         stdout += chunk.toString();
         if (!foundUrl) {
           const urls = stdout.match(urlRegex);
-          const authUrl = urls?.find(u => u.includes('claude.ai') || u.includes('anthropic.com'));
+          const authUrl = urls?.find(u => u.includes('claude.ai') || u.includes('claude.com') || u.includes('anthropic.com'));
           if (authUrl) {
             foundUrl = true;
             resolve({ url: authUrl });
@@ -290,7 +290,7 @@ export class CoreRuntime {
         stdout += chunk.toString();
         if (!foundUrl) {
           const urls = stdout.match(urlRegex);
-          const authUrl = urls?.find(u => u.includes('claude.ai') || u.includes('anthropic.com'));
+          const authUrl = urls?.find(u => u.includes('claude.ai') || u.includes('claude.com') || u.includes('anthropic.com'));
           if (authUrl) {
             foundUrl = true;
             resolve({ url: authUrl });
