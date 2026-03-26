@@ -32,7 +32,7 @@
 >
 > **What's still in progress:** See [Roadmap](#roadmap) below.
 >
-> Contributions, bug reports, and feedback are welcome!
+> Bug reports, and feedback are welcome!
 
 ---
 
