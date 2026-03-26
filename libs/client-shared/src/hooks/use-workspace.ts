@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import type { WorkspaceInfo, ProjectInfo } from '@condrix/protocol';
 
 import { workspaceStore } from '../stores/workspace-store.js';
+import { multiCoreStore } from '../stores/multi-core-store.js';
 import { chatStore, type ChatMessage } from '../stores/chat-store.js';
 
 export interface UseWorkspaceReturn {
@@ -44,9 +45,47 @@ export function useWorkspace(workspaceId: string | null): UseWorkspaceReturn {
   const currentProjectId = useStore(workspaceStore, (s) => s.currentProjectId);
 
   useEffect(() => {
-    if (workspaceId) {
-      chatStore.getState().loadHistory(workspaceId).catch(() => { /* ignore */ });
+    if (!workspaceId) return;
+
+    const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+    if (!coreId) {
+      chatStore.getState().loadHistory(workspaceId).catch(() => {});
+      return;
     }
+
+    // Check for active stream first, then load history
+    multiCoreStore.getState().requestOnCore<{
+      active: boolean; content?: string; thinking?: string;
+    }>(coreId, 'agent', 'activeStream', { workspaceId })
+      .then((stream) => {
+        // Load history first (gets the user message)
+        return chatStore.getState().loadHistory(workspaceId).then(() => stream);
+      })
+      .then((stream) => {
+        if (stream.active) {
+          // Agent is still working — add streaming placeholder with accumulated content
+          const msgs = chatStore.getState().messages.get(workspaceId) ?? [];
+          const last = msgs[msgs.length - 1];
+          if (!last?.isStreaming) {
+            const placeholder: ChatMessage = {
+              id: `reconnect_${Date.now()}`,
+              role: 'assistant',
+              content: stream.content ?? '',
+              thinking: stream.thinking,
+              timestamp: new Date().toISOString(),
+              isStreaming: true,
+            };
+            const newMsgs = new Map(chatStore.getState().messages);
+            newMsgs.set(workspaceId, [...msgs, placeholder]);
+            const newStreaming = new Set(chatStore.getState().streamingWorkspaces);
+            newStreaming.add(workspaceId);
+            chatStore.setState({ messages: newMsgs, streamingWorkspaces: newStreaming });
+          }
+        }
+      })
+      .catch(() => {
+        chatStore.getState().loadHistory(workspaceId).catch(() => {});
+      });
   }, [workspaceId]);
 
   return {
