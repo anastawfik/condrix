@@ -1,6 +1,6 @@
 import { useStore } from 'zustand';
 import { MessageSquare, GitCompareArrows, X } from 'lucide-react';
-import { workspaceStore, useFileContent, gitStore, fileStore } from '@condrix/client-shared';
+import { workspaceStore, useFileContent, gitStore, fileStore, chatStore } from '@condrix/client-shared';
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
 } from '@/components/ui/context-menu';
@@ -118,6 +118,7 @@ export function EditorTabs() {
   const fileName = (path: string) => path.split('/').pop() ?? path;
 
   // Derive a short name for a workspace chat tab
+  const streamingWorkspaces = useStore(chatStore, (s) => s.streamingWorkspaces);
   const wsTabName = (ws: WorkspaceInfo) => ws.name || ws.id.slice(0, 8);
 
   return (
@@ -136,6 +137,9 @@ export function EditorTabs() {
             >
               <MessageSquare size={12} />
               <span className="truncate max-w-[120px]">{wsTabName(ws)}</span>
+              {streamingWorkspaces.has(ws.id) && (
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" title="Agent working..." />
+              )}
             </button>
           ))
         ) : (
