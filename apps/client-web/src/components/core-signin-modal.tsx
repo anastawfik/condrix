@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { multiCoreStore } from '@condrix/client-shared';
+import type { MessageEnvelope } from '@condrix/protocol';
 
 interface CoreSignInModalProps {
   coreId: string;
@@ -32,6 +33,19 @@ export function CoreSignInModal({ coreId, coreName, open, onClose }: CoreSignInM
       setAuthMessage('');
     }
   }, [open]);
+
+  // Listen for auth completing automatically (native mode — CLI handles callback itself)
+  useEffect(() => {
+    if (!open || authStep === 'idle' || authStep === 'success') return;
+    const unsub = multiCoreStore.getState().subscribeOnCore(coreId, 'core:authLoginComplete', (event) => {
+      const payload = event.payload as { success: boolean; message: string };
+      if (payload.success) {
+        setAuthStep('success');
+        setAuthMessage('Authentication successful! You can now use all Claude models.');
+      }
+    });
+    return unsub;
+  }, [open, coreId, authStep]);
 
   const startLogin = async () => {
     setAuthStep('starting');

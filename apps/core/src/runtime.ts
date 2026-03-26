@@ -312,6 +312,10 @@ export class CoreRuntime {
         if (success) {
           console.log('[Core] Claude auth login completed successfully');
           this.emitter.emit('core:authRefreshed', this.getAuthStatus());
+          // Broadcast auth complete event so the UI can close the sign-in modal
+          this.emitter.emit('core:authLoginComplete', { success: true, message: msg });
+        } else {
+          this.emitter.emit('core:authLoginComplete', { success: false, message: msg });
         }
 
         if (!foundUrl) {
@@ -841,6 +845,7 @@ export class CoreRuntime {
       ['tunnel:error', 'core', 'tunnelError'],
       ['core:authRefreshed', 'core', 'authRefreshed'],
       ['core:authExpired', 'core', 'authExpired'],
+      ['core:authLoginComplete', 'core', 'authLoginComplete'],
     ];
 
     for (const [emitterEvent, namespace, action] of eventMappings) {
