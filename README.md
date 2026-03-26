@@ -229,17 +229,15 @@ git clone https://github.com/anastawfik/condrix.git && cd condrix
 cp .env.example .env
 # Edit .env — set ANTHROPIC_API_KEY or use OAuth after startup
 
-# Production (optimized builds, Nginx)
+# Docker (production — optimized builds, Nginx)
 docker compose up -d
-
-# — OR — Development (hot-reload, source mounted)
-docker compose -f docker-compose.dev.yml up
 ```
 
-| Mode | Web Client | Maestro | Core |
-|------|-----------|---------|------|
-| Production | `http://localhost` | `ws://localhost:9200` | Internal |
-| Development | `http://localhost:5173` | `ws://localhost:9200` | `ws://localhost:9100` |
+| Service | Dev Port | Docker (Prod) |
+|---------|----------|---------------|
+| Web Client | `http://localhost:5173` | `http://localhost` |
+| Core | `ws://localhost:9100` | Internal |
+| Maestro | `ws://localhost:9200` | Internal |
 
 After startup, authenticate each Core via the web UI: **Settings → Cores → Sign In icon**.
 
@@ -337,7 +335,7 @@ cd apps/client-desktop && npm run dev
 | `npm run lint` | Lint all packages |
 | `npm run typecheck` | Type-check all packages |
 | `npm run docker:up` | Docker Compose production |
-| `npm run docker:dev` | Docker Compose dev mode |
+| `npm run docker:build` | Build Docker images |
 | `npx nx graph` | Visualize dependency graph |
 
 ### Monorepo Structure
@@ -359,7 +357,6 @@ condrix/
 │   ├── skills/              # Built-in agent skill definitions
 │   └── mcp-configs/         # MCP server configurations
 ├── docker-compose.yml       # Production deployment
-├── docker-compose.dev.yml   # Development with hot-reload
 ├── Dockerfile               # Multi-stage build (core, maestro, web)
 └── .env.example             # Environment variable template
 ```

@@ -21,7 +21,6 @@
     "clean": "nx run-many -t clean && rm -rf node_modules",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "docker:dev": "docker compose -f docker-compose.dev.yml up",
     "docker:build": "docker compose build"
   },
   "devDependencies": {
