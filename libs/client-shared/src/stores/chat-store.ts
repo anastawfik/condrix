@@ -494,6 +494,13 @@ export function initChatSync(): () => void {
       if (conn.connState === 'connected' && !connectedCores.has(coreId)) {
         connectedCores.add(coreId);
         chatStore.getState().subscribeToBroadcasts(coreId);
+
+        // Reload history for active workspace on (re)connect — catches responses
+        // that completed while the client was disconnected or refreshed
+        const wsId = workspaceStore.getState().currentWorkspaceId;
+        if (wsId) {
+          chatStore.getState().loadHistory(wsId).catch(() => {});
+        }
       }
     }
     for (const coreId of connectedCores) {
