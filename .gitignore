@@ -47,8 +47,9 @@ packages/client-mobile/ios/
 # Playwright
 .playwright-mcp/
 
-# Screenshots
+# Screenshots (but keep logo)
 *.png
+!apps/client-web/public/logo.png
 
 # SQLite databases
 *.db

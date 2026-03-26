@@ -1,9 +1,12 @@
 <p align="center">
-  <h1 align="center">Condrix</h1>
-  <p align="center"><strong>Distributed AI Agent Orchestration Platform</strong></p>
-  <p align="center">
-    Orchestrate AI coding agents across multiple machines. Start a session on your desktop, check progress from your phone, continue from a laptop — all in real-time.
-  </p>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="apps/client-web/public/logo.png">
+    <img src="apps/client-web/public/logo.png" alt="Condrix" width="320">
+  </picture>
+</p>
+<p align="center"><strong>Distributed AI Agent Orchestration Platform</strong></p>
+<p align="center">
+  Orchestrate AI coding agents across multiple machines. Start a session on your desktop, check progress from your phone, continue from a laptop — all in real-time.
 </p>
 
 <p align="center">
