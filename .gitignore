@@ -50,6 +50,7 @@ packages/client-mobile/ios/
 # Screenshots (but keep logo)
 *.png
 !apps/client-web/public/logo.png
+!apps/client-web/public/favicon.png
 
 # SQLite databases
 *.db
