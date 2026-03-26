@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSettings, multiCoreStore, workspaceStore } from '@nexus-core/client-shared';
+import { useSettings, multiCoreStore, workspaceStore } from '@condrix/client-shared';
 
 const MODELS = [
   { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },

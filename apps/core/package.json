@@ -1,13 +1,13 @@
 {
-  "name": "@nexus-core/core",
+  "name": "@condrix/core",
   "version": "0.1.0",
   "private": true,
-  "description": "NexusCore agent runtime daemon — manages projects, workspaces, agents, terminals, and file operations",
+  "description": "Condrix agent runtime daemon — manages projects, workspaces, agents, terminals, and file operations",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "nexus-core": "./dist/cli.js"
+    "condrix": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -27,7 +27,7 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.81",
     "@anthropic-ai/sdk": "^0.80.0",
-    "@nexus-core/protocol": "*",
+    "@condrix/protocol": "*",
     "better-sqlite3": "^11.0.0",
     "chokidar": "^4.0.0",
     "node-pty": "^1.0.0",

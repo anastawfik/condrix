@@ -8,8 +8,8 @@
  */
 import { WebSocket } from 'ws';
 import { randomBytes, createHmac } from 'node:crypto';
-import { generateMessageId } from '@nexus-core/protocol';
-import type { MessageEnvelope } from '@nexus-core/protocol';
+import { generateMessageId } from '@condrix/protocol';
+import type { MessageEnvelope } from '@condrix/protocol';
 import type { MaestroDatabase, CoreRow } from './database.js';
 
 const HEARTBEAT_INTERVAL = 30_000;

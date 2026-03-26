@@ -3,8 +3,8 @@
  * Client requests with targetCoreId get forwarded to the right Core.
  * Core events get forwarded to subscribed clients with sourceCoreId.
  */
-import type { MessageEnvelope } from '@nexus-core/protocol';
-import { generateMessageId, generateId } from '@nexus-core/protocol';
+import type { MessageEnvelope } from '@condrix/protocol';
+import { generateMessageId, generateId } from '@condrix/protocol';
 import type { MaestroDatabase } from './database.js';
 import type { CoreConnectionManager } from './core-connection-manager.js';
 import type { ClientConnectionManager } from './client-connection-manager.js';

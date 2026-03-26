@@ -1,12 +1,12 @@
 ---
 layout: home
-title: NexusCore
+title: Condrix
 ---
 
-# NexusCore
+# Condrix
 
 Distributed AI Agent Orchestration Platform.
 
 ## Quick Links
 
-- [Architecture v1.0](./architecture/NexusCore-Architecture-v1.0.md)
+- [Architecture v1.0](./architecture/Condrix-Architecture-v1.0.md)

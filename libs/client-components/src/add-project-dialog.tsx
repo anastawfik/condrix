@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FolderOpen, Globe, Container } from 'lucide-react';
-import { workspaceStore } from '@nexus-core/client-shared';
+import { workspaceStore } from '@condrix/client-shared';
 import { Dialog } from './dialog.js';
 import { Button } from './button.js';
 import { Input } from './input.js';

@@ -4,8 +4,8 @@
  * AI config, and message relay.
  */
 import { createStore } from 'zustand/vanilla';
-import type { MessageEnvelope } from '@nexus-core/protocol';
-import { generateMessageId } from '@nexus-core/protocol';
+import type { MessageEnvelope } from '@condrix/protocol';
+import { generateMessageId } from '@condrix/protocol';
 
 export type MaestroConnectionState = 'disconnected' | 'connecting' | 'connected';
 
@@ -67,7 +67,7 @@ export interface MaestroStore {
   subscribe: (pattern: string, listener: (event: MessageEnvelope) => void) => () => void;
 }
 
-const STORAGE_KEY = 'nexus-maestro-session';
+const STORAGE_KEY = 'condrix-maestro-session';
 const REQUEST_TIMEOUT = 30_000;
 
 export const createMaestroStore = () =>

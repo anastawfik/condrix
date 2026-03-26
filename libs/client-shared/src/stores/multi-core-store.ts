@@ -3,9 +3,9 @@
  * Manages simultaneous WebSocket connections to multiple Core instances.
  */
 import { createStore } from 'zustand/vanilla';
-import type { CoreInfo } from '@nexus-core/protocol';
+import type { CoreInfo } from '@condrix/protocol';
 
-import type { MessageEnvelope } from '@nexus-core/protocol';
+import type { MessageEnvelope } from '@condrix/protocol';
 import { createConnectionStore, type ConnectionStore, type ConnectionState } from './connection-store.js';
 import { coreRegistryStore, type CoreEntry } from './core-registry-store.js';
 import { maestroStore } from './maestro-store.js';

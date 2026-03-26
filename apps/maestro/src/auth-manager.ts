@@ -2,7 +2,7 @@
  * User authentication, session management, and TOTP for Maestro.
  */
 import { randomBytes, scryptSync, timingSafeEqual, createHmac } from 'node:crypto';
-import { generateId } from '@nexus-core/protocol';
+import { generateId } from '@condrix/protocol';
 import type { MaestroDatabase, UserRow } from './database.js';
 
 const SESSION_EXPIRY_DAYS = 7;
@@ -132,7 +132,7 @@ export class AuthManager {
     // Store secret but don't enable yet
     this.db.updateUserTotp(userId, secret, false);
 
-    const otpauthUri = `otpauth://totp/NexusCore:${user.username}?secret=${this.hexToBase32(secret)}&issuer=NexusCore&algorithm=SHA1&digits=6&period=30`;
+    const otpauthUri = `otpauth://totp/Condrix:${user.username}?secret=${this.hexToBase32(secret)}&issuer=Condrix&algorithm=SHA1&digits=6&period=30`;
     return { secret: this.hexToBase32(secret), otpauthUri };
   }
 

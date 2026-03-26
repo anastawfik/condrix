@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useStore } from 'zustand';
 import { ChevronDown, ChevronRight, FolderOpen, Plus } from 'lucide-react';
-import { workspaceStore } from '@nexus-core/client-shared';
-import type { ProjectInfo, WorkspaceInfo } from '@nexus-core/protocol';
+import { workspaceStore } from '@condrix/client-shared';
+import type { ProjectInfo, WorkspaceInfo } from '@condrix/protocol';
 import { cn } from './lib/utils.js';
 import { Button } from './button.js';
 import { Input } from './input.js';

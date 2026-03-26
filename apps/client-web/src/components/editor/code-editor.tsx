@@ -1,7 +1,7 @@
 import { useCallback, useRef, useEffect } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import { useStore } from 'zustand';
-import { workspaceStore, useFileContent } from '@nexus-core/client-shared';
+import { workspaceStore, useFileContent } from '@condrix/client-shared';
 
 export function CodeEditor() {
   const workspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);

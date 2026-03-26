@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useStore } from 'zustand';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { Layers } from 'lucide-react';
-import { workspaceStore, multiCoreStore } from '@nexus-core/client-shared';
+import { workspaceStore, multiCoreStore } from '@condrix/client-shared';
 import { CoreTreeSidebar } from './core-tree-sidebar.js';
 import { EmptyState } from './empty-state.js';
 

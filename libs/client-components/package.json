@@ -1,8 +1,8 @@
 {
-  "name": "@nexus-core/client-components",
+  "name": "@condrix/client-components",
   "version": "0.1.0",
   "private": true,
-  "description": "Shared UI components and design system for NexusCore clients",
+  "description": "Shared UI components and design system for Condrix clients",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,8 +21,8 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
-    "@nexus-core/client-shared": "*",
-    "@nexus-core/protocol": "*",
+    "@condrix/client-shared": "*",
+    "@condrix/protocol": "*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

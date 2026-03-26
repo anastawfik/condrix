@@ -1,7 +1,7 @@
 /**
  * Manages Claude AI auth at the Maestro level and pushes config to connected Cores.
  */
-import { generateMessageId } from '@nexus-core/protocol';
+import { generateMessageId } from '@condrix/protocol';
 import type { MaestroDatabase } from './database.js';
 import type { CoreConnectionManager } from './core-connection-manager.js';
 

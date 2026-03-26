@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { maestroStore } from '@nexus-core/client-shared';
+import { maestroStore } from '@condrix/client-shared';
 import { cn } from './lib/utils.js';
 import { Button } from './button.js';
 
@@ -17,7 +17,7 @@ export interface MaestroLoginDialogProps {
 export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLoginDialogProps) {
   const [url, setUrl] = useState(() => {
     try {
-      const saved = localStorage.getItem('nexus-maestro-url');
+      const saved = localStorage.getItem('condrix-maestro-url');
       return saved ?? (import.meta.env.VITE_DEFAULT_MAESTRO_URL as string | undefined) ?? '';
     } catch {
       return '';
@@ -43,7 +43,7 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
 
     try {
       // Save URL for next time
-      try { localStorage.setItem('nexus-maestro-url', url.trim()); } catch { /* ignore */ }
+      try { localStorage.setItem('condrix-maestro-url', url.trim()); } catch { /* ignore */ }
 
       await maestroStore.getState().login(
         url.trim(),
@@ -93,7 +93,7 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
       >
         {/* Header */}
         <div className="px-6 pt-5 pb-3">
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Sign In to NexusCore</h2>
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Sign In to Condrix</h2>
           <p className="text-[10px] text-[var(--text-muted)] mt-1">
             Connect to Maestro for centralized Core management.
           </p>

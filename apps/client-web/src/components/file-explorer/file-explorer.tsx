@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useStore } from 'zustand';
 import { Search, RefreshCw } from 'lucide-react';
-import { workspaceStore, fileStore, useFileTree, useFileContent } from '@nexus-core/client-shared';
+import { workspaceStore, fileStore, useFileTree, useFileContent } from '@condrix/client-shared';
 import { TreeNode } from './tree-node.js';
 
 export function FileExplorer() {

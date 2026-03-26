@@ -1,7 +1,7 @@
 /**
- * @nexus-core/client-desktop
+ * @condrix/client-desktop
  *
- * Tauri 2.0 thin shell that loads the NexusCore web client.
+ * Tauri 2.0 thin shell that loads the Condrix web client.
  * In dev mode, loads http://localhost:5173 (the Vite dev server).
  * In production, bundles the built web client assets.
  *

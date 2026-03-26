@@ -1,7 +1,7 @@
 /**
- * @nexus-core/protocol
+ * @condrix/protocol
  *
- * Shared message types, schemas, and protocol definitions for NexusCore.
+ * Shared message types, schemas, and protocol definitions for Condrix.
  * All communication between Cores, Clients, and Maestro uses these types.
  */
 
@@ -19,7 +19,7 @@ export * from './helpers/index.js';
 
 // ─── Backwards-Compatible Inferred Types ────────────────────────────────────
 // These preserve the original type names from the flat index.ts so that all
-// existing `import type { ... } from '@nexus-core/protocol'` statements
+// existing `import type { ... } from '@condrix/protocol'` statements
 // continue to work without changes.
 
 import type { z } from 'zod';

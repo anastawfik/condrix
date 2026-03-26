@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { initChatSync, initTerminalSync, initWorkspaceSync } from '@nexus-core/client-shared';
+import { initChatSync, initTerminalSync, initWorkspaceSync } from '@condrix/client-shared';
 import { App } from './App.js';
 import './styles/global.css';
 

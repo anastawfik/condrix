@@ -1,7 +1,7 @@
 /**
- * @nexus-core/maestro
+ * @condrix/maestro
  *
- * NexusCore orchestration layer.
+ * Condrix orchestration layer.
  * Central hub for user auth, Core registration, AI config distribution,
  * message relay, and cross-core coordination.
  */

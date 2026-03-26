@@ -1,4 +1,4 @@
-import type { CoreInfo, WorkspaceInfo } from '@nexus-core/protocol';
+import type { CoreInfo, WorkspaceInfo } from '@condrix/protocol';
 import type { MaestroDatabase } from './database.js';
 
 /**

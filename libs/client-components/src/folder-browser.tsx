@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Folder, File, HardDrive, ChevronRight, Loader2 } from 'lucide-react';
-import { multiCoreStore } from '@nexus-core/client-shared';
-import type { FileEntry } from '@nexus-core/protocol';
+import { multiCoreStore } from '@condrix/client-shared';
+import type { FileEntry } from '@condrix/protocol';
 import { Dialog } from './dialog.js';
 import { Button } from './button.js';
 import { Input } from './input.js';

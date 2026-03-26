@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import type { OpenFile } from '@nexus-core/client-shared';
+import type { OpenFile } from '@condrix/client-shared';
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
 } from '@/components/ui/context-menu';

@@ -41,10 +41,10 @@ export function App() {
       padding: '2rem',
     }}>
       <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-        NexusCore
+        Condrix
       </h1>
       <p style={{ fontSize: '0.8rem', color: '#6c7086', marginBottom: '2rem', textAlign: 'center' }}>
-        Enter the URL of a running NexusCore web client to connect.
+        Enter the URL of a running Condrix web client to connect.
       </p>
 
       <div style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

@@ -4,7 +4,7 @@ import { View, Text, StyleSheet } from 'react-native';
 export function App() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>NexusCore Mobile</Text>
+      <Text style={styles.title}>Condrix Mobile</Text>
       <Text>Under Construction</Text>
     </View>
   );

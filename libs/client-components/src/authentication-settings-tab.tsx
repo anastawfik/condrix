@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { maestroStore } from '@nexus-core/client-shared';
-import type { MaestroConnectionState } from '@nexus-core/client-shared';
+import { maestroStore } from '@condrix/client-shared';
+import type { MaestroConnectionState } from '@condrix/client-shared';
 import { cn } from './lib/utils.js';
 import { Button } from './button.js';
 

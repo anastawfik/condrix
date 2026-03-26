@@ -153,7 +153,7 @@ export class ConversationEngine {
       const summary = this.stateStore.getSummary();
       const cores = this.stateStore.getCores();
       const systemPrompt = [
-        'You are Maestro, the orchestration assistant for NexusCore.',
+        'You are Maestro, the orchestration assistant for Condrix.',
         'You help developers manage their AI agent workspaces and Cores.',
         `Current state: ${summary.cores.online}/${summary.cores.total} cores online, ` +
         `${summary.workspaces.active} active workspaces, ${summary.workspaces.waiting} waiting.`,

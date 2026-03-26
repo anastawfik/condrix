@@ -1,8 +1,8 @@
 {
-  "name": "@nexus-core/skills",
+  "name": "@condrix/skills",
   "version": "0.1.0",
   "private": true,
-  "description": "Built-in skill definitions for NexusCore agents — language, framework, infrastructure, and analysis skills",
+  "description": "Built-in skill definitions for Condrix agents — language, framework, infrastructure, and analysis skills",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,7 +20,7 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
-    "@nexus-core/protocol": "*"
+    "@condrix/protocol": "*"
   },
   "devDependencies": {
     "vitest": "^3.0.0"

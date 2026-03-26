@@ -1,8 +1,8 @@
 {
-  "name": "@nexus-core/docs",
+  "name": "@condrix/docs",
   "version": "0.1.0",
   "private": true,
-  "description": "NexusCore documentation site",
+  "description": "Condrix documentation site",
   "type": "module",
   "scripts": {
     "dev": "vitepress dev",

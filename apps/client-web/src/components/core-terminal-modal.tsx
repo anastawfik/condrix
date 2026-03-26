@@ -3,8 +3,8 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { MessageEnvelope } from '@nexus-core/protocol';
-import { multiCoreStore } from '@nexus-core/client-shared';
+import type { MessageEnvelope } from '@condrix/protocol';
+import { multiCoreStore } from '@condrix/client-shared';
 import { TerminalTab } from './terminal/terminal-tab.js';
 
 interface CoreTerminalModalProps {

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useStore } from 'zustand';
 import { ChevronDown, ChevronRight, FolderOpen, Plus, Server, Layers, Trash2, RotateCw } from 'lucide-react';
-import { multiCoreStore, workspaceStore, coreRegistryStore, maestroStore } from '@nexus-core/client-shared';
-import type { MaestroConnectionState } from '@nexus-core/client-shared';
-import type { ProjectInfo, WorkspaceInfo } from '@nexus-core/protocol';
+import { multiCoreStore, workspaceStore, coreRegistryStore, maestroStore } from '@condrix/client-shared';
+import type { MaestroConnectionState } from '@condrix/client-shared';
+import type { ProjectInfo, WorkspaceInfo } from '@condrix/protocol';
 import { cn } from './lib/utils.js';
 import { Button } from './button.js';
 import { Input } from './input.js';

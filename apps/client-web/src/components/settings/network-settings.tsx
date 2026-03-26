@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSettings, multiCoreStore, workspaceStore } from '@nexus-core/client-shared';
+import { useSettings, multiCoreStore, workspaceStore } from '@condrix/client-shared';
 
 type TunnelMode = 'quick' | 'named';
 
@@ -284,7 +284,7 @@ export function NetworkSettings() {
           )}
           <p className="text-xs text-[var(--text-muted)]">
             Remote clients can connect using this URL.
-            They will need an auth token — generate one with <code className="text-[var(--accent-orange)]">nexus-core --generate-token</code>
+            They will need an auth token — generate one with <code className="text-[var(--accent-orange)]">condrix --generate-token</code>
           </p>
         </div>
       )}

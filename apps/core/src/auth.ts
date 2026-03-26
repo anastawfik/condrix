@@ -5,7 +5,7 @@
  */
 import { randomBytes, createHmac } from 'node:crypto';
 import type Database from 'better-sqlite3';
-import type { AuthScope } from '@nexus-core/protocol';
+import type { AuthScope } from '@condrix/protocol';
 
 const ALL_SCOPES: AuthScope[] = [
   'read:files', 'write:files', 'exec:terminal',
@@ -105,7 +105,7 @@ export class AuthManager {
       .run(secret, tokenName);
 
     const base32Secret = this.hexToBase32(secret);
-    const otpauthUri = `otpauth://totp/NexusCore:${tokenName}?secret=${base32Secret}&issuer=NexusCore&algorithm=SHA1&digits=6&period=30`;
+    const otpauthUri = `otpauth://totp/Condrix:${tokenName}?secret=${base32Secret}&issuer=Condrix&algorithm=SHA1&digits=6&period=30`;
 
     return { secret: base32Secret, otpauthUri };
   }

@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# NexusCore — Multi-stage Dockerfile
+# Condrix — Multi-stage Dockerfile
 # Targets: base, deps, build, core, maestro, web-build, web
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -75,7 +75,7 @@ FROM deps AS web-build
 ARG VITE_DEFAULT_MAESTRO_URL=wss://maestro.yourdomain.com
 ENV VITE_DEFAULT_MAESTRO_URL=${VITE_DEFAULT_MAESTRO_URL}
 COPY . .
-RUN npx nx run @nexus-core/client-web:build
+RUN npx nx run @condrix/client-web:build
 
 # ── Stage: web ───────────────────────────────────────────────────────────────
 # Serve static web assets via Nginx

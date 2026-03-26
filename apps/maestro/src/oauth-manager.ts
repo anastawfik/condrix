@@ -103,7 +103,7 @@ export class OAuthManager {
     const state = randomBytes(16).toString('hex');
 
     // Use a fixed port (Maestro port + 1) so Docker can expose it
-    const callbackPort = (parseInt(process.env.NEXUS_MAESTRO_PORT ?? '9200', 10)) + 1;
+    const callbackPort = (parseInt(process.env.CONDRIX_MAESTRO_PORT ?? '9200', 10)) + 1;
     const { server, port } = await this.startCallbackServer(callbackPort);
     this.loginServer = server;
 
@@ -272,7 +272,7 @@ export class OAuthManager {
         res.end('Not found');
       });
 
-      const bindHost = process.env.NEXUS_MAESTRO_HOST ?? '0.0.0.0';
+      const bindHost = process.env.CONDRIX_MAESTRO_HOST ?? '0.0.0.0';
       server.listen(fixedPort, bindHost, () => {
         console.log(`[Maestro OAuth] Callback server listening on ${bindHost}:${fixedPort}`);
         resolve({ server, port: fixedPort });

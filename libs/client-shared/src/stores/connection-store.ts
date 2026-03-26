@@ -3,8 +3,8 @@
  * Handles connect/disconnect, auth handshake, reconnection, request/response correlation.
  */
 import { createStore } from 'zustand/vanilla';
-import type { CoreInfo, AuthScope, MessageEnvelope } from '@nexus-core/protocol';
-import { generateMessageId } from '@nexus-core/protocol';
+import type { CoreInfo, AuthScope, MessageEnvelope } from '@condrix/protocol';
+import { generateMessageId } from '@condrix/protocol';
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting';
 

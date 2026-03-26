@@ -1,5 +1,5 @@
 import { useStore } from 'zustand';
-import { workspaceStore, useWorkspace } from '@nexus-core/client-shared';
+import { workspaceStore, useWorkspace } from '@condrix/client-shared';
 import { MessageList } from './message-list.js';
 import { ChatInput } from './chat-input.js';
 import { ChatHeader } from './chat-header.js';

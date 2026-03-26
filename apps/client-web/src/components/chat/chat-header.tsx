@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useStore } from 'zustand';
 import { MessageSquarePlus, Check, ChevronDown } from 'lucide-react';
-import { workspaceStore } from '@nexus-core/client-shared';
-import { useWorkspaceConfig } from '@nexus-core/client-shared';
+import { workspaceStore } from '@condrix/client-shared';
+import { useWorkspaceConfig } from '@condrix/client-shared';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';

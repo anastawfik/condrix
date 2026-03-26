@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { WebSocket } from 'ws';
 import { CoreRuntime } from '../runtime.js';
-import { createRequest } from '@nexus-core/protocol';
+import { createRequest } from '@condrix/protocol';
 
 function findFreePort(): number {
   // Use a random port in the ephemeral range

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Markdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import { User, Bot, AlertTriangle, ChevronRight, Brain } from 'lucide-react';
-import type { ChatMessage as ChatMessageType } from '@nexus-core/client-shared';
+import type { ChatMessage as ChatMessageType } from '@condrix/client-shared';
 import { ToolCallBlock } from './tool-call-block.js';
 
 interface ChatMessageProps {

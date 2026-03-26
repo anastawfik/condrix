@@ -8,7 +8,7 @@ import { useStore } from 'zustand';
 import { connectionStore, type ConnectionStore, type ConnectionConfig } from '../stores/connection-store.js';
 import { chatStore } from '../stores/chat-store.js';
 import { terminalStore } from '../stores/terminal-store.js';
-import type { MessageEnvelope } from '@nexus-core/protocol';
+import type { MessageEnvelope } from '@condrix/protocol';
 
 const CoreConnectionContext = createContext<typeof connectionStore | null>(null);
 

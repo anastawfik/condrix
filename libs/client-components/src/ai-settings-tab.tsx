@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   maestroStore, multiCoreStore,
-} from '@nexus-core/client-shared';
-import type { MaestroConnectionState } from '@nexus-core/client-shared';
+} from '@condrix/client-shared';
+import type { MaestroConnectionState } from '@condrix/client-shared';
 import { cn } from './lib/utils.js';
 import { AuthConfigSection } from './auth-config-section.js';
 
 const MASK_CHAR = '\u2022';
-const DIRECT_AUTH_KEY = 'nexus-direct-auth';
+const DIRECT_AUTH_KEY = 'condrix-direct-auth';
 
 /**
  * AI Settings Tab — unified Claude auth configuration.

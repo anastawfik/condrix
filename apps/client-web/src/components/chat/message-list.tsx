@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { MessageSquare } from 'lucide-react';
-import type { ChatMessage as ChatMessageType } from '@nexus-core/client-shared';
+import type { ChatMessage as ChatMessageType } from '@condrix/client-shared';
 import { ChatMessage } from './chat-message.js';
 
 interface MessageListProps {

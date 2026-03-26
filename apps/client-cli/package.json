@@ -1,13 +1,13 @@
 {
-  "name": "@nexus-core/client-cli",
+  "name": "@condrix/client-cli",
   "version": "0.1.0",
   "private": true,
-  "description": "NexusCore CLI client — rich terminal UI with chat, file tree, terminals, and git",
+  "description": "Condrix CLI client — rich terminal UI with chat, file tree, terminals, and git",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "nexus": "./dist/cli.js"
+    "condrix": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -25,7 +25,7 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
-    "@nexus-core/protocol": "*",
+    "@condrix/protocol": "*",
     "ink": "^5.1.0",
     "react": "^19.0.0",
     "ws": "^8.18.0",

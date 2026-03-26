@@ -11,7 +11,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import type { AgentMessage } from '@nexus-core/protocol';
+import type { AgentMessage } from '@condrix/protocol';
 
 import type { AgentProviderAdapter, StreamCallback, ToolExecutorFn } from '../managers/agent-manager.js';
 import { agentTools } from '../tools/tool-definitions.js';

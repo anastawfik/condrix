@@ -1,12 +1,12 @@
 /**
- * @nexus-core/mcp-configs
+ * @condrix/mcp-configs
  *
  * Pre-configured MCP (Model Context Protocol) server definitions.
  * MCP servers extend agent capabilities by providing tools, resources,
  * and prompts through a standardized interface.
  */
 
-import type { McpServerConfig } from '@nexus-core/protocol';
+import type { McpServerConfig } from '@condrix/protocol';
 
 export const builtinMcpServers: McpServerConfig[] = [
   {

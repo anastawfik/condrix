@@ -57,7 +57,7 @@ function detectLanguage(path: string): string {
   return map[ext] ?? 'plaintext';
 }
 
-const UI_STATE_KEY = 'nexus-ui-state';
+const UI_STATE_KEY = 'condrix-ui-state';
 let saveDebounce: ReturnType<typeof setTimeout> | null = null;
 
 function saveFileUIState(openFiles: OpenFile[], activeFilePath: string | null): void {

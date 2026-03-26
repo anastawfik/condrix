@@ -1,8 +1,8 @@
 /**
- * @nexus-core/client-shared
+ * @condrix/client-shared
  *
  * Shared React components, hooks, stores, and utilities used across
- * Desktop, Web, and Mobile NexusCore clients.
+ * Desktop, Web, and Mobile Condrix clients.
  */
 
 // Stores (vanilla Zustand — usable outside React)

@@ -1,5 +1,5 @@
 /**
- * Message envelope schemas — the wire format for all NexusCore communication.
+ * Message envelope schemas — the wire format for all Condrix communication.
  */
 import { z } from 'zod';
 

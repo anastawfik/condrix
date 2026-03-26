@@ -2,8 +2,8 @@
  * Routes namespace:action pairs to handler functions.
  * Parses incoming WebSocket messages and dispatches to registered handlers.
  */
-import { safeParseMessage, isRequest } from '@nexus-core/protocol';
-import type { MessageEnvelope } from '@nexus-core/protocol';
+import { safeParseMessage, isRequest } from '@condrix/protocol';
+import type { MessageEnvelope } from '@condrix/protocol';
 
 export type RouteHandler = (
   payload: unknown,

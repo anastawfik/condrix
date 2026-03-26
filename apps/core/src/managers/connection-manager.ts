@@ -1,8 +1,8 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { EventEmitter } from 'node:events';
-import { generateId } from '@nexus-core/protocol';
-import type { AuthScope } from '@nexus-core/protocol';
+import { generateId } from '@condrix/protocol';
+import type { AuthScope } from '@condrix/protocol';
 
 import type { MessageRouter } from '../message-router.js';
 import type { AuthManager } from '../auth.js';

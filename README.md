@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">NexusCore</h1>
+  <h1 align="center">Condrix</h1>
   <p align="center"><strong>Distributed AI Agent Orchestration Platform</strong></p>
   <p align="center">
     Orchestrate AI coding agents across multiple machines. Start a session on your desktop, check progress from your phone, continue from a laptop — all in real-time.
@@ -20,7 +20,7 @@
 
 > **Early Development Notice**
 >
-> NexusCore is under **active, heavy development**. The architecture, APIs, database schemas, and configuration formats may change without notice between commits. This is a pre-release project — expect breaking changes, incomplete features, and rough edges.
+> Condrix is under **active, heavy development**. The architecture, APIs, database schemas, and configuration formats may change without notice between commits. This is a pre-release project — expect breaking changes, incomplete features, and rough edges.
 >
 > **What works today:**
 > - Core daemon with full workspace, terminal, file, and git management
@@ -53,7 +53,7 @@
 
 ## Architecture
 
-NexusCore is built on three layers:
+Condrix is built on three layers:
 
 | Layer | Role | Technology |
 |-------|------|-----------|
@@ -129,7 +129,7 @@ All services run in Docker Compose with persistent volumes and optional Cloudfla
             ┌─────────▼──────────┐
             │   Public Internet  │
             │  maestro.domain.com│
-            │  nexus.domain.com  │
+            │  condrix.domain.com  │
             └────────────────────┘
 ```
 
@@ -139,7 +139,7 @@ All services run in Docker Compose with persistent volumes and optional Cloudfla
 
 ## Authentication
 
-NexusCore supports two authentication methods for AI access:
+Condrix supports two authentication methods for AI access:
 
 ### OAuth (Claude Plan — Recommended)
 
@@ -150,7 +150,7 @@ Uses your Claude Pro/Max subscription via the Claude Code CLI subprocess. **Each
 2. Click the **Sign In** icon (🔑) next to a connected Core
 3. Click **Start Authentication** → browser opens Claude's auth page
 4. Sign in and copy the auth code shown on the success page
-5. Paste the code back in the NexusCore UI → click **Submit**
+5. Paste the code back in the Condrix UI → click **Submit**
 6. Done — the Core can now use all Claude models (Haiku, Sonnet, Opus)
 
 **Token lifecycle:**
@@ -162,7 +162,7 @@ Uses your Claude Pro/Max subscription via the Claude Code CLI subprocess. **Each
 
 **How OAuth calls work:**
 - OAuth tokens are scoped to Claude Code — they cannot be used directly with the Anthropic API for premium models (Sonnet/Opus)
-- NexusCore spawns a `claude` CLI subprocess (from the installed Claude Code package) which handles the API call internally
+- Condrix spawns a `claude` CLI subprocess (from the installed Claude Code package) which handles the API call internally
 - Streaming responses are parsed from the subprocess's NDJSON output
 
 **Requirements:**
@@ -207,7 +207,7 @@ claude auth status --text  # Check current auth state
 
 ```bash
 # Clone and install
-git clone https://github.com/anastawfik/nexus-core.git && cd nexus-core
+git clone https://github.com/anastawfik/condrix.git && cd condrix
 npm install && npm run build
 
 # Start Core + Web Client
@@ -220,7 +220,7 @@ npm run dev:web
 ### Option 2: Docker Compose (Recommended for Deployment)
 
 ```bash
-git clone https://github.com/anastawfik/nexus-core.git && cd nexus-core
+git clone https://github.com/anastawfik/condrix.git && cd condrix
 
 # Configure environment
 cp .env.example .env
@@ -265,7 +265,7 @@ These survive `docker compose down`. Only `docker compose down -v` removes them.
 
 ### Cloudflare Tunnel (Persistent Public URLs)
 
-Expose NexusCore to the internet with zero port forwarding:
+Expose Condrix to the internet with zero port forwarding:
 
 **1. Create a tunnel** in [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → Networks → Tunnels
 
@@ -274,7 +274,7 @@ Expose NexusCore to the internet with zero port forwarding:
 | Public Hostname | Service | Type |
 |-----------------|---------|------|
 | `maestro.yourdomain.com` | `http://maestro:9200` | HTTP |
-| `nexus.yourdomain.com` | `http://web:80` | HTTP |
+| `condrix.yourdomain.com` | `http://web:80` | HTTP |
 
 **3. Configure `.env`**:
 
@@ -292,8 +292,8 @@ docker compose --profile tunnel up -d
 **Remote Cores** on other machines connect to the tunneled Maestro without Docker:
 
 ```bash
-NEXUS_MAESTRO_URL="wss://maestro.yourdomain.com" \
-NEXUS_MAESTRO_TOKEN="<token-from-maestro>" \
+CONDRIX_MAESTRO_URL="wss://maestro.yourdomain.com" \
+CONDRIX_MAESTRO_TOKEN="<token-from-maestro>" \
 npm run dev:core
 ```
 
@@ -340,7 +340,7 @@ cd apps/client-desktop && npm run dev
 ### Monorepo Structure
 
 ```
-nexus-core/
+condrix/
 ├── apps/
 │   ├── core/                # Core daemon (Node.js, WebSocket, SQLite)
 │   ├── maestro/             # Maestro orchestration service
@@ -375,7 +375,7 @@ nexus-core/
 
 ### Workspaces
 
-An isolated environment within a project — its own agent session, terminals, git branch, and file watchers. Each workspace is cloned to `~/.nexuscore/workspaces/<id>/`. Workspaces follow a state machine: `CREATING → IDLE → ACTIVE → WAITING → SUSPENDED → DESTROYED`.
+An isolated environment within a project — its own agent session, terminals, git branch, and file watchers. Each workspace is cloned to `~/.condrix/workspaces/<id>/`. Workspaces follow a state machine: `CREATING → IDLE → ACTIVE → WAITING → SUSPENDED → DESTROYED`.
 
 ### Real-time Updates
 
@@ -443,31 +443,31 @@ Maestro integrates with WhatsApp and Telegram for proactive notifications when a
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NEXUS_CORE_HOST` | `127.0.0.1` | Bind host |
-| `NEXUS_CORE_PORT` | `9100` | WebSocket port |
-| `NEXUS_CORE_NAME` | `NexusCore` | Display name |
-| `NEXUS_CORE_ID` | `core-default` | Core identifier |
-| `NEXUS_CORE_DB_PATH` | `~/.nexuscore/core.db` | Database file path |
-| `NEXUS_CORE_DEV_MODE` | `true` | `false` for production |
-| `NEXUS_CORE_CONTAINER` | — | Set `true` when running in Docker |
-| `NEXUS_CORE_EXTERNAL_URL` | — | Public URL for OAuth callback (tunnel URL) |
+| `CONDRIX_CORE_HOST` | `127.0.0.1` | Bind host |
+| `CONDRIX_CORE_PORT` | `9100` | WebSocket port |
+| `CONDRIX_CORE_NAME` | `Condrix` | Display name |
+| `CONDRIX_CORE_ID` | `core-default` | Core identifier |
+| `CONDRIX_CORE_DB_PATH` | `~/.condrix/core.db` | Database file path |
+| `CONDRIX_CORE_DEV_MODE` | `true` | `false` for production |
+| `CONDRIX_CORE_CONTAINER` | — | Set `true` when running in Docker |
+| `CONDRIX_CORE_EXTERNAL_URL` | — | Public URL for OAuth callback (tunnel URL) |
 | `ANTHROPIC_API_KEY` | — | Anthropic API key (alternative to OAuth) |
 | `GITHUB_TOKEN` | — | GitHub PAT for cloning private repos |
-| `NEXUS_CLAUDE_MODEL` | `claude-sonnet-4-5` | Default Claude model |
-| `NEXUS_MAESTRO_URL` | — | Maestro WebSocket URL (for Core→Maestro connection) |
-| `NEXUS_MAESTRO_TOKEN` | — | Access token for Maestro auth |
-| `NEXUS_HOST_MOUNTS` | — | Host folder mounts for containerized Cores (e.g., `Projects=/host/projects`) |
+| `CONDRIX_CLAUDE_MODEL` | `claude-sonnet-4-5` | Default Claude model |
+| `CONDRIX_MAESTRO_URL` | — | Maestro WebSocket URL (for Core→Maestro connection) |
+| `CONDRIX_MAESTRO_TOKEN` | — | Access token for Maestro auth |
+| `CONDRIX_HOST_MOUNTS` | — | Host folder mounts for containerized Cores (e.g., `Projects=/host/projects`) |
 
 ### Maestro
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NEXUS_MAESTRO_HOST` | `0.0.0.0` | Bind host |
-| `NEXUS_MAESTRO_PORT` | `9200` | WebSocket port |
-| `NEXUS_MAESTRO_DB` | `~/.nexuscore/maestro.db` | Database file path |
-| `NEXUS_MAESTRO_TUNNEL` | `false` | Enable built-in Cloudflare Tunnel |
-| `NEXUS_MAESTRO_TUNNEL_MODE` | `quick` | `quick` or `named` |
-| `NEXUS_MAESTRO_TUNNEL_TOKEN` | — | Cloudflare tunnel token |
+| `CONDRIX_MAESTRO_HOST` | `0.0.0.0` | Bind host |
+| `CONDRIX_MAESTRO_PORT` | `9200` | WebSocket port |
+| `CONDRIX_MAESTRO_DB` | `~/.condrix/maestro.db` | Database file path |
+| `CONDRIX_MAESTRO_TUNNEL` | `false` | Enable built-in Cloudflare Tunnel |
+| `CONDRIX_MAESTRO_TUNNEL_MODE` | `quick` | `quick` or `named` |
+| `CONDRIX_MAESTRO_TUNNEL_TOKEN` | — | Cloudflare tunnel token |
 
 ### Docker / Tunnel
 
@@ -480,7 +480,7 @@ Maestro integrates with WhatsApp and Telegram for proactive notifications when a
 
 ## Documentation
 
-Full architecture document: [`apps/docs/architecture/NexusCore-Architecture-v1.0.md`](apps/docs/architecture/NexusCore-Architecture-v1.0.md)
+Full architecture document: [`apps/docs/architecture/Condrix-Architecture-v1.0.md`](apps/docs/architecture/Condrix-Architecture-v1.0.md)
 
 ## License
 

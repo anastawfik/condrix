@@ -1,7 +1,7 @@
 /**
- * @nexus-core/core
+ * @condrix/core
  *
- * NexusCore agent runtime daemon.
+ * Condrix agent runtime daemon.
  * Manages projects, workspaces, AI agents, terminals, and file operations.
  */
 

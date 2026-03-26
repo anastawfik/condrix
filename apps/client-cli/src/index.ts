@@ -1,9 +1,9 @@
 /**
- * @nexus-core/client-cli
+ * @condrix/client-cli
  *
- * Terminal-based NexusCore client using Ink (React for CLIs).
+ * Terminal-based Condrix client using Ink (React for CLIs).
  * Provides a rich TUI with chat, file tree, terminal management,
  * and git integration. Scriptable for CI/CD automation.
  */
 
-export { NexusCli } from './NexusCli.js';
+export { CondrixCli } from './CondrixCli.js';

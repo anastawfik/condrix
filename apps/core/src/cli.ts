@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 
 /**
- * NexusCore CLI entry point.
+ * Condrix CLI entry point.
  *
- * Usage: nexus-core [options]
+ * Usage: condrix [options]
  *
  * Options:
- *   --port <port>           WebSocket port (default: 9100, env: NEXUS_CORE_PORT)
- *   --host <host>           Bind host (default: 127.0.0.1, env: NEXUS_CORE_HOST)
- *   --name <name>           Display name (default: NexusCore, env: NEXUS_CORE_NAME)
+ *   --port <port>           WebSocket port (default: 9100, env: CONDRIX_CORE_PORT)
+ *   --host <host>           Bind host (default: 127.0.0.1, env: CONDRIX_CORE_HOST)
+ *   --name <name>           Display name (default: Condrix, env: CONDRIX_CORE_NAME)
  *   --api-key <key>         Anthropic API key (env: ANTHROPIC_API_KEY)
- *   --model <model>         Claude model ID (env: NEXUS_CLAUDE_MODEL)
- *   --max-tokens <n>        Max output tokens (env: NEXUS_CLAUDE_MAX_TOKENS)
- *   --tunnel                Enable quick tunnel on startup (env: NEXUS_TUNNEL_ENABLED=true)
- *   --tunnel-mode <mode>    Tunnel mode: quick or named (env: NEXUS_TUNNEL_MODE)
- *   --tunnel-token <token>  Cloudflare tunnel token (env: NEXUS_TUNNEL_TOKEN)
+ *   --model <model>         Claude model ID (env: CONDRIX_CLAUDE_MODEL)
+ *   --max-tokens <n>        Max output tokens (env: CONDRIX_CLAUDE_MAX_TOKENS)
+ *   --tunnel                Enable quick tunnel on startup (env: CONDRIX_TUNNEL_ENABLED=true)
+ *   --tunnel-mode <mode>    Tunnel mode: quick or named (env: CONDRIX_TUNNEL_MODE)
+ *   --tunnel-token <token>  Cloudflare tunnel token (env: CONDRIX_TUNNEL_TOKEN)
  *   --production            Disable dev mode (require auth tokens)
- *   --db-path <path>        Database file path (env: NEXUS_CORE_DB_PATH)
+ *   --db-path <path>        Database file path (env: CONDRIX_CORE_DB_PATH)
  *
  * Commands:
  *   --oauth-login           Authenticate via OAuth (prints URL for headless)
@@ -50,40 +50,40 @@ function hasFlag(name: string): boolean {
 }
 
 function initDbDir(): string {
-  const dbDir = join(homedir(), '.nexuscore');
+  const dbDir = join(homedir(), '.condrix');
   mkdirSync(dbDir, { recursive: true });
   return dbDir;
 }
 
 function getDbPath(): string {
   const dbDir = initDbDir();
-  return getArg('db-path') ?? process.env.NEXUS_CORE_DB_PATH ?? join(dbDir, 'core.db');
+  return getArg('db-path') ?? process.env.CONDRIX_CORE_DB_PATH ?? join(dbDir, 'core.db');
 }
 
 // ─── Help ───────────────────────────────────────────────────────────────────
 
 if (hasFlag('help') || hasFlag('h')) {
   console.log(`
-NexusCore — Distributed AI Agent Runtime
+Condrix — Distributed AI Agent Runtime
 
-Usage: nexus-core [options]
+Usage: condrix [options]
 
 Server Options:
-  --port <port>           WebSocket port (default: 9100, env: NEXUS_CORE_PORT)
-  --host <host>           Bind host (default: 127.0.0.1, env: NEXUS_CORE_HOST)
-  --name <name>           Display name (default: NexusCore, env: NEXUS_CORE_NAME)
+  --port <port>           WebSocket port (default: 9100, env: CONDRIX_CORE_PORT)
+  --host <host>           Bind host (default: 127.0.0.1, env: CONDRIX_CORE_HOST)
+  --name <name>           Display name (default: Condrix, env: CONDRIX_CORE_NAME)
   --production            Disable dev mode (require auth tokens)
-  --db-path <path>        Database file path (env: NEXUS_CORE_DB_PATH)
+  --db-path <path>        Database file path (env: CONDRIX_CORE_DB_PATH)
 
 AI Configuration:
   --api-key <key>         Anthropic API key (env: ANTHROPIC_API_KEY)
-  --model <model>         Claude model ID (env: NEXUS_CLAUDE_MODEL)
-  --max-tokens <n>        Max output tokens (env: NEXUS_CLAUDE_MAX_TOKENS)
+  --model <model>         Claude model ID (env: CONDRIX_CLAUDE_MODEL)
+  --max-tokens <n>        Max output tokens (env: CONDRIX_CLAUDE_MAX_TOKENS)
 
 Tunnel (Cloudflare):
-  --tunnel                Enable quick tunnel on startup (env: NEXUS_TUNNEL_ENABLED=true)
-  --tunnel-mode <mode>    Tunnel mode: quick or named (env: NEXUS_TUNNEL_MODE)
-  --tunnel-token <token>  Cloudflare tunnel token (env: NEXUS_TUNNEL_TOKEN)
+  --tunnel                Enable quick tunnel on startup (env: CONDRIX_TUNNEL_ENABLED=true)
+  --tunnel-mode <mode>    Tunnel mode: quick or named (env: CONDRIX_TUNNEL_MODE)
+  --tunnel-token <token>  Cloudflare tunnel token (env: CONDRIX_TUNNEL_TOKEN)
 
 Commands:
   --oauth-login           Authenticate with your Claude Plan (opens browser / prints URL)
@@ -92,25 +92,25 @@ Commands:
   --help                  Show this help message
 
 Examples:
-  nexus-core --api-key sk-ant-xxx                    # Start with API key
-  nexus-core --tunnel                                # Start with quick tunnel
-  nexus-core --api-key sk-ant-xxx --tunnel            # API key + tunnel
-  nexus-core --oauth-login                           # Authenticate via OAuth, then start
-  nexus-core --tunnel-token eyJxxx --production      # Named tunnel in production mode
+  condrix --api-key sk-ant-xxx                    # Start with API key
+  condrix --tunnel                                # Start with quick tunnel
+  condrix --api-key sk-ant-xxx --tunnel            # API key + tunnel
+  condrix --oauth-login                           # Authenticate via OAuth, then start
+  condrix --tunnel-token eyJxxx --production      # Named tunnel in production mode
 
 Environment Variables:
   ANTHROPIC_API_KEY        Anthropic API key
-  NEXUS_CORE_PORT          WebSocket port
-  NEXUS_CORE_HOST          Bind host
-  NEXUS_CORE_NAME          Display name
-  NEXUS_CORE_ID            Core identifier
-  NEXUS_CORE_DB_PATH       Database file path
-  NEXUS_CORE_DEV_MODE      Set to "false" for production
-  NEXUS_CLAUDE_MODEL       Default Claude model
-  NEXUS_CLAUDE_MAX_TOKENS  Max output tokens
-  NEXUS_TUNNEL_ENABLED     Set to "true" to auto-start tunnel
-  NEXUS_TUNNEL_MODE        Tunnel mode (quick or named)
-  NEXUS_TUNNEL_TOKEN       Cloudflare tunnel token
+  CONDRIX_CORE_PORT          WebSocket port
+  CONDRIX_CORE_HOST          Bind host
+  CONDRIX_CORE_NAME          Display name
+  CONDRIX_CORE_ID            Core identifier
+  CONDRIX_CORE_DB_PATH       Database file path
+  CONDRIX_CORE_DEV_MODE      Set to "false" for production
+  CONDRIX_CLAUDE_MODEL       Default Claude model
+  CONDRIX_CLAUDE_MAX_TOKENS  Max output tokens
+  CONDRIX_TUNNEL_ENABLED     Set to "true" to auto-start tunnel
+  CONDRIX_TUNNEL_MODE        Tunnel mode (quick or named)
+  CONDRIX_TUNNEL_TOKEN       Cloudflare tunnel token
 `);
   process.exit(0);
 }
@@ -164,7 +164,7 @@ if (hasFlag('setup-totp')) {
   console.log(`\nSecret (base32): ${result.secret}`);
   console.log(`\nOTP Auth URI:\n  ${result.otpauthUri}`);
   console.log(`\nScan this in your authenticator app, then run:`);
-  console.log(`  nexus-core --enable-totp ${tokenName} <6-digit-code>`);
+  console.log(`  condrix --enable-totp ${tokenName} <6-digit-code>`);
   db.close();
   process.exit(0);
 }
@@ -173,7 +173,7 @@ if (hasFlag('enable-totp')) {
   const tokenName = getArg('enable-totp');
   const code = process.argv[process.argv.indexOf('--enable-totp') + 2];
   if (!tokenName || !code) {
-    console.error('Usage: nexus-core --enable-totp <token-name> <6-digit-code>');
+    console.error('Usage: condrix --enable-totp <token-name> <6-digit-code>');
     process.exit(1);
   }
   const dbPath = getDbPath();
@@ -265,21 +265,21 @@ process.on('unhandledRejection', (reason) => {
 function startServer(): void {
   // Build config from CLI args + env vars
   const config: CoreConfig = {
-    coreId: getArg('core-id') ?? process.env.NEXUS_CORE_ID ?? 'core-default',
-    displayName: getArg('name') ?? process.env.NEXUS_CORE_NAME ?? 'NexusCore',
-    host: getArg('host') ?? process.env.NEXUS_CORE_HOST ?? '127.0.0.1',
-    port: Number(getArg('port') ?? process.env.NEXUS_CORE_PORT ?? 9100),
-    dbPath: getArg('db-path') ?? process.env.NEXUS_CORE_DB_PATH ?? undefined,
-    devMode: !hasFlag('production') && process.env.NEXUS_CORE_DEV_MODE !== 'false',
+    coreId: getArg('core-id') ?? process.env.CONDRIX_CORE_ID ?? 'core-default',
+    displayName: getArg('name') ?? process.env.CONDRIX_CORE_NAME ?? 'Condrix',
+    host: getArg('host') ?? process.env.CONDRIX_CORE_HOST ?? '127.0.0.1',
+    port: Number(getArg('port') ?? process.env.CONDRIX_CORE_PORT ?? 9100),
+    dbPath: getArg('db-path') ?? process.env.CONDRIX_CORE_DB_PATH ?? undefined,
+    devMode: !hasFlag('production') && process.env.CONDRIX_CORE_DEV_MODE !== 'false',
   };
 
   // Collect initial settings from CLI args and env vars
   const apiKey = getArg('api-key') ?? process.env.ANTHROPIC_API_KEY;
-  const model = getArg('model') ?? process.env.NEXUS_CLAUDE_MODEL;
-  const maxTokensStr = getArg('max-tokens') ?? process.env.NEXUS_CLAUDE_MAX_TOKENS;
-  const tunnelEnabled = hasFlag('tunnel') || process.env.NEXUS_TUNNEL_ENABLED === 'true';
-  const tunnelMode = (getArg('tunnel-mode') ?? process.env.NEXUS_TUNNEL_MODE) as 'quick' | 'named' | undefined;
-  const tunnelToken = getArg('tunnel-token') ?? process.env.NEXUS_TUNNEL_TOKEN;
+  const model = getArg('model') ?? process.env.CONDRIX_CLAUDE_MODEL;
+  const maxTokensStr = getArg('max-tokens') ?? process.env.CONDRIX_CLAUDE_MAX_TOKENS;
+  const tunnelEnabled = hasFlag('tunnel') || process.env.CONDRIX_TUNNEL_ENABLED === 'true';
+  const tunnelMode = (getArg('tunnel-mode') ?? process.env.CONDRIX_TUNNEL_MODE) as 'quick' | 'named' | undefined;
+  const tunnelToken = getArg('tunnel-token') ?? process.env.CONDRIX_TUNNEL_TOKEN;
 
   // Only include settings that were explicitly provided
   const initialSettings: CoreConfig['initialSettings'] = {};

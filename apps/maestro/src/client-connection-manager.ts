@@ -3,8 +3,8 @@
  * Clients authenticate with username/password or session token.
  */
 import type { WebSocket } from 'ws';
-import type { MessageEnvelope } from '@nexus-core/protocol';
-import { generateMessageId } from '@nexus-core/protocol';
+import type { MessageEnvelope } from '@condrix/protocol';
+import { generateMessageId } from '@condrix/protocol';
 import type { AuthManager, SessionInfo } from './auth-manager.js';
 
 export interface ConnectedClient {

@@ -1,16 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useStore } from 'zustand';
 import { ChevronDown, ChevronRight, FolderOpen, Plus, Server, Layers, Trash2, RotateCw, AlertCircle, Terminal } from 'lucide-react';
-import { multiCoreStore, workspaceStore, coreRegistryStore, maestroStore } from '@nexus-core/client-shared';
-import type { MaestroConnectionState } from '@nexus-core/client-shared';
-import type { ProjectInfo, WorkspaceInfo } from '@nexus-core/protocol';
+import { multiCoreStore, workspaceStore, coreRegistryStore, maestroStore } from '@condrix/client-shared';
+import type { MaestroConnectionState } from '@condrix/client-shared';
+import type { ProjectInfo, WorkspaceInfo } from '@condrix/protocol';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { AddProjectDialog } from '@nexus-core/client-components';
+import { AddProjectDialog } from '@condrix/client-components';
 
 const STATE_DOT_COLOR: Record<string, string> = {
   CREATING: 'bg-primary',

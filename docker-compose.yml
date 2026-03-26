@@ -7,7 +7,7 @@ services:
     volumes:
       - maestro-data:/data
     networks:
-      - nexus
+      - condrix
     restart: unless-stopped
 
   core:
@@ -16,11 +16,11 @@ services:
       target: core
     env_file: .env
     environment:
-      NEXUS_CORE_HOST: "0.0.0.0"
+      CONDRIX_CORE_HOST: "0.0.0.0"
     volumes:
-      - core-data:/root/.nexuscore
+      - core-data:/root/.condrix
     networks:
-      - nexus
+      - condrix
     restart: unless-stopped
 
   web:
@@ -32,7 +32,7 @@ services:
     ports:
       - "80:80"
     networks:
-      - nexus
+      - condrix
     restart: unless-stopped
 
   tunnel:
@@ -45,7 +45,7 @@ services:
       - core
       - web
     networks:
-      - nexus
+      - condrix
     restart: unless-stopped
     profiles:
       - tunnel
@@ -55,4 +55,4 @@ volumes:
   core-data:
 
 networks:
-  nexus:
+  condrix:

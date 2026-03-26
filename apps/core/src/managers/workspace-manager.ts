@@ -1,8 +1,8 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { mkdirSync, existsSync, cpSync } from 'node:fs';
-import type { WorkspaceInfo, WorkspaceState } from '@nexus-core/protocol';
-import { generateId } from '@nexus-core/protocol';
+import type { WorkspaceInfo, WorkspaceState } from '@condrix/protocol';
+import { generateId } from '@condrix/protocol';
 import { simpleGit } from 'simple-git';
 import type { EventEmitter } from 'node:events';
 
@@ -36,7 +36,7 @@ function slugify(name: string): string {
  * terminal pool, file watcher, and git tracker.
  *
  * Workspaces are cloned copies of the project repo, stored under
- * `~/.nexuscore/workspaces/<workspace-id>/`.
+ * `~/.condrix/workspaces/<workspace-id>/`.
  */
 export class WorkspaceManager {
   private projectManager: ProjectManager | null = null;
@@ -58,7 +58,7 @@ export class WorkspaceManager {
     agentProvider?: string,
   ): Promise<WorkspaceInfo> {
     const id = generateId('ws');
-    const branchName = branch ?? `nexus/${slugify(name)}`;
+    const branchName = branch ?? `condrix/${slugify(name)}`;
     this.db.insertWorkspace(id, projectId, name, 'CREATING', branchName, agentProvider);
 
     try {
@@ -95,7 +95,7 @@ export class WorkspaceManager {
       throw new Error(`Project ${projectId} not found`);
     }
 
-    const workDir = join(homedir(), '.nexuscore', 'workspaces', workspaceId);
+    const workDir = join(homedir(), '.condrix', 'workspaces', workspaceId);
     mkdirSync(workDir, { recursive: true });
 
     // Case 1: Remote URL

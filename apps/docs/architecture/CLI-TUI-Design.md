@@ -1,6 +1,6 @@
-# CLI TUI Design — NexusCore
+# CLI TUI Design — Condrix
 
-> Architecture-level design document for `@nexus-core/client-cli`, the terminal-based user interface.
+> Architecture-level design document for `@condrix/client-cli`, the terminal-based user interface.
 
 ## Motivation
 
@@ -12,7 +12,7 @@ tmux-like panel system with resizable, collapsible regions:
 
 ```
 +------------------------------------------------------------------+
-| [NexusCore] core-01 | ws: my-app/feature-auth | ACTIVE           | Status Bar
+| [Condrix] core-01 | ws: my-app/feature-auth | ACTIVE           | Status Bar
 +------------------------------------------------------------------+
 |                     |                                             |
 |  FILE TREE          |  MAIN PANEL (Chat / File Viewer / Git)     |
@@ -114,8 +114,8 @@ Cycle layouts with `Ctrl+L`. Each panel is independently collapsible.
 ## Component Architecture
 
 ```
-nexus (CLI binary)
-  └─ NexusCli (root Ink component)
+condrix (CLI binary)
+  └─ CondrixCli (root Ink component)
        ├─ CoreConnectionProvider (WebSocket + auth context)
        │    └─ WorkspaceProvider (active workspace context)
        │         └─ Layout
@@ -138,7 +138,7 @@ nexus (CLI binary)
 |---------|---------|
 | **Ink 5** | React renderer for terminals (flexbox layout engine) |
 | **React 19** | Component model, hooks, context |
-| **Commander** | CLI argument parsing (`nexus connect`, `nexus exec`) |
+| **Commander** | CLI argument parsing (`condrix connect`, `condrix exec`) |
 | **ink-text-input** | Text input components |
 | **cli-highlight** | Syntax highlighting for file viewer |
 | **cli-spinners** | Loading/streaming indicators |
@@ -149,41 +149,41 @@ nexus (CLI binary)
 
 ```bash
 # Connect to a Core and launch TUI
-nexus connect -u ws://host:9100 -t <token>
+condrix connect -u ws://host:9100 -t <token>
 
 # Connect with saved profile
-nexus connect --profile my-server
+condrix connect --profile my-server
 ```
 
 ### Scriptable (non-interactive, for CI/CD)
 
 ```bash
 # Run a command in a workspace
-nexus exec --url ws://host:9100 --token <token> --workspace ws_123 --command "npm test"
+condrix exec --url ws://host:9100 --token <token> --workspace ws_123 --command "npm test"
 
 # Send a chat message and print response
-nexus chat --url ws://host:9100 --token <token> --workspace ws_123 "Fix the login bug"
+condrix chat --url ws://host:9100 --token <token> --workspace ws_123 "Fix the login bug"
 
 # Get workspace status
-nexus status --url ws://host:9100 --token <token>
+condrix status --url ws://host:9100 --token <token>
 ```
 
 ### Profile Management
 
 ```bash
 # Save a Core connection profile
-nexus profile add my-server --url ws://192.168.1.100:9100 --token <token>
+condrix profile add my-server --url ws://192.168.1.100:9100 --token <token>
 
 # List saved profiles
-nexus profile list
+condrix profile list
 
 # Remove a profile
-nexus profile remove my-server
+condrix profile remove my-server
 ```
 
 ## Connection Flow
 
-1. User runs `nexus connect -u ws://host:9100 -t <token>`
+1. User runs `condrix connect -u ws://host:9100 -t <token>`
 2. CLI establishes WebSocket connection to Core
 3. Sends `core:auth` with token → receives scopes
 4. Sends `core:info` → displays Core name and status in Status Bar

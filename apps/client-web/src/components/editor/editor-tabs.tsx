@@ -1,10 +1,10 @@
 import { useStore } from 'zustand';
 import { MessageSquare, GitCompareArrows, X } from 'lucide-react';
-import { workspaceStore, useFileContent, gitStore, fileStore } from '@nexus-core/client-shared';
+import { workspaceStore, useFileContent, gitStore, fileStore } from '@condrix/client-shared';
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
 } from '@/components/ui/context-menu';
-import type { WorkspaceInfo } from '@nexus-core/protocol';
+import type { WorkspaceInfo } from '@condrix/protocol';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { EditorTab } from './editor-tab.js';
 import { CodeEditor } from './code-editor.js';
@@ -14,7 +14,7 @@ import { DiffEditor } from './diff-editor.js';
 export type ActiveView = 'chat' | 'editor' | 'diff';
 
 /** localStorage key for persisted UI state */
-const UI_STATE_KEY = 'nexus-ui-state';
+const UI_STATE_KEY = 'condrix-ui-state';
 
 export function EditorTabs() {
   const workspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);

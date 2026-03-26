@@ -3,8 +3,8 @@ import { homedir, platform } from 'node:os';
 import { join, resolve } from 'node:path';
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawn as spawnChild } from 'node:child_process';
-import type { CoreInfo, MessageEnvelope } from '@nexus-core/protocol';
-import { createEvent, generateMessageId } from '@nexus-core/protocol';
+import type { CoreInfo, MessageEnvelope } from '@condrix/protocol';
+import { createEvent, generateMessageId } from '@condrix/protocol';
 
 import { CoreDatabase } from './database.js';
 import { AuthManager } from './auth.js';
@@ -79,7 +79,7 @@ export class CoreRuntime {
     this.startedAt = Date.now();
 
     // Init database
-    const dbDir = join(homedir(), '.nexuscore');
+    const dbDir = join(homedir(), '.condrix');
     mkdirSync(dbDir, { recursive: true });
     const dbPath = this.config.dbPath ?? join(dbDir, 'core.db');
     this.db = new CoreDatabase({ path: dbPath });
@@ -344,12 +344,12 @@ export class CoreRuntime {
 
   private isContainerized(): boolean {
     return existsSync('/.dockerenv')
-      || process.env.NEXUS_CORE_CONTAINER === 'true'
+      || process.env.CONDRIX_CORE_CONTAINER === 'true'
       || existsSync('/run/.containerenv'); // Podman
   }
 
   private getHostMounts(): { label: string; path: string }[] {
-    const env = process.env.NEXUS_HOST_MOUNTS;
+    const env = process.env.CONDRIX_HOST_MOUNTS;
     if (!env) return [];
     // Format: "Label1=/path1,Label2=/path2"
     return env.split(',').map((entry) => {
@@ -877,8 +877,8 @@ export class CoreRuntime {
     const dbSystemPrompt = this.db.getSetting('model.systemPrompt') as string | undefined;
     const dbAuthMethod = this.db.getSetting('auth.method') as string | undefined;
 
-    const model = dbModel ?? process.env.NEXUS_CLAUDE_MODEL;
-    const systemPrompt = dbSystemPrompt ?? process.env.NEXUS_CLAUDE_SYSTEM_PROMPT;
+    const model = dbModel ?? process.env.CONDRIX_CLAUDE_MODEL;
+    const systemPrompt = dbSystemPrompt ?? process.env.CONDRIX_CLAUDE_SYSTEM_PROMPT;
     const apiKey = dbApiKey ?? process.env.ANTHROPIC_API_KEY;
 
     // OAuth takes precedence when auth.method is 'oauth'
@@ -1100,10 +1100,10 @@ export class CoreRuntime {
   private initMaestroConnector(): void {
     const maestroUrl =
       (this.db.getSetting('maestro.url') as string | undefined) ??
-      process.env.NEXUS_MAESTRO_URL;
+      process.env.CONDRIX_MAESTRO_URL;
     const maestroToken =
       (this.db.getSetting('maestro.token') as string | undefined) ??
-      process.env.NEXUS_MAESTRO_TOKEN;
+      process.env.CONDRIX_MAESTRO_TOKEN;
 
     if (!maestroUrl || !maestroToken) {
       console.log(`[Core] Maestro not configured (url: ${maestroUrl ? 'set' : 'missing'}, token: ${maestroToken ? 'set' : 'missing'})`);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
-import type { FileNode } from '@nexus-core/client-shared';
+import type { FileNode } from '@condrix/client-shared';
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
 } from '@/components/ui/context-menu';

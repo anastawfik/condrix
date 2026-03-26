@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { GeneralSettings } from './general-settings.js';
 import { ThemeSettings } from './theme-settings.js';
 import { NotificationSettings } from './notification-settings.js';
-import { CoresSettingsTab, AiSettingsTab, AuthenticationSettingsTab } from '@nexus-core/client-components';
-import { maestroStore } from '@nexus-core/client-shared';
-import type { MaestroConnectionState } from '@nexus-core/client-shared';
+import { CoresSettingsTab, AiSettingsTab, AuthenticationSettingsTab } from '@condrix/client-components';
+import { maestroStore } from '@condrix/client-shared';
+import type { MaestroConnectionState } from '@condrix/client-shared';
 import { CoreTerminalModal } from '../core-terminal-modal.js';
 import { CoreSignInModal } from '../core-signin-modal.js';
 

@@ -26,7 +26,7 @@ export class ClaudeAuthManager {
   private lastState: ClaudeAuthState | null = null;
 
   constructor(private emitter: EventEmitter) {
-    this.refreshBuffer = Number(process.env.NEXUS_OAUTH_REFRESH_BUFFER_MS) || DEFAULT_REFRESH_BUFFER_MS;
+    this.refreshBuffer = Number(process.env.CONDRIX_OAUTH_REFRESH_BUFFER_MS) || DEFAULT_REFRESH_BUFFER_MS;
   }
 
   /** Start monitoring token expiry. */

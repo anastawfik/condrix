@@ -67,7 +67,7 @@ export class TunnelManager {
       return { success: false, message: `Unsupported platform: ${plat}` };
     }
 
-    const binDir = join(homedir(), '.nexuscore', 'bin');
+    const binDir = join(homedir(), '.condrix', 'bin');
     await mkdir(binDir, { recursive: true });
     const destPath = this.getLocalBinaryPath();
 
@@ -273,7 +273,7 @@ export class TunnelManager {
   // ─── Private Helpers ────────────────────────────────────────────────────────
 
   private getLocalBinaryPath(): string {
-    const binDir = join(homedir(), '.nexuscore', 'bin');
+    const binDir = join(homedir(), '.condrix', 'bin');
     const ext = platform() === 'win32' ? '.exe' : '';
     return join(binDir, `cloudflared${ext}`);
   }

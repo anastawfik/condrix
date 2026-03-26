@@ -1,4 +1,4 @@
-# NexusCore
+# Condrix
 
 ## Distributed AI Agent Orchestration Platform
 
@@ -30,7 +30,7 @@
 
 ## 1. Executive Summary
 
-NexusCore is a distributed platform for orchestrating AI coding agents across multiple machines, accessible from any device in real-time. It decouples agent runtimes (Cores) from their user interfaces (Clients), enabling developers to start a coding session on a desktop workstation, check progress from a phone, and continue work from a laptop — all without losing context or state.
+Condrix is a distributed platform for orchestrating AI coding agents across multiple machines, accessible from any device in real-time. It decouples agent runtimes (Cores) from their user interfaces (Clients), enabling developers to start a coding session on a desktop workstation, check progress from a phone, and continue work from a laptop — all without losing context or state.
 
 The platform is built around three foundational pillars:
 
@@ -54,7 +54,7 @@ This document defines the complete architecture, communication protocols, data m
 
 ### 2.2 Conceptual Model
 
-At the highest level, NexusCore can be understood as a hub-and-spoke model where Maestro is the hub and Cores are spokes. Each Core manages one or more Projects, and each Project contains one or more Workspaces. A Workspace is an isolated environment with its own agent session, working directory, terminal processes, and git state.
+At the highest level, Condrix can be understood as a hub-and-spoke model where Maestro is the hub and Cores are spokes. Each Core manages one or more Projects, and each Project contains one or more Workspaces. A Workspace is an isolated environment with its own agent session, working directory, terminal processes, and git state.
 
 Clients connect to individual Cores for IDE-like interaction, and to Maestro for cross-cutting orchestration. The key innovation is that both connections are live and bidirectional, enabling real-time streaming of terminal output, chat messages, file changes, and status updates.
 
@@ -74,7 +74,7 @@ The critical insight is that data flows bidirectionally between Clients and Core
 
 ## 4. Core (Agent Runtime)
 
-The Core is the heart of NexusCore. It is a long-running daemon process that manages the developer's projects, workspaces, AI agents, terminals, and file system interactions. Each development machine runs one Core instance.
+The Core is the heart of Condrix. It is a long-running daemon process that manages the developer's projects, workspaces, AI agents, terminals, and file system interactions. Each development machine runs one Core instance.
 
 ### 4.1 Core Responsibilities
 
@@ -97,7 +97,7 @@ The central orchestrator within a Core. It initializes all managers, handles con
 
 **Project Manager**
 
-Maintains the registry of projects. Each project has a root path, a configuration file (`nexuscore.project.json`), and references to its workspaces. Projects can be added/removed dynamically without restarting the Core.
+Maintains the registry of projects. Each project has a root path, a configuration file (`condrix.project.json`), and references to its workspaces. Projects can be added/removed dynamically without restarting the Core.
 
 **Workspace Manager**
 
@@ -113,7 +113,7 @@ Manages all inbound WebSocket connections. Handles authentication, session track
 
 ### 4.3 Core Configuration
 
-Each Core is configured via a `nexuscore.core.json` file in the user's home directory:
+Each Core is configured via a `condrix.core.json` file in the user's home directory:
 
 ```json
 {
@@ -123,7 +123,7 @@ Each Core is configured via a `nexuscore.core.json` file in the user's home dire
   "port": 9100,
   "auth": {
     "type": "token",
-    "tokenFile": "~/.nexuscore/auth-tokens.json"
+    "tokenFile": "~/.condrix/auth-tokens.json"
   },
   "maestro": {
     "url": "wss://maestro.example.com",
@@ -176,7 +176,7 @@ The Core exposes a WebSocket-based API organized into namespaces. Each namespace
 
 ## 5. Maestro (Orchestration Layer)
 
-Maestro is the brain of NexusCore. It is a standalone service that maintains a live connection to every registered Core, aggregates their state, and serves as the primary conversational interface for cross-cutting concerns. Maestro is what transforms NexusCore from a collection of independent agent runtimes into a unified, intelligent development platform.
+Maestro is the brain of Condrix. It is a standalone service that maintains a live connection to every registered Core, aggregates their state, and serves as the primary conversational interface for cross-cutting concerns. Maestro is what transforms Condrix from a collection of independent agent runtimes into a unified, intelligent development platform.
 
 ### 5.1 Maestro Responsibilities
 
@@ -219,7 +219,7 @@ Pluggable adapters for WhatsApp (via Meta Business API or Baileys for personal a
   "port": 9200,
   "database": {
     "type": "sqlite",
-    "path": "~/.nexuscore/maestro.db"
+    "path": "~/.condrix/maestro.db"
   },
   "ai": {
     "provider": "claude",
@@ -233,7 +233,7 @@ Pluggable adapters for WhatsApp (via Meta Business API or Baileys for personal a
   "messaging": {
     "whatsapp": {
       "provider": "baileys",
-      "sessionPath": "~/.nexuscore/wa-session"
+      "sessionPath": "~/.condrix/wa-session"
     },
     "telegram": {
       "botToken": "env:TELEGRAM_BOT_TOKEN"
@@ -271,7 +271,7 @@ The developer tells Maestro: "Once the API agent finishes the auth endpoints, ha
 
 ## 6. Client Interfaces
 
-Clients are the developer's windows into NexusCore. They are deliberately thin — rendering state received from Cores and sending user input back. No agent logic or project state lives in the client. This design means clients can be replaced, added, or run in parallel without affecting the system.
+Clients are the developer's windows into Condrix. They are deliberately thin — rendering state received from Cores and sending user input back. No agent logic or project state lives in the client. This design means clients can be replaced, added, or run in parallel without affecting the system.
 
 ### 6.1 Client Capabilities Matrix
 
@@ -388,7 +388,7 @@ The recommended topology is Hybrid. Here is how it works:
 - **LAN Discovery:** Cores advertise themselves via mDNS/Bonjour on the local network. Desktop and CLI clients on the same LAN discover and connect directly for lowest latency.
 - **Maestro as Registry:** All Cores register with Maestro on startup. Maestro maintains the canonical list of Cores and their connection endpoints (both LAN and WAN addresses).
 - **Relay Fallback:** When a client cannot reach a Core directly (different network, mobile client, web client), it routes through Maestro. Maestro proxies the WebSocket connection to the target Core. This adds latency but works from anywhere.
-- **Tunnel Option:** For developers who want direct WAN access without relay latency, NexusCore supports integration with Tailscale, Cloudflare Tunnel, or ngrok. The Core's tunnel URL is registered with Maestro as an alternative endpoint.
+- **Tunnel Option:** For developers who want direct WAN access without relay latency, Condrix supports integration with Tailscale, Cloudflare Tunnel, or ngrok. The Core's tunnel URL is registered with Maestro as an alternative endpoint.
 
 ### 8.3 Core Discovery Protocol
 
@@ -398,7 +398,7 @@ When a client starts, it resolves Cores in this order: (1) Cached cores from pre
 
 ## 9. Agent Model & Skills Framework
 
-NexusCore's agent model defines how AI coding agents are configured, managed, and extended within workspaces. The framework is heavily inspired by the everything-claude-code project's comprehensive approach to defining agent capabilities.
+Condrix's agent model defines how AI coding agents are configured, managed, and extended within workspaces. The framework is heavily inspired by the everything-claude-code project's comprehensive approach to defining agent capabilities.
 
 ### 9.1 Agent Providers
 
@@ -450,7 +450,7 @@ The key design decision is that conversation history and agent state are persist
 
 ## 10. MCP Server Integration
 
-Model Context Protocol (MCP) servers extend agent capabilities by providing tools, resources, and prompts through a standardized interface. NexusCore treats MCP servers as first-class citizens.
+Model Context Protocol (MCP) servers extend agent capabilities by providing tools, resources, and prompts through a standardized interface. Condrix treats MCP servers as first-class citizens.
 
 ### 10.1 MCP Server Management
 
@@ -458,7 +458,7 @@ The Core manages MCP server lifecycles. Servers can be defined globally (availab
 
 ### 10.2 Pre-configured MCP Servers
 
-Inspired by the everything-claude-code project, NexusCore ships with configurations for a comprehensive set of MCP servers:
+Inspired by the everything-claude-code project, Condrix ships with configurations for a comprehensive set of MCP servers:
 
 - **Filesystem:** Enhanced file operations with search, glob patterns, and atomic writes.
 - **Git:** Advanced git operations beyond basic CLI (semantic commit messages, interactive rebase assistance).
@@ -470,7 +470,7 @@ Inspired by the everything-claude-code project, NexusCore ships with configurati
 
 ### 10.3 MCP Server Discovery
 
-NexusCore includes an MCP server marketplace/registry concept. Developers can browse available servers, install them with a single command, and configure them for their projects. The registry is a JSON catalog that can be hosted locally or pulled from a remote repository.
+Condrix includes an MCP server marketplace/registry concept. Developers can browse available servers, install them with a single command, and configure them for their projects. The registry is a JSON catalog that can be hosted locally or pulled from a remote repository.
 
 ---
 
@@ -524,7 +524,7 @@ This abstraction makes it straightforward to add additional messaging platforms 
 
 ## 12. Security & Authentication
 
-Security is critical given that NexusCore provides remote access to development machines with terminal access and file system operations.
+Security is critical given that Condrix provides remote access to development machines with terminal access and file system operations.
 
 ### 12.1 Authentication
 
@@ -544,7 +544,7 @@ Operations are authorized using a scope-based model. Each token carries a set of
 
 ## 13. Data Model & Persistence
 
-NexusCore uses a layered persistence strategy: hot state in memory, warm state in SQLite, and cold state in the file system.
+Condrix uses a layered persistence strategy: hot state in memory, warm state in SQLite, and cold state in the file system.
 
 ### 13.1 Core Database (SQLite)
 
@@ -614,7 +614,7 @@ Based on the requirements for real-time communication, cross-platform clients, a
 ### 14.4 Monorepo Structure
 
 ```
-nexuscore/
+condrix/
   packages/
     core/              # Core daemon
     maestro/           # Maestro orchestration service
@@ -669,7 +669,7 @@ The roadmap is structured into four phases, each building on the previous one an
 - **Web client:** Deploy the shared frontend as a standalone web app.
 - **Skills marketplace:** Browse, install, and configure skills and MCP servers from the UI.
 
-**Milestone:** Desktop and web clients rival Conductor's interface quality. Developer can do a full coding session entirely within NexusCore.
+**Milestone:** Desktop and web clients rival Conductor's interface quality. Developer can do a full coding session entirely within Condrix.
 
 ### Phase 4: Mobile & Intelligence (Weeks 31–40)
 
@@ -724,4 +724,4 @@ The roadmap is structured into four phases, each building on the previous one an
 
 ---
 
-*End of Architecture Document — NexusCore v1.0 — March 2026*
+*End of Architecture Document — Condrix v1.0 — March 2026*

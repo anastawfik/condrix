@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useStore } from 'zustand';
-import { workspaceStore, useTerminals } from '@nexus-core/client-shared';
-import { terminalStore } from '@nexus-core/client-shared';
+import { workspaceStore, useTerminals } from '@condrix/client-shared';
+import { terminalStore } from '@condrix/client-shared';
 import { TerminalTabBar } from './terminal-tab-bar.js';
 import { TerminalTab } from './terminal-tab.js';
 

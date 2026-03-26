@@ -3,7 +3,7 @@
  * Tracks terminal sessions and their output buffers.
  */
 import { createStore } from 'zustand/vanilla';
-import type { MessageEnvelope } from '@nexus-core/protocol';
+import type { MessageEnvelope } from '@condrix/protocol';
 
 import { multiCoreStore } from './multi-core-store.js';
 import { maestroStore } from './maestro-store.js';

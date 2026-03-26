@@ -1,7 +1,7 @@
 /**
- * @nexus-core/client-components
+ * @condrix/client-components
  *
- * Shared UI components and design system for NexusCore clients.
+ * Shared UI components and design system for Condrix clients.
  */
 
 // Utilities

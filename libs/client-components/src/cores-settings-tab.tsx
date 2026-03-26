@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   maestroStore, multiCoreStore, coreRegistryStore, useSettings,
-} from '@nexus-core/client-shared';
-import type { MaestroConnectionState, MaestroCore, CoreEntry, CoreConnection } from '@nexus-core/client-shared';
+} from '@condrix/client-shared';
+import type { MaestroConnectionState, MaestroCore, CoreEntry, CoreConnection } from '@condrix/client-shared';
 import { cn } from './lib/utils.js';
 import { Button } from './button.js';
 import { CoreCard } from './core-card.js';
@@ -385,7 +385,7 @@ function MaestroSection({ maestroState, onOpenTerminal, onOpenSignIn }: { maestr
 
 function MaestroConnectionPanel({ maestroState }: { maestroState: MaestroConnectionState }) {
   const [url, setUrl] = useState(() => {
-    try { return localStorage.getItem('nexus-maestro-url') ?? (import.meta.env.VITE_DEFAULT_MAESTRO_URL as string | undefined) ?? ''; } catch { return ''; }
+    try { return localStorage.getItem('condrix-maestro-url') ?? (import.meta.env.VITE_DEFAULT_MAESTRO_URL as string | undefined) ?? ''; } catch { return ''; }
   });
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -406,7 +406,7 @@ function MaestroConnectionPanel({ maestroState }: { maestroState: MaestroConnect
     setLoading(true);
     setError(null);
     try {
-      try { localStorage.setItem('nexus-maestro-url', url.trim()); } catch { /* ignore */ }
+      try { localStorage.setItem('condrix-maestro-url', url.trim()); } catch { /* ignore */ }
       await maestroStore.getState().login(url.trim(), username.trim(), password, showTotp ? totpCode.trim() : undefined);
     } catch (err) {
       const msg = (err as Error).message;

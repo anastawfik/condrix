@@ -1,8 +1,8 @@
 {
-  "name": "@nexus-core/client-mobile",
+  "name": "@condrix/client-mobile",
   "version": "0.1.0",
   "private": true,
-  "description": "NexusCore mobile client — React Native app for monitoring, chat, and quick actions",
+  "description": "Condrix mobile client — React Native app for monitoring, chat, and quick actions",
   "type": "module",
   "main": "./src/index.ts",
   "scripts": {
@@ -14,8 +14,8 @@
     "clean": "rm -rf dist .expo *.tsbuildinfo"
   },
   "dependencies": {
-    "@nexus-core/protocol": "*",
-    "@nexus-core/client-shared": "*",
+    "@condrix/protocol": "*",
+    "@condrix/client-shared": "*",
     "react": "^18.3.0",
     "react-native": "^0.77.0",
     "expo": "^52.0.0"

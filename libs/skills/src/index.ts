@@ -1,7 +1,7 @@
 /**
- * @nexus-core/skills
+ * @condrix/skills
  *
- * Built-in skill definitions for NexusCore agents.
+ * Built-in skill definitions for Condrix agents.
  * Skills are composable capability packages that equip agents
  * with domain-specific knowledge and tools.
  *
@@ -13,7 +13,7 @@
  * - Documentation: README generation, API docs, ADRs
  */
 
-import type { SkillDefinition } from '@nexus-core/protocol';
+import type { SkillDefinition } from '@condrix/protocol';
 
 export const builtinSkills: SkillDefinition[] = [
   {

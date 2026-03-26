@@ -4,8 +4,8 @@
  */
 import { EventEmitter } from 'node:events';
 import WebSocket from 'ws';
-import { generateMessageId } from '@nexus-core/protocol';
-import type { MessageEnvelope } from '@nexus-core/protocol';
+import { generateMessageId } from '@condrix/protocol';
+import type { MessageEnvelope } from '@condrix/protocol';
 
 export interface MaestroConnectorConfig {
   url: string;

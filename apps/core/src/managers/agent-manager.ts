@@ -1,5 +1,5 @@
-import type { AgentMessage } from '@nexus-core/protocol';
-import { generateId } from '@nexus-core/protocol';
+import type { AgentMessage } from '@condrix/protocol';
+import { generateId } from '@condrix/protocol';
 import type { EventEmitter } from 'node:events';
 
 import type { CoreDatabase } from '../database.js';

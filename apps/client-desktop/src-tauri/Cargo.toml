@@ -1,8 +1,8 @@
 [package]
-name = "nexus-core-desktop"
+name = "condrix-desktop"
 version = "0.1.0"
-description = "NexusCore Desktop — Tauri shell for the web client"
-authors = ["NexusCore"]
+description = "Condrix Desktop — Tauri shell for the web client"
+authors = ["Condrix"]
 edition = "2021"
 
 [lib]

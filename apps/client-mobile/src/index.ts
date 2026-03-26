@@ -1,5 +1,5 @@
 /**
- * @nexus-core/client-mobile
+ * @condrix/client-mobile
  *
  * React Native mobile client prioritizing:
  * - Dashboard overview of all Cores and workspaces

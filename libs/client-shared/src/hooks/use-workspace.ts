@@ -4,7 +4,7 @@
  */
 import { useStore } from 'zustand';
 import { useEffect } from 'react';
-import type { WorkspaceInfo, ProjectInfo } from '@nexus-core/protocol';
+import type { WorkspaceInfo, ProjectInfo } from '@condrix/protocol';
 
 import { workspaceStore } from '../stores/workspace-store.js';
 import { chatStore, type ChatMessage } from '../stores/chat-store.js';

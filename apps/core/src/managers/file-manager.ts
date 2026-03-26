@@ -1,6 +1,6 @@
 import { readFile, writeFile, readdir, stat, mkdir, access, rename, rm, unlink } from 'node:fs/promises';
 import { join, basename, relative, resolve } from 'node:path';
-import type { FileEntry, FileChange } from '@nexus-core/protocol';
+import type { FileEntry, FileChange } from '@condrix/protocol';
 import type { EventEmitter } from 'node:events';
 
 type ChokidarWatcher = { close: () => Promise<void> };

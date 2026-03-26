@@ -1,8 +1,8 @@
 {
-  "name": "@nexus-core/root",
+  "name": "@condrix/root",
   "version": "0.0.0",
   "private": true,
-  "description": "NexusCore — Distributed AI Agent Orchestration Platform",
+  "description": "Condrix — Distributed AI Agent Orchestration Platform",
   "workspaces": [
     "libs/*",
     "apps/*"
@@ -12,11 +12,11 @@
     "test": "nx run-many -t test",
     "lint": "nx run-many -t lint",
     "typecheck": "nx run-many -t typecheck",
-    "dev:core": "nx run @nexus-core/core:dev",
-    "dev:maestro": "nx run @nexus-core/maestro:dev",
-    "dev:web": "nx run @nexus-core/client-web:dev",
-    "dev:desktop": "nx run @nexus-core/client-desktop:dev",
-    "dev:cli": "nx run @nexus-core/client-cli:dev",
+    "dev:core": "nx run @condrix/core:dev",
+    "dev:maestro": "nx run @condrix/maestro:dev",
+    "dev:web": "nx run @condrix/client-web:dev",
+    "dev:desktop": "nx run @condrix/client-desktop:dev",
+    "dev:cli": "nx run @condrix/client-cli:dev",
     "graph": "nx graph",
     "clean": "nx run-many -t clean && rm -rf node_modules",
     "docker:up": "docker compose up -d",

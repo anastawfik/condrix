@@ -1,5 +1,5 @@
-import type { Notification, NotificationChannel } from '@nexus-core/protocol';
-import { generateMessageId } from '@nexus-core/protocol';
+import type { Notification, NotificationChannel } from '@condrix/protocol';
+import { generateMessageId } from '@condrix/protocol';
 import type { ClientConnectionManager } from './client-connection-manager.js';
 import type { MaestroDatabase } from './database.js';
 import type { EventBus } from './event-bus.js';

@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nickersoft/tauri-v2-schema/main/schema.json",
-  "productName": "NexusCore",
+  "productName": "Condrix",
   "version": "0.1.0",
-  "identifier": "com.nexuscore.desktop",
+  "identifier": "com.condrix.desktop",
   "build": {
     "devUrl": "http://localhost:5173",
     "frontendDist": "../dist"
@@ -11,7 +11,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "NexusCore",
+        "title": "Condrix",
         "width": 1280,
         "height": 800,
         "minWidth": 900,

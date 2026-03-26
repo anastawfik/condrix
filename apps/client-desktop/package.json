@@ -1,8 +1,8 @@
 {
-  "name": "@nexus-core/client-desktop",
+  "name": "@condrix/client-desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "NexusCore desktop client — Tauri 2.0 thin shell loading the web client",
+  "description": "Condrix desktop client — Tauri 2.0 thin shell loading the web client",
   "type": "module",
   "scripts": {
     "dev": "tauri dev",

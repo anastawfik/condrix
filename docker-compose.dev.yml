@@ -6,9 +6,9 @@ services:
     command: npx tsx watch apps/maestro/src/cli.ts
     env_file: .env
     environment:
-      NEXUS_MAESTRO_HOST: "0.0.0.0"
-      NEXUS_MAESTRO_PORT: "9200"
-      NEXUS_MAESTRO_DB: /data/maestro.db
+      CONDRIX_MAESTRO_HOST: "0.0.0.0"
+      CONDRIX_MAESTRO_PORT: "9200"
+      CONDRIX_MAESTRO_DB: /data/maestro.db
     volumes:
       - .:/app
       - /app/node_modules
@@ -19,7 +19,7 @@ services:
       - "9200:9200"
       - "9201:9201"
     networks:
-      - nexus
+      - condrix
     restart: unless-stopped
 
   core:
@@ -29,10 +29,10 @@ services:
     command: npx tsx watch apps/core/src/cli.ts
     env_file: .env
     environment:
-      NEXUS_CORE_HOST: "0.0.0.0"
-      NEXUS_CORE_PORT: "9100"
-      NEXUS_CORE_CONTAINER: "true"
-      NEXUS_HOST_MOUNTS: "${NEXUS_HOST_MOUNTS:-}"
+      CONDRIX_CORE_HOST: "0.0.0.0"
+      CONDRIX_CORE_PORT: "9100"
+      CONDRIX_CORE_CONTAINER: "true"
+      CONDRIX_HOST_MOUNTS: "${CONDRIX_HOST_MOUNTS:-}"
     volumes:
       - .:/app
       - /app/node_modules
@@ -40,12 +40,12 @@ services:
       - /app/libs/protocol/node_modules
       - /app/libs/skills/node_modules
       - /app/libs/mcp-configs/node_modules
-      - core-data:/root/.nexuscore
+      - core-data:/root/.condrix
       - claude-data:/root/.claude
     ports:
       - "9100:9100"
     networks:
-      - nexus
+      - condrix
     restart: unless-stopped
 
   web:
@@ -70,7 +70,7 @@ services:
     ports:
       - "5173:80"
     networks:
-      - nexus
+      - condrix
     restart: unless-stopped
 
   tunnel:
@@ -83,7 +83,7 @@ services:
       - core
       - web
     networks:
-      - nexus
+      - condrix
     restart: unless-stopped
     profiles:
       - tunnel
@@ -94,4 +94,4 @@ volumes:
   claude-data:
 
 networks:
-  nexus:
+  condrix:

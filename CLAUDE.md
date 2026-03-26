@@ -1,21 +1,21 @@
-# CLAUDE.md — NexusCore
+# CLAUDE.md — Condrix
 
-This file provides context for AI assistants working on the NexusCore codebase.
+This file provides context for AI assistants working on the Condrix codebase.
 
 ## Project Overview
 
-NexusCore is a **Distributed AI Agent Orchestration Platform** with a three-layer architecture:
+Condrix is a **Distributed AI Agent Orchestration Platform** with a three-layer architecture:
 
 - **Core** — Headless agent runtime daemon that manages projects, workspaces, AI agents, terminals, and file operations
 - **Maestro** — Central orchestration service for cross-core coordination, messaging bridge (WhatsApp/Telegram), and proactive notifications
 - **Clients** — Stateless UI interfaces (CLI, Desktop, Web, Mobile) that connect to Cores via WebSocket
 
-See `apps/docs/architecture/NexusCore-Architecture-v1.0.md` for the full architecture document.
+See `apps/docs/architecture/Condrix-Architecture-v1.0.md` for the full architecture document.
 
 ## Monorepo Structure
 
 ```
-nexus-core/                  # NX monorepo root
+condrix/                  # NX monorepo root
 ├── apps/                    # Deployable applications and services
 │   ├── core/                # Core daemon (Node.js)
 │   ├── maestro/             # Maestro orchestration service
@@ -77,7 +77,7 @@ npm run typecheck      # Type-check all packages
 
 # NX-specific
 npx nx graph           # Visualize dependency graph
-npx nx run @nexus-core/core:build   # Build a specific package
+npx nx run @condrix/core:build   # Build a specific package
 npx nx affected -t test              # Test only affected packages
 ```
 
@@ -116,7 +116,7 @@ libs/protocol (no deps — foundation layer)
 - Interfaces/Types: `PascalCase` (e.g., `WorkspaceInfo`)
 - Functions/variables: `camelCase`
 - Constants: `UPPER_SNAKE_CASE` for true constants, `camelCase` for complex objects
-- Package names: `@nexus-core/<name>` (e.g., `@nexus-core/protocol`)
+- Package names: `@condrix/<name>` (e.g., `@condrix/protocol`)
 
 ### Architecture Patterns
 - Core and Maestro use a **Manager pattern** — each domain concern has a dedicated manager class
@@ -138,7 +138,7 @@ libs/protocol (no deps — foundation layer)
 
 ## Key Design Decisions
 
-1. **WebSocket-only communication** — No REST API. All Core↔Client and Core↔Maestro communication uses WebSocket with the message envelope protocol defined in `@nexus-core/protocol`.
+1. **WebSocket-only communication** — No REST API. All Core↔Client and Core↔Maestro communication uses WebSocket with the message envelope protocol defined in `@condrix/protocol`.
 
 2. **SQLite for persistence** — Both Core and Maestro use better-sqlite3. No external database dependency for single-developer use. PostgreSQL is an option for team deployments.
 

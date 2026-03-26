@@ -165,7 +165,7 @@ export class OAuthTokenManager {
 
     // Use tunnel URL for redirect if available (Docker/remote), otherwise localhost
     const port = this.callbackPort;
-    const externalUrl = process.env.NEXUS_CORE_EXTERNAL_URL; // e.g. https://core.example.com from tunnel
+    const externalUrl = process.env.CONDRIX_CORE_EXTERNAL_URL; // e.g. https://core.example.com from tunnel
     const redirectUri = externalUrl
       ? `${externalUrl.replace(/\/$/, '')}/callback`
       : `http://localhost:${port}/callback`;

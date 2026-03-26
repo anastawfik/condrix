@@ -4,12 +4,12 @@
  * Routes all requests through multiCoreStore for multi-Core support.
  */
 import { createStore } from 'zustand/vanilla';
-import type { WorkspaceInfo, ProjectInfo } from '@nexus-core/protocol';
+import type { WorkspaceInfo, ProjectInfo } from '@condrix/protocol';
 
 import { multiCoreStore } from './multi-core-store.js';
 import { maestroStore } from './maestro-store.js';
 
-const UI_STATE_KEY = 'nexus-ui-state';
+const UI_STATE_KEY = 'condrix-ui-state';
 
 function saveWorkspaceUIState(coreId: string | null, projectId: string | null, workspaceId: string | null): void {
   try {

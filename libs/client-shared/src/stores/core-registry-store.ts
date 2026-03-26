@@ -23,7 +23,7 @@ export interface CoreRegistryStore {
   _hydrate: () => void;
 }
 
-const STORAGE_KEY = 'nexus-core-registry';
+const STORAGE_KEY = 'condrix-registry';
 
 let idCounter = 0;
 function nextId(): string {

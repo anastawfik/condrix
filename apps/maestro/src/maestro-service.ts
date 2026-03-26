@@ -7,8 +7,8 @@
  */
 import { WebSocketServer } from 'ws';
 import type { IncomingMessage } from 'node:http';
-import type { MaestroState } from '@nexus-core/protocol';
-import { generateMessageId } from '@nexus-core/protocol';
+import type { MaestroState } from '@condrix/protocol';
+import { generateMessageId } from '@condrix/protocol';
 
 import { EventEmitter } from 'node:events';
 
@@ -247,7 +247,7 @@ export class MaestroService {
       // Convert https:// to wss:// for WebSocket connections
       const wsUrl = url.replace('https://', 'wss://');
       console.log(`[Maestro] Tunnel URL: ${wsUrl}`);
-      console.log(`[Maestro] Remote Cores can connect with: NEXUS_MAESTRO_URL="${wsUrl}"`);
+      console.log(`[Maestro] Remote Cores can connect with: CONDRIX_MAESTRO_URL="${wsUrl}"`);
     }
   }
 

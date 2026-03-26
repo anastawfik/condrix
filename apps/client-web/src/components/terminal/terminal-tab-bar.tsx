@@ -1,5 +1,5 @@
 import { Plus, X } from 'lucide-react';
-import type { TerminalSession } from '@nexus-core/client-shared';
+import type { TerminalSession } from '@condrix/client-shared';
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
 } from '@/components/ui/context-menu';

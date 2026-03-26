@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { TitleBar } from './title-bar.js';
-import { workspaceStore } from '@nexus-core/client-shared';
+import { workspaceStore } from '@condrix/client-shared';
 import { Sidebar } from './sidebar.js';
 import { EditorTabs } from './editor/editor-tabs.js';
 import { TerminalPanel } from './terminal/terminal-panel.js';

@@ -1,6 +1,6 @@
 import { useStore } from 'zustand';
 import { Settings } from 'lucide-react';
-import { multiCoreStore, workspaceStore, maestroStore } from '@nexus-core/client-shared';
+import { multiCoreStore, workspaceStore, maestroStore } from '@condrix/client-shared';
 import { cn } from './lib/utils.js';
 import { IconButton } from './icon-button.js';
 
@@ -37,7 +37,7 @@ export function TitleBar({ onSettingsOpen, maestroConnected }: TitleBarProps) {
 
   return (
     <div className="flex items-center h-9 px-3 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] select-none shrink-0" data-testid="title-bar">
-      <span className="font-semibold text-[var(--accent-blue)] mr-3">NexusCore</span>
+      <span className="font-semibold text-[var(--accent-blue)] mr-3">Condrix</span>
 
       <div className="flex items-center gap-2 text-[var(--text-secondary)] text-xs">
         {maestroConnected && (

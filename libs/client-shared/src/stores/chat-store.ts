@@ -8,7 +8,7 @@
  * events and adds messages it doesn't already have.
  */
 import { createStore } from 'zustand/vanilla';
-import type { MessageEnvelope } from '@nexus-core/protocol';
+import type { MessageEnvelope } from '@condrix/protocol';
 
 import { multiCoreStore } from './multi-core-store.js';
 import { maestroStore } from './maestro-store.js';
@@ -79,7 +79,7 @@ export const createChatStore = () =>
       // Don't double-subscribe
       if (get()._broadcastUnsubs.has(coreId)) return;
 
-      const sub = (pattern: string, listener: (event: import('@nexus-core/protocol').MessageEnvelope) => void) =>
+      const sub = (pattern: string, listener: (event: import('@condrix/protocol').MessageEnvelope) => void) =>
         multiCoreStore.getState().subscribeOnCore(coreId, pattern, listener);
 
       // Subscribe to agent:message — both user and assistant messages broadcast by Core

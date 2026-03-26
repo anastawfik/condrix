@@ -1,5 +1,5 @@
 import { Plus, Minus } from 'lucide-react';
-import type { GitFileChange } from '@nexus-core/client-shared';
+import type { GitFileChange } from '@condrix/client-shared';
 
 interface ChangedFileListProps {
   files: GitFileChange[];

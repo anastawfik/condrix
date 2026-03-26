@@ -1,7 +1,7 @@
 import { useState, type KeyboardEvent } from 'react';
 import { useStore } from 'zustand';
 import { RefreshCw, GitBranch, Check } from 'lucide-react';
-import { workspaceStore, useGitStatus } from '@nexus-core/client-shared';
+import { workspaceStore, useGitStatus } from '@condrix/client-shared';
 import { ChangedFileList } from './changed-file-list.js';
 
 export function GitPanel() {

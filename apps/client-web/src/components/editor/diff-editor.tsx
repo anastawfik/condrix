@@ -1,5 +1,5 @@
 import { useStore } from 'zustand';
-import { gitStore } from '@nexus-core/client-shared';
+import { gitStore } from '@condrix/client-shared';
 
 /** Line-level diff coloring for unified diff content shown as a tab. */
 export function DiffEditor() {

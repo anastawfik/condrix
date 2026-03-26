@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MessageRouter } from '../message-router.js';
-import { createRequest } from '@nexus-core/protocol';
+import { createRequest } from '@condrix/protocol';
 
 describe('MessageRouter', () => {
   it('should register and dispatch a handler', async () => {

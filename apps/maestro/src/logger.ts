@@ -13,7 +13,7 @@ const LEVELS: Record<LogLevel, number> = {
   fatal: 4,
 };
 
-let minLevel: LogLevel = (process.env.NEXUS_LOG_LEVEL as LogLevel) ?? 'info';
+let minLevel: LogLevel = (process.env.CONDRIX_LOG_LEVEL as LogLevel) ?? 'info';
 
 function shouldLog(level: LogLevel): boolean {
   return LEVELS[level] >= LEVELS[minLevel];

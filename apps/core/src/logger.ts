@@ -1,5 +1,5 @@
 /**
- * Structured logger for NexusCore.
+ * Structured logger for Condrix.
  * Wraps console with timestamps, levels, and sensitive data masking.
  */
 
@@ -22,7 +22,7 @@ const SENSITIVE_PATTERNS = [
   /secret/i,
 ];
 
-let minLevel: LogLevel = (process.env.NEXUS_LOG_LEVEL as LogLevel) ?? 'info';
+let minLevel: LogLevel = (process.env.CONDRIX_LOG_LEVEL as LogLevel) ?? 'info';
 
 function shouldLog(level: LogLevel): boolean {
   return LEVELS[level] >= LEVELS[minLevel];

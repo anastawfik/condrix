@@ -7,7 +7,7 @@ import { MaestroService } from './maestro-service.js';
 import { logger } from './logger.js';
 
 function getDefaultDbPath(): string {
-  const dir = join(homedir(), '.nexuscore');
+  const dir = join(homedir(), '.condrix');
   mkdirSync(dir, { recursive: true });
   return join(dir, 'maestro.db');
 }
@@ -25,13 +25,13 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const config = {
-  maestroId: process.env.NEXUS_MAESTRO_ID ?? 'maestro-primary',
-  host: process.env.NEXUS_MAESTRO_HOST ?? '0.0.0.0',
-  port: Number(process.env.NEXUS_MAESTRO_PORT ?? 9200),
-  databasePath: process.env.NEXUS_MAESTRO_DB ?? getDefaultDbPath(),
-  tunnel: process.env.NEXUS_MAESTRO_TUNNEL === 'true',
-  tunnelMode: (process.env.NEXUS_MAESTRO_TUNNEL_MODE ?? 'quick') as 'quick' | 'named',
-  tunnelToken: process.env.NEXUS_MAESTRO_TUNNEL_TOKEN,
+  maestroId: process.env.CONDRIX_MAESTRO_ID ?? 'maestro-primary',
+  host: process.env.CONDRIX_MAESTRO_HOST ?? '0.0.0.0',
+  port: Number(process.env.CONDRIX_MAESTRO_PORT ?? 9200),
+  databasePath: process.env.CONDRIX_MAESTRO_DB ?? getDefaultDbPath(),
+  tunnel: process.env.CONDRIX_MAESTRO_TUNNEL === 'true',
+  tunnelMode: (process.env.CONDRIX_MAESTRO_TUNNEL_MODE ?? 'quick') as 'quick' | 'named',
+  tunnelToken: process.env.CONDRIX_MAESTRO_TUNNEL_TOKEN,
 };
 
 const service = new MaestroService(config);

@@ -3,7 +3,7 @@
  * Wraps better-sqlite3 with schema init, CRUD for projects/workspaces/conversations/events.
  */
 import Database from 'better-sqlite3';
-import type { ProjectInfo, WorkspaceInfo, WorkspaceState } from '@nexus-core/protocol';
+import type { ProjectInfo, WorkspaceInfo, WorkspaceState } from '@condrix/protocol';
 
 export interface CoreDatabaseOptions {
   path: string;

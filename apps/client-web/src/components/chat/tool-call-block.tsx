@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Wrench, Check, X, Loader2 } from 'lucide-react';
-import type { ToolCall } from '@nexus-core/client-shared';
+import type { ToolCall } from '@condrix/client-shared';
 
 interface ToolCallBlockProps {
   toolCall: ToolCall;

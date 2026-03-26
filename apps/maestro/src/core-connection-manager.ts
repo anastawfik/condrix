@@ -3,8 +3,8 @@
  * Cores connect inbound; Maestro authenticates them and tracks online/offline state.
  */
 import type { WebSocket } from 'ws';
-import type { MessageEnvelope } from '@nexus-core/protocol';
-import { generateMessageId, generateId } from '@nexus-core/protocol';
+import type { MessageEnvelope } from '@condrix/protocol';
+import { generateMessageId, generateId } from '@condrix/protocol';
 import type { MaestroDatabase, CoreRow } from './database.js';
 
 export interface ConnectedCore {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { coreRegistryStore, multiCoreStore, maestroStore } from '@nexus-core/client-shared';
+import { coreRegistryStore, multiCoreStore, maestroStore } from '@condrix/client-shared';
 import { cn } from './lib/utils.js';
 import { Button } from './button.js';
 import { Input } from './input.js';

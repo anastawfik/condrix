@@ -1,4 +1,4 @@
-import type { GitStatusEntry, GitBranchInfo } from '@nexus-core/protocol';
+import type { GitStatusEntry, GitBranchInfo } from '@condrix/protocol';
 import { simpleGit, type SimpleGit, type StatusResult, type BranchSummary } from 'simple-git';
 
 /**

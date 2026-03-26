@@ -4,7 +4,7 @@
  */
 import { useStore } from 'zustand';
 import { connectionStore, type ConnectionConfig, type ConnectionState } from '../stores/connection-store.js';
-import type { CoreInfo, AuthScope } from '@nexus-core/protocol';
+import type { CoreInfo, AuthScope } from '@condrix/protocol';
 
 export type { ConnectionState, ConnectionConfig as ConnectionOptions };
 

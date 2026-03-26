@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { MessageEnvelope } from '@nexus-core/protocol';
+import type { MessageEnvelope } from '@condrix/protocol';
 
 /**
  * Internal event bus for Maestro.
