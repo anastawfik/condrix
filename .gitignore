@@ -61,3 +61,6 @@ packages/client-mobile/ios/
 *.tgz
 .cache/
 tmp/
+.agents/
+.claude/
+skills-lock.json
