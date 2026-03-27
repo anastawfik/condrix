@@ -29,6 +29,7 @@ import type {
   NamespaceSchema,
   WorkspaceStateSchema,
   AgentProviderSchema,
+  PermissionModeSchema,
   GitFileStatusSchema,
   AuthScopeSchema,
   NotificationChannelSchema,
@@ -36,6 +37,7 @@ import type {
   CoreInfoSchema,
   ProjectInfoSchema,
   WorkspaceInfoSchema,
+  ContentBlockSchema,
   AgentMessageSchema,
   AgentToolCallSchema,
   TerminalInfoSchema,
@@ -59,6 +61,7 @@ export type MessageType = z.infer<typeof MessageTypeSchema>;
 export type Namespace = z.infer<typeof NamespaceSchema>;
 export type WorkspaceState = z.infer<typeof WorkspaceStateSchema>;
 export type AgentProvider = z.infer<typeof AgentProviderSchema>;
+export type PermissionMode = z.infer<typeof PermissionModeSchema>;
 export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;
 export type AuthScope = z.infer<typeof AuthScopeSchema>;
 export type NotificationChannel = z.infer<typeof NotificationChannelSchema>;
@@ -68,6 +71,7 @@ export type MaestroState = z.infer<typeof MaestroStateSchema>;
 export type CoreInfo = z.infer<typeof CoreInfoSchema>;
 export type ProjectInfo = z.infer<typeof ProjectInfoSchema>;
 export type WorkspaceInfo = z.infer<typeof WorkspaceInfoSchema>;
+export type ContentBlock = z.infer<typeof ContentBlockSchema>;
 export type AgentMessage = z.infer<typeof AgentMessageSchema>;
 export type AgentToolCall = z.infer<typeof AgentToolCallSchema>;
 export type TerminalInfo = z.infer<typeof TerminalInfoSchema>;
@@ -122,7 +126,10 @@ export type SkillDefinition = z.infer<typeof SkillDefinitionSchema>;
 export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
 
 // MessageEnvelope preserves its generic parameter
-export type MessageEnvelope<T = unknown> = Omit<z.infer<typeof MessageEnvelopeSchema>, 'payload'> & {
+export type MessageEnvelope<T = unknown> = Omit<
+  z.infer<typeof MessageEnvelopeSchema>,
+  'payload'
+> & {
   payload: T;
 };
 

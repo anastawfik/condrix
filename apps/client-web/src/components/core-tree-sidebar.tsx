@@ -1,7 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useStore } from 'zustand';
-import { ChevronDown, ChevronRight, FolderOpen, Plus, Server, Layers, Trash2, RotateCw, AlertCircle, Terminal } from 'lucide-react';
-import { multiCoreStore, workspaceStore, coreRegistryStore, maestroStore } from '@condrix/client-shared';
+import {
+  ChevronDown,
+  ChevronRight,
+  FolderOpen,
+  Plus,
+  Server,
+  Layers,
+  Trash2,
+  RotateCw,
+  AlertCircle,
+  Terminal,
+  Loader2,
+  Circle,
+  HelpCircle,
+  PauseCircle,
+} from 'lucide-react';
+import {
+  multiCoreStore,
+  workspaceStore,
+  coreRegistryStore,
+  maestroStore,
+} from '@condrix/client-shared';
 import type { MaestroConnectionState } from '@condrix/client-shared';
 import type { ProjectInfo, WorkspaceInfo } from '@condrix/protocol';
 import { cn } from '@/lib/utils';
@@ -13,15 +33,33 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { AddProjectDialog } from '@condrix/client-components';
 import { CoreTerminalModal } from './core-terminal-modal.js';
 
-const STATE_DOT_COLOR: Record<string, string> = {
-  CREATING: 'bg-primary',
-  IDLE: 'bg-muted-foreground',
-  ACTIVE: 'bg-green-500',
-  WAITING: 'bg-yellow-500',
-  SUSPENDED: 'bg-orange-500',
-  ERRORED: 'bg-red-500',
-  DESTROYED: 'bg-muted-foreground opacity-40',
-};
+/** Maps workspace state to a meaningful icon with color and optional animation. */
+function WorkspaceStateIcon({ state }: { state: string }) {
+  switch (state) {
+    case 'CREATING':
+      return <Loader2 className="animate-spin text-primary shrink-0" size={14} />;
+    case 'IDLE':
+      return <Circle className="text-muted-foreground shrink-0" fill="currentColor" size={10} />;
+    case 'ACTIVE':
+      return <Loader2 className="animate-spin text-green-500 shrink-0" size={14} />;
+    case 'WAITING':
+      return <HelpCircle className="text-yellow-500 shrink-0" size={14} />;
+    case 'SUSPENDED':
+      return <PauseCircle className="text-orange-500 shrink-0" size={14} />;
+    case 'ERRORED':
+      return <AlertCircle className="text-red-500 shrink-0" size={14} />;
+    case 'DESTROYED':
+      return (
+        <Circle
+          className="text-muted-foreground opacity-40 shrink-0"
+          fill="currentColor"
+          size={10}
+        />
+      );
+    default:
+      return <Circle className="text-muted-foreground shrink-0" fill="currentColor" size={10} />;
+  }
+}
 
 const CONN_DOT: Record<string, string> = {
   connected: 'bg-green-500',
@@ -39,7 +77,12 @@ interface SidebarCore {
   name: string;
   status: string;
   /** Auth status — fetched on connect. */
-  authStatus?: { authenticated: boolean; method: string; expiresAt?: string; claudeInstalled: boolean };
+  authStatus?: {
+    authenticated: boolean;
+    method: string;
+    expiresAt?: string;
+    claudeInstalled: boolean;
+  };
 }
 
 export interface CoreTreeSidebarProps {
@@ -89,7 +132,13 @@ function MaestroSidebarTree({ onWorkspaceSelected }: { onWorkspaceSelected?: () 
 
 /* ─── Shared Sidebar Tree ──────────────────────────────────────────────── */
 
-function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onWorkspaceSelected?: () => void }) {
+function SidebarTree({
+  cores,
+  onWorkspaceSelected,
+}: {
+  cores: SidebarCore[];
+  onWorkspaceSelected?: () => void;
+}) {
   const currentWorkspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);
 
   const [expandedCores, setExpandedCores] = useState<Set<string>>(new Set());
@@ -105,10 +154,14 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
   const [wsError, setWsError] = useState<string | null>(null);
 
   // Auth status per core
-  const [authStatuses, setAuthStatuses] = useState<Map<string, SidebarCore['authStatus']>>(new Map());
+  const [authStatuses, setAuthStatuses] = useState<Map<string, SidebarCore['authStatus']>>(
+    new Map(),
+  );
 
   // Terminal modal state
-  const [terminalTarget, setTerminalTarget] = useState<{ coreId: string; coreName: string } | null>(null);
+  const [terminalTarget, setTerminalTarget] = useState<{ coreId: string; coreName: string } | null>(
+    null,
+  );
 
   const isOnline = useCallback((status: string) => {
     return status === 'connected' || status === 'online';
@@ -117,39 +170,49 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
   // Fetch auth status for connected cores
   useEffect(() => {
     for (const core of cores) {
-      if ((core.status === 'connected' || core.status === 'online') && !authStatuses.has(core.coreId)) {
-        multiCoreStore.getState().requestOnCore<SidebarCore['authStatus']>(
-          core.coreId, 'core', 'auth.status', {},
-        ).then((status) => {
-          setAuthStatuses((prev) => new Map(prev).set(core.coreId, status));
-        }).catch(() => { /* ignore */ });
+      if (
+        (core.status === 'connected' || core.status === 'online') &&
+        !authStatuses.has(core.coreId)
+      ) {
+        multiCoreStore
+          .getState()
+          .requestOnCore<SidebarCore['authStatus']>(core.coreId, 'core', 'auth.status', {})
+          .then((status) => {
+            setAuthStatuses((prev) => new Map(prev).set(core.coreId, status));
+          })
+          .catch(() => {
+            /* ignore */
+          });
       }
     }
   }, [cores]);
 
   const fetchProjects = useCallback(async (coreId: string) => {
     try {
-      const result = await multiCoreStore.getState().requestOnCore<{ projects: ProjectInfo[] }>(
-        coreId, 'project', 'list', {},
-      );
+      const result = await multiCoreStore
+        .getState()
+        .requestOnCore<{ projects: ProjectInfo[] }>(coreId, 'project', 'list', {});
       setCoreProjects((prev) => new Map(prev).set(coreId, result.projects));
     } catch {
       // failed to fetch
     }
   }, []);
 
-  const toggleCore = useCallback((coreId: string) => {
-    setExpandedCores((prev) => {
-      const next = new Set(prev);
-      if (next.has(coreId)) {
-        next.delete(coreId);
-      } else {
-        next.add(coreId);
-        fetchProjects(coreId);
-      }
-      return next;
-    });
-  }, [fetchProjects]);
+  const toggleCore = useCallback(
+    (coreId: string) => {
+      setExpandedCores((prev) => {
+        const next = new Set(prev);
+        if (next.has(coreId)) {
+          next.delete(coreId);
+        } else {
+          next.add(coreId);
+          fetchProjects(coreId);
+        }
+        return next;
+      });
+    },
+    [fetchProjects],
+  );
 
   const toggleProject = useCallback((projectId: string) => {
     setExpandedProjects((prev) => {
@@ -171,7 +234,10 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
       // Suspend current workspace if switching
       const { currentWorkspaceId: curWs } = workspaceStore.getState();
       if (curWs && curWs !== ws.id) {
-        await workspaceStore.getState().suspendWorkspace(curWs, coreId).catch(() => {});
+        await workspaceStore
+          .getState()
+          .suspendWorkspace(curWs, coreId)
+          .catch(() => {});
       }
 
       // Resume if suspended, then enter; if already active just select it
@@ -200,7 +266,9 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
     setCreatingWorkspace(true);
     setWsError(null);
     try {
-      const ws = await workspaceStore.getState().createWorkspace(projectId, wsName.trim(), undefined, coreId);
+      const ws = await workspaceStore
+        .getState()
+        .createWorkspace(projectId, wsName.trim(), undefined, coreId);
 
       // Check if the workspace was created in ERRORED state (clone failure)
       if (ws.state === 'ERRORED') {
@@ -295,20 +363,33 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                     online ? 'hover:bg-accent' : 'opacity-50',
                   )}
                 >
-                  {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-                  <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', CONN_DOT[core.status] ?? CONN_DOT.disconnected)} />
+                  {isExpanded ? (
+                    <ChevronDown className="size-4" />
+                  ) : (
+                    <ChevronRight className="size-4" />
+                  )}
+                  <span
+                    className={cn(
+                      'w-2.5 h-2.5 rounded-full shrink-0',
+                      CONN_DOT[core.status] ?? CONN_DOT.disconnected,
+                    )}
+                  />
                   <Server className="size-4 text-muted-foreground" />
                   <span className="truncate font-medium text-foreground">{core.name}</span>
-                  {online && authStatuses.get(core.coreId) && !authStatuses.get(core.coreId)!.authenticated && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-auto shrink-0">
-                          <AlertCircle className="size-4 text-destructive" />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>Authentication required — open Settings &gt; Authentication to sign in</TooltipContent>
-                    </Tooltip>
-                  )}
+                  {online &&
+                    authStatuses.get(core.coreId) &&
+                    !authStatuses.get(core.coreId)!.authenticated && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="ml-auto shrink-0">
+                            <AlertCircle className="size-4 text-destructive" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Authentication required — open Settings &gt; Authentication to sign in
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                 </button>
                 {online && (
                   <Tooltip>
@@ -316,7 +397,10 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={(e) => { e.stopPropagation(); setTerminalTarget({ coreId: core.coreId, coreName: core.name }); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTerminalTarget({ coreId: core.coreId, coreName: core.name });
+                        }}
                         className="hidden group-hover/core:flex p-1 h-auto text-muted-foreground hover:text-primary shrink-0"
                         aria-label="Open Core Terminal"
                       >
@@ -342,7 +426,11 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                             onClick={() => toggleProject(project.id)}
                             className="flex items-center gap-1.5 flex-1 min-w-0"
                           >
-                            {projectExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                            {projectExpanded ? (
+                              <ChevronDown className="size-4" />
+                            ) : (
+                              <ChevronRight className="size-4" />
+                            )}
                             <FolderOpen className="size-4 text-primary shrink-0" />
                             <span className="truncate text-foreground">{project.name}</span>
                           </button>
@@ -362,7 +450,6 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                           <>
                             {workspaces.map((ws) => {
                               const isActive = ws.id === currentWorkspaceId;
-                              const dotColor = STATE_DOT_COLOR[ws.state] ?? 'bg-muted-foreground';
                               const canEnter = ws.state !== 'DESTROYED' && ws.state !== 'CREATING';
 
                               return (
@@ -378,14 +465,22 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                                   )}
                                 >
                                   <button
-                                    onClick={canEnter ? () => handleSelectWorkspace(ws, core.coreId) : undefined}
+                                    onClick={
+                                      canEnter
+                                        ? () => handleSelectWorkspace(ws, core.coreId)
+                                        : undefined
+                                    }
                                     disabled={loading || !canEnter}
                                     className="flex items-center gap-2 flex-1 min-w-0 text-left"
                                   >
-                                    <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', dotColor)} />
+                                    <WorkspaceStateIcon state={ws.state} />
                                     <span className="truncate">{ws.name}</span>
-                                    {ws.state === 'CREATING' && <span className="text-xs text-primary">creating...</span>}
-                                    {ws.state === 'ERRORED' && <span className="text-xs text-red-500">error</span>}
+                                    {ws.state === 'CREATING' && (
+                                      <span className="text-xs text-primary">creating...</span>
+                                    )}
+                                    {ws.state === 'ERRORED' && (
+                                      <span className="text-xs text-red-500">error</span>
+                                    )}
                                   </button>
                                   <div className="hidden group-hover/ws:flex items-center gap-0.5 shrink-0">
                                     {ws.state === 'ERRORED' && (
@@ -424,20 +519,38 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                                   placeholder="Workspace name"
                                   autoFocus
                                   disabled={creatingWorkspace}
-                                  onKeyDown={(e) => { if (e.key === 'Enter' && !creatingWorkspace) handleCreateWorkspace(project.id, core.coreId); }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !creatingWorkspace)
+                                      handleCreateWorkspace(project.id, core.coreId);
+                                  }}
                                 />
-                                {wsError && (
-                                  <p className="text-xs text-red-500">{wsError}</p>
-                                )}
+                                {wsError && <p className="text-xs text-red-500">{wsError}</p>}
                                 {creatingWorkspace ? (
                                   <div className="flex items-center gap-2 py-1">
                                     <span className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                                    <span className="text-xs text-muted-foreground">Cloning repository...</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      Cloning repository...
+                                    </span>
                                   </div>
                                 ) : (
                                   <div className="flex gap-1.5 justify-end">
-                                    <Button variant="ghost" size="sm" onClick={() => { setAddingWorkspaceFor(null); setWsError(null); }}>Cancel</Button>
-                                    <Button size="sm" onClick={() => handleCreateWorkspace(project.id, core.coreId)} disabled={!wsName.trim()}>Create</Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setAddingWorkspaceFor(null);
+                                        setWsError(null);
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleCreateWorkspace(project.id, core.coreId)}
+                                      disabled={!wsName.trim()}
+                                    >
+                                      Create
+                                    </Button>
                                   </div>
                                 )}
                               </div>
@@ -445,7 +558,10 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => { setAddingWorkspaceFor(project.id); setWsName(''); }}
+                                onClick={() => {
+                                  setAddingWorkspaceFor(project.id);
+                                  setWsName('');
+                                }}
                                 className="flex items-center gap-1.5 w-full pl-12 pr-2 py-2 justify-start text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                               >
                                 <Plus className="size-4" />

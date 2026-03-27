@@ -2,7 +2,10 @@ import { useState } from 'react';
 import Markdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import { User, Bot, AlertTriangle, ChevronRight, Brain } from 'lucide-react';
-import type { ChatMessage as ChatMessageType } from '@condrix/client-shared';
+import type {
+  ChatMessage as ChatMessageType,
+  ContentBlock as ContentBlockType,
+} from '@condrix/client-shared';
 import { ToolCallBlock } from './tool-call-block.js';
 
 interface ChatMessageProps {
@@ -15,9 +18,18 @@ function ThinkingIndicator() {
       <Brain size={16} className="animate-pulse text-primary" />
       <span className="text-sm font-medium text-muted-foreground">Thinking...</span>
       <span className="flex gap-1">
-        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
-        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
-        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+        <span
+          className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
+          style={{ animationDelay: '0ms' }}
+        />
+        <span
+          className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
+          style={{ animationDelay: '150ms' }}
+        />
+        <span
+          className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce"
+          style={{ animationDelay: '300ms' }}
+        />
       </span>
     </div>
   );
@@ -29,10 +41,7 @@ function ThinkingBlock({ thinking }: { thinking: string }) {
   if (!thinking.trim()) return null;
 
   return (
-    <button
-      onClick={() => setExpanded(!expanded)}
-      className="w-full text-left mb-2 group"
-    >
+    <button onClick={() => setExpanded(!expanded)} className="w-full text-left mb-2 group">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-muted-foreground transition-colors">
         <ChevronRight
           size={14}
@@ -47,6 +56,49 @@ function ThinkingBlock({ thinking }: { thinking: string }) {
         </div>
       )}
     </button>
+  );
+}
+
+function MarkdownContent({ content }: { content: string }) {
+  return (
+    <Markdown
+      rehypePlugins={[rehypeHighlight]}
+      components={{
+        pre: ({ children }) => (
+          <pre className="my-2 p-3 rounded-lg bg-background overflow-x-auto text-xs border border-border">
+            {children}
+          </pre>
+        ),
+        code: ({ children, className }) =>
+          className ? (
+            <code className={className}>{children}</code>
+          ) : (
+            <code className="px-1.5 py-0.5 rounded-md bg-background text-chart-3 text-xs">
+              {children}
+            </code>
+          ),
+        p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+        ul: ({ children }) => <ul className="list-disc list-inside pl-4 mb-1.5">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal list-inside pl-4 mb-1.5">{children}</ol>,
+        li: ({ children }) => <li className="mb-0.5">{children}</li>,
+      }}
+    >
+      {content}
+    </Markdown>
+  );
+}
+
+function ContentBlockRenderer({ blocks }: { blocks: ContentBlockType[] }) {
+  return (
+    <>
+      {blocks.map((block, i) =>
+        block.type === 'thinking' ? (
+          <ThinkingBlock key={i} thinking={block.content} />
+        ) : (
+          <MarkdownContent key={i} content={block.content} />
+        ),
+      )}
+    </>
   );
 }
 
@@ -93,9 +145,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
       {/* Avatar */}
       <div
         className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5 ${
-          isUser
-            ? 'bg-primary'
-            : 'bg-accent border border-border'
+          isUser ? 'bg-primary' : 'bg-accent border border-border'
         }`}
       >
         {isUser ? (
@@ -119,32 +169,19 @@ export function ChatMessage({ message }: ChatMessageProps) {
         >
           {/* Thinking indicator (shown while waiting for content) */}
           {isWaitingForContent && <ThinkingIndicator />}
-          {/* Thinking block (shown when actual thinking text exists) */}
-          {hasThinkingText && <ThinkingBlock thinking={message.thinking!} />}
 
-          {/* Main content */}
-          {message.content ? (
-            <Markdown
-              rehypePlugins={[rehypeHighlight]}
-              components={{
-                pre: ({ children }) => (
-                  <pre className="my-2 p-3 rounded-lg bg-background overflow-x-auto text-xs border border-border">{children}</pre>
-                ),
-                code: ({ children, className }) =>
-                  className ? (
-                    <code className={className}>{children}</code>
-                  ) : (
-                    <code className="px-1.5 py-0.5 rounded-md bg-background text-chart-3 text-xs">{children}</code>
-                  ),
-                p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
-                ul: ({ children }) => <ul className="list-disc list-inside pl-4 mb-1.5">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal list-inside pl-4 mb-1.5">{children}</ol>,
-                li: ({ children }) => <li className="mb-0.5">{children}</li>,
-              }}
-            >
-              {message.content}
-            </Markdown>
-          ) : showCursor ? null : null}
+          {/* Ordered content blocks (interleaved thinking/text) when available */}
+          {message.contentBlocks && message.contentBlocks.length > 0 ? (
+            <>
+              <ContentBlockRenderer blocks={message.contentBlocks} />
+            </>
+          ) : (
+            <>
+              {/* Legacy fallback: thinking on top, then content */}
+              {hasThinkingText && <ThinkingBlock thinking={message.thinking!} />}
+              {message.content && <MarkdownContent content={message.content} />}
+            </>
+          )}
           {showCursor && <StreamingCursor />}
         </div>
         {message.toolCalls?.map((tc) => (

@@ -26,7 +26,8 @@ condrix/                  # NX monorepo root
 │   └── docs/                # VitePress documentation site
 ├── libs/                    # Shared libraries (imported by apps)
 │   ├── protocol/            # Shared message types, schemas, interfaces
-│   ├── client-shared/       # Shared React components/hooks for clients
+│   ├── client-shared/       # Shared React hooks/stores for clients
+│   ├── client-components/   # Shared UI components (shadcn/ui based)
 │   ├── skills/              # Built-in agent skill definitions
 │   └── mcp-configs/         # Pre-configured MCP server definitions
 ├── docs/                    # Source architecture documents
@@ -37,23 +38,23 @@ condrix/                  # NX monorepo root
 
 ## Tech Stack
 
-| Area | Technology |
-|------|-----------|
-| Language | TypeScript (strict mode) throughout |
-| Runtime | Node.js 22+ |
-| Monorepo | NX with npm workspaces |
-| Build | TypeScript compiler (`tsc`) for libraries, Vite for client apps |
-| Test | Vitest |
-| Lint | ESLint 9 (flat config) + Prettier |
-| Desktop | Tauri 2.0 + React + Monaco Editor |
-| Web | React + Vite |
-| Mobile | React Native (Expo) |
-| CLI | Ink (React for CLI) + Commander |
-| WebSocket | `ws` library |
-| Database | better-sqlite3 |
-| Git | simple-git |
-| Terminal | node-pty |
-| Messaging | grammy (Telegram), @whiskeysockets/baileys (WhatsApp) |
+| Area      | Technology                                                      |
+| --------- | --------------------------------------------------------------- |
+| Language  | TypeScript (strict mode) throughout                             |
+| Runtime   | Node.js 22+                                                     |
+| Monorepo  | NX with npm workspaces                                          |
+| Build     | TypeScript compiler (`tsc`) for libraries, Vite for client apps |
+| Test      | Vitest                                                          |
+| Lint      | ESLint 9 (flat config) + Prettier                               |
+| Desktop   | Tauri 2.0 + React + Monaco Editor                               |
+| Web       | React + Vite                                                    |
+| Mobile    | React Native (Expo)                                             |
+| CLI       | Ink (React for CLI) + Commander                                 |
+| WebSocket | `ws` library                                                    |
+| Database  | better-sqlite3                                                  |
+| Git       | simple-git                                                      |
+| Terminal  | node-pty                                                        |
+| Messaging | grammy (Telegram), @whiskeysockets/baileys (WhatsApp)           |
 
 ## Development Commands
 
@@ -90,9 +91,11 @@ libs/protocol (no deps — foundation layer)
   ├── libs/mcp-configs (depends on: protocol)
   ├── libs/client-shared (depends on: protocol)
   │     ↑
-  │     ├── apps/client-desktop (depends on: protocol, client-shared)
-  │     ├── apps/client-web (depends on: protocol, client-shared)
-  │     └── apps/client-mobile (depends on: protocol, client-shared)
+  │     ├── libs/client-components (depends on: protocol, client-shared)
+  │     │     ↑
+  │     │     ├── apps/client-desktop (depends on: protocol, client-shared, client-components)
+  │     │     ├── apps/client-web (depends on: protocol, client-shared, client-components)
+  │     │     └── apps/client-mobile (depends on: protocol, client-shared, client-components)
   ├── apps/core (depends on: protocol)
   ├── apps/maestro (depends on: protocol)
   └── apps/client-cli (depends on: protocol)
@@ -103,6 +106,7 @@ libs/protocol (no deps — foundation layer)
 ## Coding Conventions
 
 ### TypeScript
+
 - Strict mode enabled (`strict: true` in tsconfig)
 - Use `type` imports: `import type { Foo } from '...'`
 - Prefer `interface` for object shapes, `type` for unions/intersections
@@ -111,6 +115,7 @@ libs/protocol (no deps — foundation layer)
 - Use Bundler module resolution for client apps (Vite-based)
 
 ### Naming
+
 - Files: `kebab-case.ts` (e.g., `workspace-manager.ts`)
 - Classes: `PascalCase` (e.g., `WorkspaceManager`)
 - Interfaces/Types: `PascalCase` (e.g., `WorkspaceInfo`)
@@ -119,6 +124,7 @@ libs/protocol (no deps — foundation layer)
 - Package names: `@condrix/<name>` (e.g., `@condrix/protocol`)
 
 ### Architecture Patterns
+
 - Core and Maestro use a **Manager pattern** — each domain concern has a dedicated manager class
 - Clients are **stateless** — all state lives in the Core, clients only render
 - Communication uses a **message envelope** pattern with namespaces and correlation IDs
@@ -126,12 +132,14 @@ libs/protocol (no deps — foundation layer)
 - MCP servers and Skills are **pluggable** — registered via configuration, loaded dynamically
 
 ### Testing
+
 - Use Vitest for all tests
 - Test files: `*.test.ts` or `*.spec.ts` co-located with source
 - Focus on unit tests for managers and protocol logic
 - Integration tests for WebSocket communication
 
 ### Git
+
 - Branch naming: `feat/<name>`, `fix/<name>`, `chore/<name>`
 - Commit messages: conventional commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`)
 - Keep commits focused and atomic
@@ -150,9 +158,9 @@ libs/protocol (no deps — foundation layer)
 
 ## Ports (Development Defaults)
 
-| Service | Port |
-|---------|------|
-| Core | 9100 |
-| Maestro | 9200 |
+| Service           | Port |
+| ----------------- | ---- |
+| Core              | 9100 |
+| Maestro           | 9200 |
 | Web Client (Vite) | 5173 |
-| Docs (VitePress) | 5174 |
+| Docs (VitePress)  | 5174 |

@@ -40,9 +40,9 @@ coverage/
 apps/client-desktop/src-tauri/target/
 
 # React Native
-packages/client-mobile/.expo/
-packages/client-mobile/android/
-packages/client-mobile/ios/
+apps/client-mobile/.expo/
+apps/client-mobile/android/
+apps/client-mobile/ios/
 
 # Playwright
 .playwright-mcp/

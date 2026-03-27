@@ -1,0 +1,75 @@
+name: Main
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: main-${{ github.sha }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  ci:
+    name: Full CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Cache node_modules
+        id: cache-nm
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: nm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install native build tools
+        if: steps.cache-nm.outputs.cache-hit != 'true'
+        run: sudo apt-get update && sudo apt-get install -y python3 make g++
+
+      - name: npm ci
+        if: steps.cache-nm.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Cache NX
+        uses: actions/cache@v4
+        with:
+          path: .nx/cache
+          key: nx-${{ runner.os }}-${{ github.sha }}
+          restore-keys: nx-${{ runner.os }}-
+
+      - run: npx prettier --check "**/*.{ts,tsx,js,jsx,json,md,yml,yaml,css}"
+      - run: npx nx run-many -t build
+      - run: npx nx run-many -t typecheck
+      - run: npx nx run-many -t lint
+      - run: npx nx run-many -t test
+
+  docker:
+    name: Docker Build (${{ matrix.target }})
+    needs: ci
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [core, maestro, web]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: ${{ matrix.target }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: condrix/${{ matrix.target }}:${{ github.sha }}

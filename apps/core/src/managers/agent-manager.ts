@@ -7,10 +7,15 @@ import type { ToolResult } from '../tools/tool-executor.js';
 import { ToolExecutor } from '../tools/tool-executor.js';
 
 /** Callback for streaming responses from an agent provider. */
-export type StreamCallback = (event: { type: 'thinking' | 'text'; delta: string }) => void;
+export type StreamCallback = (
+  event: { type: 'thinking' | 'text'; delta: string } | { type: 'modeChanged'; delta: string },
+) => void;
 
 /** Callback for executing a tool during an agentic loop. */
-export type ToolExecutorFn = (toolName: string, input: Record<string, unknown>) => Promise<ToolResult>;
+export type ToolExecutorFn = (
+  toolName: string,
+  input: Record<string, unknown>,
+) => Promise<ToolResult>;
 
 /** Provider abstraction for agent backends. */
 export interface AgentProviderAdapter {
@@ -36,10 +41,7 @@ export interface WorkspacePathResolver {
 /** Fallback provider when no AI is configured — prompts the user to authenticate. */
 export class EchoProvider implements AgentProviderAdapter {
   readonly name = 'echo';
-  async sendMessage(
-    _history: AgentMessage[],
-    _message: string,
-  ): Promise<{ content: string }> {
+  async sendMessage(_history: AgentMessage[], _message: string): Promise<{ content: string }> {
     return {
       content:
         '**No AI model configured.** Please authenticate to start using the agent:\n\n' +
@@ -133,7 +135,10 @@ export class AgentManager {
     return this.workspaceToSession.get(workspaceId);
   }
 
-  async sendMessage(workspaceId: string, message: string): Promise<{
+  async sendMessage(
+    workspaceId: string,
+    message: string,
+  ): Promise<{
     messageId: string;
     content: string;
     thinking?: string;
@@ -194,6 +199,15 @@ export class AgentManager {
 
     // Stream callback: emit events for real-time UI updates + accumulate in buffer
     const onStream: StreamCallback = (event) => {
+      if (event.type === 'modeChanged') {
+        // Persist the mode change and notify clients
+        this.db.setWorkspaceConfig(workspaceId, 'permissionMode', event.delta);
+        this.emitter.emit('agent:modeChanged', {
+          workspaceId,
+          permissionMode: event.delta,
+        });
+        return;
+      }
       const stream = this.activeStreams.get(workspaceId);
       if (stream) {
         if (event.type === 'text') stream.content += event.delta;
@@ -215,15 +229,37 @@ export class AgentManager {
       }
     }
 
-    // Apply workspace-level config overrides (model, systemPrompt, maxTokens)
+    // Apply workspace-level config overrides (model, systemPrompt, maxTokens, permissionMode, workDir, sessionId)
     const wsConfig = this.db.getWorkspaceConfig(workspaceId);
     let providerReconfigured = false;
     const originalConfig: Record<string, unknown> = {};
 
-    if (Object.keys(wsConfig).length > 0 && 'reconfigure' in session.provider) {
+    if ('reconfigure' in session.provider) {
       const provider = session.provider as AgentProviderAdapter & {
         reconfigure: (config: Record<string, unknown>) => void;
       };
+
+      // Always set workspace working directory for subprocess cwd
+      if (this.pathResolver) {
+        const wsPath = this.pathResolver.getWorkspacePath(workspaceId);
+        if (wsPath) {
+          originalConfig.workDir = (provider as unknown as { workDir: string | undefined }).workDir;
+          provider.reconfigure({ workDir: wsPath });
+          providerReconfigured = true;
+        }
+      }
+
+      // Restore saved session ID for --resume
+      const agentState = this.db.getAgentState(workspaceId);
+      if (agentState?.sessionData) {
+        const data = agentState.sessionData as { claudeSessionId?: string };
+        if (data.claudeSessionId) {
+          originalConfig.sessionId = undefined;
+          provider.reconfigure({ sessionId: data.claudeSessionId });
+          providerReconfigured = true;
+        }
+      }
+
       // Save original values to restore after this call
       if (wsConfig.model) {
         originalConfig.model = (provider as unknown as { model: string }).model;
@@ -231,7 +267,9 @@ export class AgentManager {
         providerReconfigured = true;
       }
       if (wsConfig.systemPrompt) {
-        originalConfig.systemPrompt = (provider as unknown as { systemPrompt: string | undefined }).systemPrompt;
+        originalConfig.systemPrompt = (
+          provider as unknown as { systemPrompt: string | undefined }
+        ).systemPrompt;
         provider.reconfigure({ systemPrompt: wsConfig.systemPrompt });
         providerReconfigured = true;
       }
@@ -240,12 +278,21 @@ export class AgentManager {
         provider.reconfigure({ maxTokens: Number(wsConfig.maxTokens) });
         providerReconfigured = true;
       }
+      if (wsConfig.permissionMode) {
+        originalConfig.permissionMode = (
+          provider as unknown as { permissionMode: string | undefined }
+        ).permissionMode;
+        provider.reconfigure({ permissionMode: wsConfig.permissionMode });
+        providerReconfigured = true;
+      }
     }
 
     // Send to provider with streaming and tool execution
     let result: { content: string; thinking?: string };
     try {
-      console.log(`[AgentManager] Sending to provider "${session.provider.name}" for workspace ${workspaceId}`);
+      console.log(
+        `[AgentManager] Sending to provider "${session.provider.name}" for workspace ${workspaceId}`,
+      );
       result = await session.provider.sendMessage(agentHistory, message, onStream, toolExecutor);
     } catch (err) {
       this.activeStreams.delete(workspaceId);
@@ -264,10 +311,29 @@ export class AgentManager {
     // Clear active stream
     this.activeStreams.delete(workspaceId);
 
+    // Persist Claude session ID for resume on next request
+    if ('getLastSessionId' in session.provider) {
+      const provider = session.provider as AgentProviderAdapter & {
+        getLastSessionId: () => string | undefined;
+      };
+      const claudeSessionId = provider.getLastSessionId();
+      if (claudeSessionId) {
+        this.db.upsertAgentState(workspaceId, session.provider.name, undefined, {
+          claudeSessionId,
+        });
+      }
+    }
+
     // Persist assistant message
     const assistantMsgId = generateId('msg');
     const assistantTimestamp = new Date().toISOString();
-    this.db.insertConversation(assistantMsgId, workspaceId, 'assistant', result.content, assistantTimestamp);
+    this.db.insertConversation(
+      assistantMsgId,
+      workspaceId,
+      'assistant',
+      result.content,
+      assistantTimestamp,
+    );
 
     this.emitter.emit('agent:message', {
       workspaceId,

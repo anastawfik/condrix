@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useStore } from 'zustand';
-import { MessageSquarePlus, Check, ChevronDown } from 'lucide-react';
+import { MessageSquarePlus, Check, ChevronDown, Shield } from 'lucide-react';
+import type { PermissionMode } from '@condrix/protocol';
 import { workspaceStore } from '@condrix/client-shared';
 import { useWorkspaceConfig } from '@condrix/client-shared';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -17,6 +23,14 @@ const MODELS = [
 
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
 
+const PERMISSION_MODES: { id: PermissionMode; label: string }[] = [
+  { id: 'plan', label: 'Plan' },
+  { id: 'autoaccept', label: 'Auto Accept' },
+  { id: 'auto', label: 'Full Auto' },
+];
+
+const DEFAULT_PERMISSION_MODE: PermissionMode = 'plan';
+
 export function ChatHeader() {
   const workspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);
   const { config, setConfig } = useWorkspaceConfig(workspaceId);
@@ -25,9 +39,10 @@ export function ChatHeader() {
 
   return (
     <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-card">
-      <ModelSelector
-        value={config.model}
-        onChange={(model) => setConfig('model', model)}
+      <ModelSelector value={config.model} onChange={(model) => setConfig('model', model)} />
+      <PermissionModeSelector
+        value={config.permissionMode}
+        onChange={(mode) => setConfig('permissionMode', mode)}
       />
       <SystemPromptEditor
         value={config.systemPrompt}
@@ -64,11 +79,62 @@ function ModelSelector({ value, onChange }: { value?: string; onChange: (model: 
   );
 }
 
-function SystemPromptEditor({ value, onChange }: { value?: string; onChange: (prompt: string) => void }) {
+function PermissionModeSelector({
+  value,
+  onChange,
+}: {
+  value?: PermissionMode;
+  onChange: (mode: PermissionMode) => void;
+}) {
+  const current =
+    PERMISSION_MODES.find((m) => m.id === value) ??
+    PERMISSION_MODES.find((m) => m.id === DEFAULT_PERMISSION_MODE)!;
+
+  return (
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5">
+              <Shield className="size-3.5" />
+              {current.label}
+              <ChevronDown className="size-3.5 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Permission mode</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align="start" className="min-w-[160px]">
+        {PERMISSION_MODES.map((m) => (
+          <DropdownMenuItem
+            key={m.id}
+            onClick={() => onChange(m.id)}
+            className="flex items-center justify-between"
+          >
+            {m.label}
+            {m.id === (value ?? DEFAULT_PERMISSION_MODE) && (
+              <Check className="size-4 text-primary" />
+            )}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function SystemPromptEditor({
+  value,
+  onChange,
+}: {
+  value?: string;
+  onChange: (prompt: string) => void;
+}) {
   const [draft, setDraft] = useState(value ?? '');
   const [open, setOpen] = useState(false);
 
-  useEffect(() => { setDraft(value ?? ''); }, [value]);
+  useEffect(() => {
+    setDraft(value ?? '');
+  }, [value]);
 
   const handleSave = () => {
     const trimmed = draft.trim();
@@ -103,12 +169,25 @@ function SystemPromptEditor({ value, onChange }: { value?: string; onChange: (pr
         />
         <div className="flex justify-end gap-2">
           {hasPrompt && (
-            <Button variant="ghost" size="sm" onClick={() => { setDraft(''); onChange(''); setOpen(false); }} className="text-destructive">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setDraft('');
+                onChange('');
+                setOpen(false);
+              }}
+              className="text-destructive"
+            >
               Clear
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button size="sm" onClick={handleSave}>Save</Button>
+          <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={handleSave}>
+            Save
+          </Button>
         </div>
       </PopoverContent>
     </Popover>

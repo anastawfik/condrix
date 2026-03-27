@@ -1,0 +1,11 @@
+dist/
+build/
+.nx/
+node_modules/
+*.tsbuildinfo
+coverage/
+apps/client-desktop/src-tauri/target/
+apps/client-mobile/.expo/
+pnpm-lock.yaml
+package-lock.json
+skills-lock.json

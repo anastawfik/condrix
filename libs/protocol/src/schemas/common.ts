@@ -39,15 +39,11 @@ export const WorkspaceStateSchema = z.enum([
 
 export const AgentProviderSchema = z.enum(['claude', 'openai', 'local', 'custom']);
 
+export const PermissionModeSchema = z.enum(['plan', 'autoaccept', 'auto']);
+
 // ─── Git ────────────────────────────────────────────────────────────────────
 
-export const GitFileStatusSchema = z.enum([
-  'modified',
-  'added',
-  'deleted',
-  'renamed',
-  'untracked',
-]);
+export const GitFileStatusSchema = z.enum(['modified', 'added', 'deleted', 'renamed', 'untracked']);
 
 // ─── Auth ───────────────────────────────────────────────────────────────────
 

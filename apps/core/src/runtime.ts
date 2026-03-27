@@ -2,9 +2,9 @@ import { EventEmitter } from 'node:events';
 import { homedir, platform } from 'node:os';
 import { join, resolve } from 'node:path';
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { spawn as spawnChild } from 'node:child_process';
-import type { CoreInfo, MessageEnvelope } from '@condrix/protocol';
-import { createEvent, generateMessageId } from '@condrix/protocol';
+import { spawn as spawnChild, type ChildProcess } from 'node:child_process';
+import type { CoreInfo } from '@condrix/protocol';
+import { createEvent } from '@condrix/protocol';
 
 import { CoreDatabase } from './database.js';
 import { AuthManager } from './auth.js';
@@ -168,7 +168,9 @@ export class CoreRuntime {
     this.claudeAuthManager.start();
 
     this.running = true;
-    console.log(`[Core] ${this.config.displayName} started on ${this.config.host}:${this.config.port}`);
+    console.log(
+      `[Core] ${this.config.displayName} started on ${this.config.host}:${this.config.port}`,
+    );
 
     // Auto-start tunnel if configured
     const tunnelAutoStart = this.db.getSetting('tunnel.autoStart') as boolean | undefined;
@@ -212,7 +214,12 @@ export class CoreRuntime {
     };
   }
 
-  private getAuthStatus(): { authenticated: boolean; method: 'oauth' | 'apikey' | 'none'; expiresAt?: string; claudeInstalled: boolean } {
+  private getAuthStatus(): {
+    authenticated: boolean;
+    method: 'oauth' | 'apikey' | 'none';
+    expiresAt?: string;
+    claudeInstalled: boolean;
+  } {
     const method = (this.db.getSetting('auth.method') as string) ?? 'none';
     const claudeCredPath = join(homedir(), '.claude', '.credentials.json');
     const claudeInstalled = existsSync(join(homedir(), '.claude'));
@@ -233,7 +240,9 @@ export class CoreRuntime {
           };
         }
       }
-    } catch { /* ignore parse errors */ }
+    } catch {
+      /* ignore parse errors */
+    }
 
     // Check DB-stored API key
     const apiKey = this.db.getSetting('model.apiKey') as string | undefined;
@@ -247,7 +256,7 @@ export class CoreRuntime {
   // ─── Claude Auth Login via CLI ──────────────────────────────────────────
 
   private pendingAuthProcess: {
-    process: import('node:child_process').ChildProcess;
+    process: ChildProcess;
     resolve: (result: { success: boolean; message: string }) => void;
   } | null = null;
 
@@ -271,7 +280,10 @@ export class CoreRuntime {
         stdout += chunk.toString();
         if (!foundUrl) {
           const urls = stdout.match(urlRegex);
-          const authUrl = urls?.find(u => u.includes('claude.ai') || u.includes('claude.com') || u.includes('anthropic.com'));
+          const authUrl = urls?.find(
+            (u) =>
+              u.includes('claude.ai') || u.includes('claude.com') || u.includes('anthropic.com'),
+          );
           if (authUrl) {
             foundUrl = true;
             resolve({ url: authUrl });
@@ -283,7 +295,10 @@ export class CoreRuntime {
         stdout += chunk.toString();
         if (!foundUrl) {
           const urls = stdout.match(urlRegex);
-          const authUrl = urls?.find(u => u.includes('claude.ai') || u.includes('claude.com') || u.includes('anthropic.com'));
+          const authUrl = urls?.find(
+            (u) =>
+              u.includes('claude.ai') || u.includes('claude.com') || u.includes('anthropic.com'),
+          );
           if (authUrl) {
             foundUrl = true;
             resolve({ url: authUrl });
@@ -313,7 +328,9 @@ export class CoreRuntime {
         }
 
         if (!foundUrl) {
-          reject(new Error(`claude auth login exited without showing URL: ${stdout.slice(0, 200)}`));
+          reject(
+            new Error(`claude auth login exited without showing URL: ${stdout.slice(0, 200)}`),
+          );
         }
       });
 
@@ -337,24 +354,32 @@ export class CoreRuntime {
     }
     // Write the code + Enter to the subprocess stdin
     this.pendingAuthProcess.process.stdin?.write(code + '\n');
-    return { submitted: true, message: 'Code submitted. Waiting for authentication to complete...' };
+    return {
+      submitted: true,
+      message: 'Code submitted. Waiting for authentication to complete...',
+    };
   }
 
   private isContainerized(): boolean {
-    return existsSync('/.dockerenv')
-      || process.env.CONDRIX_CORE_CONTAINER === 'true'
-      || existsSync('/run/.containerenv'); // Podman
+    return (
+      existsSync('/.dockerenv') ||
+      process.env.CONDRIX_CORE_CONTAINER === 'true' ||
+      existsSync('/run/.containerenv')
+    ); // Podman
   }
 
   private getHostMounts(): { label: string; path: string }[] {
     const env = process.env.CONDRIX_HOST_MOUNTS;
     if (!env) return [];
     // Format: "Label1=/path1,Label2=/path2"
-    return env.split(',').map((entry) => {
-      const [label, ...pathParts] = entry.split('=');
-      const path = pathParts.join('='); // Handle paths with = in them
-      return { label: label!.trim(), path: path.trim() };
-    }).filter((m) => m.label && m.path && existsSync(m.path));
+    return env
+      .split(',')
+      .map((entry) => {
+        const [label, ...pathParts] = entry.split('=');
+        const path = pathParts.join('='); // Handle paths with = in them
+        return { label: label!.trim(), path: path.trim() };
+      })
+      .filter((m) => m.label && m.path && existsSync(m.path));
   }
 
   // ─── Route Registration ────────────────────────────────────────────────────
@@ -369,9 +394,8 @@ export class CoreRuntime {
       healthy: this.running,
       uptime: (Date.now() - this.startedAt) / 1000,
       memoryUsage: process.memoryUsage().heapUsed,
-      activeWorkspaces: this.workspaceManager
-        .listWorkspaces()
-        .filter((ws) => ws.state === 'ACTIVE').length,
+      activeWorkspaces: this.workspaceManager.listWorkspaces().filter((ws) => ws.state === 'ACTIVE')
+        .length,
     }));
 
     r.register('core', 'browse', async (payload) => {
@@ -422,9 +446,7 @@ export class CoreRuntime {
 
     r.register('core', 'config.list', async (payload) => {
       const p = payload as { prefix?: string };
-      const raw = p.prefix
-        ? this.db.getSettingsByPrefix(p.prefix)
-        : this.db.getAllSettings();
+      const raw = p.prefix ? this.db.getSettingsByPrefix(p.prefix) : this.db.getAllSettings();
       const settings: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(raw)) {
         settings[key] = this.maskSensitive(key, value);
@@ -510,8 +532,18 @@ export class CoreRuntime {
 
     // ── workspace namespace ──────────────────────────────────────────────────
     r.register('workspace', 'create', async (payload) => {
-      const p = payload as { projectId: string; name: string; branch?: string; agentProvider?: string };
-      return await this.workspaceManager.createWorkspace(p.projectId, p.name, p.branch, p.agentProvider);
+      const p = payload as {
+        projectId: string;
+        name: string;
+        branch?: string;
+        agentProvider?: string;
+      };
+      return await this.workspaceManager.createWorkspace(
+        p.projectId,
+        p.name,
+        p.branch,
+        p.agentProvider,
+      );
     });
 
     r.register('workspace', 'list', async (payload) => {
@@ -583,7 +615,12 @@ export class CoreRuntime {
       const p = payload as { workspaceId: string };
       const stream = this.agentManager.getActiveStream(p.workspaceId);
       if (!stream) return { active: false };
-      return { active: true, content: stream.content, thinking: stream.thinking, startedAt: stream.startedAt };
+      return {
+        active: true,
+        content: stream.content,
+        thinking: stream.thinking,
+        startedAt: stream.startedAt,
+      };
     });
 
     r.register('agent', 'history', async (payload) => {
@@ -595,7 +632,13 @@ export class CoreRuntime {
     r.register('terminal', 'create', async (payload) => {
       const p = payload as { workspaceId: string; shell?: string; cols?: number; rows?: number };
       const projectPath = this.resolveWorkspacePath(p.workspaceId);
-      return this.terminalManager.createTerminal(p.workspaceId, p.shell, p.cols, p.rows, projectPath);
+      return this.terminalManager.createTerminal(
+        p.workspaceId,
+        p.shell,
+        p.cols,
+        p.rows,
+        projectPath,
+      );
     });
 
     r.register('terminal', 'write', async (payload) => {
@@ -647,7 +690,14 @@ export class CoreRuntime {
 
     // ── Import Claude credentials from client (paste from host) ─────────────
     r.register('core', 'auth.import', async (payload) => {
-      const p = payload as { credentials: { accessToken: string; refreshToken: string; expiresAt: number; scopes?: string[] } };
+      const p = payload as {
+        credentials: {
+          accessToken: string;
+          refreshToken: string;
+          expiresAt: number;
+          scopes?: string[];
+        };
+      };
       if (!p.credentials?.accessToken || !p.credentials?.refreshToken) {
         throw new Error('Missing accessToken or refreshToken');
       }
@@ -657,7 +707,11 @@ export class CoreRuntime {
 
       // Read existing or create new
       let existing: Record<string, unknown> = {};
-      try { if (existsSync(credPath)) existing = JSON.parse(readFileSync(credPath, 'utf-8')); } catch { /* ignore */ }
+      try {
+        if (existsSync(credPath)) existing = JSON.parse(readFileSync(credPath, 'utf-8'));
+      } catch {
+        /* ignore */
+      }
 
       existing.claudeAiOauth = p.credentials;
       writeFileSync(credPath, JSON.stringify(existing, null, 2));
@@ -685,7 +739,12 @@ export class CoreRuntime {
     });
 
     r.register('file', 'write', async (payload) => {
-      const p = payload as { workspaceId: string; path: string; content: string; createDirs?: boolean };
+      const p = payload as {
+        workspaceId: string;
+        path: string;
+        content: string;
+        createDirs?: boolean;
+      };
       const rootPath = this.resolveWorkspacePath(p.workspaceId);
       const fullPath = join(rootPath, p.path);
       await this.fileManager.writeFileContent(fullPath, p.content, p.createDirs);
@@ -693,7 +752,12 @@ export class CoreRuntime {
     });
 
     r.register('file', 'search', async (payload) => {
-      const p = payload as { workspaceId: string; pattern: string; path?: string; maxResults?: number };
+      const p = payload as {
+        workspaceId: string;
+        pattern: string;
+        path?: string;
+        maxResults?: number;
+      };
       const rootPath = this.resolveWorkspacePath(p.workspaceId);
       const searchPath = p.path ? join(rootPath, p.path) : rootPath;
       const matches = await this.fileManager.searchFiles(searchPath, p.pattern, p.maxResults);
@@ -860,6 +924,7 @@ export class CoreRuntime {
     const streamEvents: [string, string, string][] = [
       ['agent:thinkingDelta', 'agent', 'thinkingDelta'],
       ['agent:textDelta', 'agent', 'textDelta'],
+      ['agent:modeChanged', 'agent', 'modeChanged'],
     ];
     for (const [emitterEvent, namespace, action] of streamEvents) {
       this.emitter.on(emitterEvent, (payload: unknown) => {
@@ -930,8 +995,11 @@ export class CoreRuntime {
     const settings = this.db.getSettingsByPrefix('model.');
     const model = (settings['model.id'] as string | undefined) ?? process.env.CONDRIX_CLAUDE_MODEL;
     const maxTokens = settings['model.maxTokens'] as number | undefined;
-    const systemPrompt = (settings['model.systemPrompt'] as string | undefined) ?? process.env.CONDRIX_CLAUDE_SYSTEM_PROMPT;
-    const apiKey = (settings['model.apiKey'] as string | undefined) ?? process.env.ANTHROPIC_API_KEY;
+    const systemPrompt =
+      (settings['model.systemPrompt'] as string | undefined) ??
+      process.env.CONDRIX_CLAUDE_SYSTEM_PROMPT;
+    const apiKey =
+      (settings['model.apiKey'] as string | undefined) ?? process.env.ANTHROPIC_API_KEY;
 
     // 1. Check ~/.claude/.credentials.json for OAuth (subprocess mode)
     const credPath = join(homedir(), '.claude', '.credentials.json');
@@ -951,13 +1019,17 @@ export class CoreRuntime {
             });
             this.agentManager.registerProvider(claude);
             this.agentManager.setDefaultProvider('claude');
-            console.log(`[Core] Claude provider registered via OAuth subprocess (model: ${model ?? 'default'})`);
+            console.log(
+              `[Core] Claude provider registered via OAuth subprocess (model: ${model ?? 'default'})`,
+            );
             return;
           }
           console.warn('[Core] OAuth tokens expired — trying API key');
         }
       }
-    } catch { /* ignore parse errors */ }
+    } catch {
+      /* ignore parse errors */
+    }
 
     // 2. Check API key
     if (apiKey) {
@@ -1038,14 +1110,15 @@ export class CoreRuntime {
 
   private initMaestroConnector(): void {
     const maestroUrl =
-      (this.db.getSetting('maestro.url') as string | undefined) ??
-      process.env.CONDRIX_MAESTRO_URL;
+      (this.db.getSetting('maestro.url') as string | undefined) ?? process.env.CONDRIX_MAESTRO_URL;
     const maestroToken =
       (this.db.getSetting('maestro.token') as string | undefined) ??
       process.env.CONDRIX_MAESTRO_TOKEN;
 
     if (!maestroUrl || !maestroToken) {
-      console.log(`[Core] Maestro not configured (url: ${maestroUrl ? 'set' : 'missing'}, token: ${maestroToken ? 'set' : 'missing'})`);
+      console.log(
+        `[Core] Maestro not configured (url: ${maestroUrl ? 'set' : 'missing'}, token: ${maestroToken ? 'set' : 'missing'})`,
+      );
       return;
     }
 
@@ -1069,20 +1142,20 @@ export class CoreRuntime {
       coreId: this.config.coreId,
       displayName: this.config.displayName,
     });
-
   }
-
 
   // ─── Workspace Context ─────────────────────────────────────────────────────
 
   private createContextProvider(): WorkspaceContextProvider {
-    const runtime = this;
+    const workspaceMgr = this.workspaceManager;
+    const projectMgr = this.projectManager;
+    const fileMgr = this.fileManager;
     return {
       async buildContext(workspaceId: string): Promise<string | null> {
-        const workspace = runtime.workspaceManager.getWorkspace(workspaceId);
+        const workspace = workspaceMgr.getWorkspace(workspaceId);
         if (!workspace) return null;
 
-        const project = runtime.projectManager.getProject(workspace.projectId);
+        const project = projectMgr.getProject(workspace.projectId);
         if (!project) return null;
 
         const workDir = workspace.workDir ?? project.path;
@@ -1096,7 +1169,7 @@ export class CoreRuntime {
 
         // Build directory tree (depth 3 for a useful overview)
         try {
-          const entries = await runtime.fileManager.listDirectory(workDir, 3);
+          const entries = await fileMgr.listDirectory(workDir, 3);
           if (entries.length > 0) {
             parts.push('');
             parts.push('## File Tree');
@@ -1115,9 +1188,7 @@ export class CoreRuntime {
         const keyFiles = ['package.json', 'CLAUDE.md', 'README.md'];
         for (const filename of keyFiles) {
           try {
-            const content = await runtime.fileManager.readFileContent(
-              join(workDir, filename),
-            );
+            const content = await fileMgr.readFileContent(join(workDir, filename));
             if (content && content.length < 4000) {
               parts.push('');
               parts.push(`## ${filename}`);

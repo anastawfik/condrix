@@ -9,7 +9,6 @@
  */
 import { createStore } from 'zustand/vanilla';
 import type { MessageEnvelope } from '@condrix/protocol';
-
 import { multiCoreStore } from './multi-core-store.js';
 import { maestroStore } from './maestro-store.js';
 import { workspaceStore } from './workspace-store.js';
@@ -22,6 +21,11 @@ export interface ToolCall {
   result?: string;
 }
 
+export interface ContentBlock {
+  type: 'thinking' | 'text';
+  content: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -31,6 +35,8 @@ export interface ChatMessage {
   metadata?: Record<string, unknown>;
   toolCalls?: ToolCall[];
   isStreaming?: boolean;
+  /** Ordered content blocks preserving the interleaved thinking/text sequence. */
+  contentBlocks?: ContentBlock[];
 }
 
 export interface ChatStore {
@@ -79,7 +85,7 @@ export const createChatStore = () =>
       // Don't double-subscribe
       if (get()._broadcastUnsubs.has(coreId)) return;
 
-      const sub = (pattern: string, listener: (event: import('@condrix/protocol').MessageEnvelope) => void) =>
+      const sub = (pattern: string, listener: (event: MessageEnvelope) => void) =>
         multiCoreStore.getState().subscribeOnCore(coreId, pattern, listener);
 
       // Subscribe to agent:message — both user and assistant messages broadcast by Core
@@ -171,12 +177,14 @@ export const createChatStore = () =>
             thinking: payload.delta,
             timestamp: new Date().toISOString(),
             isStreaming: true,
+            contentBlocks: [{ type: 'thinking', content: payload.delta }],
           };
           addMessage(set, get, payload.workspaceId, placeholder);
         } else {
           updateMessage(set, get, payload.workspaceId, remoteId, (msg) => ({
             ...msg,
             thinking: (msg.thinking ?? '') + payload.delta,
+            contentBlocks: appendToBlocks(msg.contentBlocks, 'thinking', payload.delta),
           }));
         }
       });
@@ -204,12 +212,14 @@ export const createChatStore = () =>
             thinking: '',
             timestamp: new Date().toISOString(),
             isStreaming: true,
+            contentBlocks: [{ type: 'text', content: payload.delta }],
           };
           addMessage(set, get, payload.workspaceId, placeholder);
         } else {
           updateMessage(set, get, payload.workspaceId, remoteId, (msg) => ({
             ...msg,
             content: msg.content + payload.delta,
+            contentBlocks: appendToBlocks(msg.contentBlocks, 'text', payload.delta),
           }));
         }
       });
@@ -236,7 +246,8 @@ export const createChatStore = () =>
     },
 
     sendMessage: async (workspaceId, message) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) throw new Error('No active Core connection');
 
       // Add user message optimistically
@@ -278,23 +289,29 @@ export const createChatStore = () =>
       });
 
       // Subscribe to streaming events (works in both direct and Maestro mode)
-      const unsubThinking = multiCoreStore.getState().subscribeOnCore(coreId, 'agent:thinkingDelta', (event) => {
-        const payload = event.payload as { workspaceId: string; delta: string };
-        if (payload.workspaceId !== workspaceId) return;
-        updateMessage(set, get, workspaceId, placeholderId, (msg) => ({
-          ...msg,
-          thinking: (msg.thinking ?? '') + payload.delta,
-        }));
-      });
+      const unsubThinking = multiCoreStore
+        .getState()
+        .subscribeOnCore(coreId, 'agent:thinkingDelta', (event) => {
+          const payload = event.payload as { workspaceId: string; delta: string };
+          if (payload.workspaceId !== workspaceId) return;
+          updateMessage(set, get, workspaceId, placeholderId, (msg) => ({
+            ...msg,
+            thinking: (msg.thinking ?? '') + payload.delta,
+            contentBlocks: appendToBlocks(msg.contentBlocks, 'thinking', payload.delta),
+          }));
+        });
 
-      const unsubText = multiCoreStore.getState().subscribeOnCore(coreId, 'agent:textDelta', (event) => {
-        const payload = event.payload as { workspaceId: string; delta: string };
-        if (payload.workspaceId !== workspaceId) return;
-        updateMessage(set, get, workspaceId, placeholderId, (msg) => ({
-          ...msg,
-          content: msg.content + payload.delta,
-        }));
-      });
+      const unsubText = multiCoreStore
+        .getState()
+        .subscribeOnCore(coreId, 'agent:textDelta', (event) => {
+          const payload = event.payload as { workspaceId: string; delta: string };
+          if (payload.workspaceId !== workspaceId) return;
+          updateMessage(set, get, workspaceId, placeholderId, (msg) => ({
+            ...msg,
+            content: msg.content + payload.delta,
+            contentBlocks: appendToBlocks(msg.contentBlocks, 'text', payload.delta),
+          }));
+        });
 
       try {
         const result = await multiCoreStore.getState().requestOnCore<{
@@ -346,11 +363,20 @@ export const createChatStore = () =>
     },
 
     loadHistory: async (workspaceId, limit = 50) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
-      const result = await multiCoreStore.getState().requestOnCore<{ messages: Array<{ role: string; content: string; timestamp: string; metadata?: Record<string, unknown> }>; hasMore: boolean }>(
-        coreId, 'agent', 'history', { workspaceId, limit },
-      );
+      const result = await multiCoreStore
+        .getState()
+        .requestOnCore<{
+          messages: Array<{
+            role: string;
+            content: string;
+            timestamp: string;
+            metadata?: Record<string, unknown>;
+          }>;
+          hasMore: boolean;
+        }>(coreId, 'agent', 'history', { workspaceId, limit });
       const mapped: ChatMessage[] = result.messages.map((m, i) => ({
         id: `hist_${i}`,
         role: m.role as ChatMessage['role'],
@@ -364,15 +390,21 @@ export const createChatStore = () =>
     },
 
     approveAction: async (workspaceId, actionId) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
-      await multiCoreStore.getState().requestOnCore(coreId, 'agent', 'approve', { workspaceId, actionId });
+      await multiCoreStore
+        .getState()
+        .requestOnCore(coreId, 'agent', 'approve', { workspaceId, actionId });
     },
 
     rejectAction: async (workspaceId, actionId) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
-      await multiCoreStore.getState().requestOnCore(coreId, 'agent', 'reject', { workspaceId, actionId });
+      await multiCoreStore
+        .getState()
+        .requestOnCore(coreId, 'agent', 'reject', { workspaceId, actionId });
     },
 
     _handleAgentEvent: (workspaceId, event) => {
@@ -471,6 +503,22 @@ function updateMessage(
   }
 }
 
+/** Append a delta to an ordered content blocks array, merging with the last block if same type. */
+function appendToBlocks(
+  blocks: ContentBlock[] | undefined,
+  type: 'thinking' | 'text',
+  delta: string,
+): ContentBlock[] {
+  const result = blocks ? [...blocks] : [];
+  const last = result[result.length - 1];
+  if (last && last.type === type) {
+    result[result.length - 1] = { ...last, content: last.content + delta };
+  } else {
+    result.push({ type, content: delta });
+  }
+  return result;
+}
+
 export const chatStore = createChatStore();
 
 /** Guard against duplicate initChatSync calls (e.g. HMR re-evaluation). */
@@ -499,9 +547,13 @@ export function initChatSync(): () => void {
         const wsId = workspaceStore.getState().currentWorkspaceId;
         if (wsId) {
           // Check if Core has an active stream for this workspace
-          multiCoreStore.getState().requestOnCore<{
-            active: boolean; content?: string; thinking?: string;
-          }>(coreId, 'agent', 'activeStream', { workspaceId: wsId })
+          multiCoreStore
+            .getState()
+            .requestOnCore<{
+              active: boolean;
+              content?: string;
+              thinking?: string;
+            }>(coreId, 'agent', 'activeStream', { workspaceId: wsId })
             .then((stream) => {
               if (stream.active && (stream.content || stream.thinking)) {
                 // Restore the streaming state with accumulated content
@@ -525,11 +577,17 @@ export function initChatSync(): () => void {
                 }
               } else {
                 // No active stream — just reload history
-                chatStore.getState().loadHistory(wsId).catch(() => {});
+                chatStore
+                  .getState()
+                  .loadHistory(wsId)
+                  .catch(() => {});
               }
             })
             .catch(() => {
-              chatStore.getState().loadHistory(wsId).catch(() => {});
+              chatStore
+                .getState()
+                .loadHistory(wsId)
+                .catch(() => {});
             });
         }
       }
@@ -549,73 +607,88 @@ export function initChatSync(): () => void {
   let maestroEventUnsubs: Array<() => void> = [];
   const setupMaestroSubs = () => {
     const sub = maestroStore.getState().subscribe;
-    maestroEventUnsubs.push(sub('agent:thinkingDelta', (event) => {
-      const payload = event.payload as { workspaceId: string; delta: string };
-      if (!payload.workspaceId) return;
-      // If we have our own streaming placeholder, skip (handled by sendMessage)
-      if (chatStore.getState()._streamingPlaceholders.has(payload.workspaceId)) return;
-      const remoteId = `remote_streaming_${payload.workspaceId}`;
-      const msgs = chatStore.getState().messages.get(payload.workspaceId) ?? [];
-      const existing = msgs.find((m) => m.id === remoteId);
-      if (!existing) {
-        chatStore.setState((s) => {
-          const newStreaming = new Set(s.streamingWorkspaces);
-          newStreaming.add(payload.workspaceId);
-          return { streamingWorkspaces: newStreaming };
-        });
-        const placeholder: ChatMessage = {
-          id: remoteId, role: 'assistant', content: '', thinking: payload.delta,
-          timestamp: new Date().toISOString(), isStreaming: true,
-        };
-        const newMessages = new Map(chatStore.getState().messages);
-        const existingMsgs = newMessages.get(payload.workspaceId) ?? [];
-        newMessages.set(payload.workspaceId, [...existingMsgs, placeholder]);
-        chatStore.setState({ messages: newMessages });
-      } else {
-        const newMessages = new Map(chatStore.getState().messages);
-        const allMsgs = newMessages.get(payload.workspaceId) ?? [];
-        const idx = allMsgs.findIndex((m) => m.id === remoteId);
-        if (idx >= 0) {
-          const updated = [...allMsgs];
-          updated[idx] = { ...updated[idx], thinking: (updated[idx].thinking ?? '') + payload.delta };
-          newMessages.set(payload.workspaceId, updated);
+    maestroEventUnsubs.push(
+      sub('agent:thinkingDelta', (event) => {
+        const payload = event.payload as { workspaceId: string; delta: string };
+        if (!payload.workspaceId) return;
+        // If we have our own streaming placeholder, skip (handled by sendMessage)
+        if (chatStore.getState()._streamingPlaceholders.has(payload.workspaceId)) return;
+        const remoteId = `remote_streaming_${payload.workspaceId}`;
+        const msgs = chatStore.getState().messages.get(payload.workspaceId) ?? [];
+        const existing = msgs.find((m) => m.id === remoteId);
+        if (!existing) {
+          chatStore.setState((s) => {
+            const newStreaming = new Set(s.streamingWorkspaces);
+            newStreaming.add(payload.workspaceId);
+            return { streamingWorkspaces: newStreaming };
+          });
+          const placeholder: ChatMessage = {
+            id: remoteId,
+            role: 'assistant',
+            content: '',
+            thinking: payload.delta,
+            timestamp: new Date().toISOString(),
+            isStreaming: true,
+          };
+          const newMessages = new Map(chatStore.getState().messages);
+          const existingMsgs = newMessages.get(payload.workspaceId) ?? [];
+          newMessages.set(payload.workspaceId, [...existingMsgs, placeholder]);
           chatStore.setState({ messages: newMessages });
+        } else {
+          const newMessages = new Map(chatStore.getState().messages);
+          const allMsgs = newMessages.get(payload.workspaceId) ?? [];
+          const idx = allMsgs.findIndex((m) => m.id === remoteId);
+          if (idx >= 0) {
+            const updated = [...allMsgs];
+            updated[idx] = {
+              ...updated[idx],
+              thinking: (updated[idx].thinking ?? '') + payload.delta,
+            };
+            newMessages.set(payload.workspaceId, updated);
+            chatStore.setState({ messages: newMessages });
+          }
         }
-      }
-    }));
-    maestroEventUnsubs.push(sub('agent:textDelta', (event) => {
-      const payload = event.payload as { workspaceId: string; delta: string };
-      if (!payload.workspaceId) return;
-      if (chatStore.getState()._streamingPlaceholders.has(payload.workspaceId)) return;
-      const remoteId = `remote_streaming_${payload.workspaceId}`;
-      const msgs = chatStore.getState().messages.get(payload.workspaceId) ?? [];
-      const existing = msgs.find((m) => m.id === remoteId);
-      if (!existing) {
-        chatStore.setState((s) => {
-          const newStreaming = new Set(s.streamingWorkspaces);
-          newStreaming.add(payload.workspaceId);
-          return { streamingWorkspaces: newStreaming };
-        });
-        const placeholder: ChatMessage = {
-          id: remoteId, role: 'assistant', content: payload.delta, thinking: '',
-          timestamp: new Date().toISOString(), isStreaming: true,
-        };
-        const newMessages = new Map(chatStore.getState().messages);
-        const existingMsgs = newMessages.get(payload.workspaceId) ?? [];
-        newMessages.set(payload.workspaceId, [...existingMsgs, placeholder]);
-        chatStore.setState({ messages: newMessages });
-      } else {
-        const newMessages = new Map(chatStore.getState().messages);
-        const allMsgs = newMessages.get(payload.workspaceId) ?? [];
-        const idx = allMsgs.findIndex((m) => m.id === remoteId);
-        if (idx >= 0) {
-          const updated = [...allMsgs];
-          updated[idx] = { ...updated[idx], content: updated[idx].content + payload.delta };
-          newMessages.set(payload.workspaceId, updated);
+      }),
+    );
+    maestroEventUnsubs.push(
+      sub('agent:textDelta', (event) => {
+        const payload = event.payload as { workspaceId: string; delta: string };
+        if (!payload.workspaceId) return;
+        if (chatStore.getState()._streamingPlaceholders.has(payload.workspaceId)) return;
+        const remoteId = `remote_streaming_${payload.workspaceId}`;
+        const msgs = chatStore.getState().messages.get(payload.workspaceId) ?? [];
+        const existing = msgs.find((m) => m.id === remoteId);
+        if (!existing) {
+          chatStore.setState((s) => {
+            const newStreaming = new Set(s.streamingWorkspaces);
+            newStreaming.add(payload.workspaceId);
+            return { streamingWorkspaces: newStreaming };
+          });
+          const placeholder: ChatMessage = {
+            id: remoteId,
+            role: 'assistant',
+            content: payload.delta,
+            thinking: '',
+            timestamp: new Date().toISOString(),
+            isStreaming: true,
+          };
+          const newMessages = new Map(chatStore.getState().messages);
+          const existingMsgs = newMessages.get(payload.workspaceId) ?? [];
+          newMessages.set(payload.workspaceId, [...existingMsgs, placeholder]);
           chatStore.setState({ messages: newMessages });
+        } else {
+          const newMessages = new Map(chatStore.getState().messages);
+          const allMsgs = newMessages.get(payload.workspaceId) ?? [];
+          const idx = allMsgs.findIndex((m) => m.id === remoteId);
+          if (idx >= 0) {
+            const updated = [...allMsgs];
+            updated[idx] = { ...updated[idx], content: updated[idx].content + payload.delta };
+            newMessages.set(payload.workspaceId, updated);
+            chatStore.setState({ messages: newMessages });
+          }
         }
-      }
-    }));
+      }),
+    );
   };
   const maestroUnsub = maestroStore.subscribe((state) => {
     if (state.state === 'connected' && maestroEventUnsubs.length === 0) {
@@ -629,7 +702,11 @@ export function initChatSync(): () => void {
     setupMaestroSubs();
   }
 
-  const cleanup = () => { unsub(); maestroUnsub(); for (const u of maestroEventUnsubs) u(); };
+  const cleanup = () => {
+    unsub();
+    maestroUnsub();
+    for (const u of maestroEventUnsubs) u();
+  };
   _chatSyncCleanup = cleanup;
   return cleanup;
 }

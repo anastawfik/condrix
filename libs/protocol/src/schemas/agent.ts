@@ -7,11 +7,17 @@ import { IdSchema, TimestampSchema } from './common.js';
 
 // ─── Domain Schemas ─────────────────────────────────────────────────────────
 
+export const ContentBlockSchema = z.object({
+  type: z.enum(['thinking', 'text']),
+  content: z.string(),
+});
+
 export const AgentMessageSchema = z.object({
   role: z.enum(['user', 'assistant', 'system']),
   content: z.string(),
   timestamp: TimestampSchema,
   metadata: z.record(z.unknown()).optional(),
+  contentBlocks: z.array(ContentBlockSchema).optional(),
 });
 
 export const AgentToolCallSchema = z.object({

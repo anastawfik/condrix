@@ -16,6 +16,7 @@
   <a href="#deployment">Deployment</a> &bull;
   <a href="#development">Development</a> &bull;
   <a href="#roadmap">Roadmap</a> &bull;
+  <a href="#contributing">Contributing</a> &bull;
   <a href="#documentation">Docs</a>
 </p>
 
@@ -26,6 +27,7 @@
 > Condrix is under **active, heavy development**. The architecture, APIs, database schemas, and configuration formats may change without notice between commits. This is a pre-release project — expect breaking changes, incomplete features, and rough edges.
 >
 > **What works today:**
+>
 > - Core daemon with full workspace, terminal, file, and git management
 > - Web client with IDE-like interface (Monaco editor, xterm.js, git panel)
 > - AI chat via Claude (OAuth/Claude Plan or API key)
@@ -44,7 +46,7 @@
 - **Multi-machine orchestration** — Run AI agents on powerful machines, control them from anywhere
 - **Real-time collaboration** — File explorer, terminals, git, and chat all update live via WebSocket
 - **Built-in IDE experience** — Monaco editor, integrated terminal (xterm.js), git panel with diffs
-- **Multiple clients** — Web, Desktop (Tauri), Mobile (React Native), CLI (Ink)
+- **Multiple clients** — Web, Desktop (Tauri), Mobile (coming soon), CLI (coming soon)
 - **Messaging bridge** — WhatsApp and Telegram notifications when agents need human input
 - **Secure remote access** — Cloudflare Tunnel integration with zero port forwarding
 - **Per-Core authentication** — Each Core authenticates independently via OAuth or API key, with auto-refresh and UI-based sign-in flow
@@ -58,11 +60,11 @@
 
 Condrix is built on three layers:
 
-| Layer | Role | Technology |
-|-------|------|-----------|
-| **Core** | Agent runtime daemon — manages projects, workspaces, agents, terminals, files, git | Node.js, WebSocket, SQLite, node-pty |
-| **Maestro** | Orchestration hub — cross-core coordination, message relay, messaging bridge | Node.js, grammy, baileys, SQLite |
-| **Clients** | Stateless UIs that connect to Cores for IDE-like experiences | Tauri, React, React Native, Ink |
+| Layer       | Role                                                                               | Technology                           |
+| ----------- | ---------------------------------------------------------------------------------- | ------------------------------------ |
+| **Core**    | Agent runtime daemon — manages projects, workspaces, agents, terminals, files, git | Node.js, WebSocket, SQLite, node-pty |
+| **Maestro** | Orchestration hub — cross-core coordination, message relay, messaging bridge       | Node.js, grammy, baileys, SQLite     |
+| **Clients** | Stateless UIs that connect to Cores for IDE-like experiences                       | Tauri, React, React Native, Ink      |
 
 ### Connection Modes
 
@@ -111,32 +113,7 @@ Clients connect to Maestro, which relays messages to Cores. Enables multi-core o
 
 </details>
 
-<details>
-<summary><strong>Docker Mode</strong> — Full stack in containers with optional Cloudflare Tunnel</summary>
-
-All services run in Docker Compose with persistent volumes and optional Cloudflare Tunnel for public access.
-
-```
-┌─────────────── Docker Host ───────────────────┐
-│                                               │
-│  ┌──────────┐  ┌──────────┐  ┌─────────────┐ │
-│  │ Maestro  │  │   Core   │  │ Web (Nginx) │ │
-│  │  :9200   │  │  :9100   │  │    :80      │ │
-│  └────┬─────┘  └────┬─────┘  └──────┬──────┘ │
-│       │              │               │        │
-│  ┌────▼──────────────▼───────────────▼──────┐ │
-│  │          Cloudflare Tunnel (optional)     │ │
-│  └──────────────────┬───────────────────────┘ │
-└─────────────────────┼─────────────────────────┘
-                      │ wss://
-            ┌─────────▼──────────┐
-            │   Public Internet  │
-            │  maestro.domain.com│
-            │  condrix.domain.com  │
-            └────────────────────┘
-```
-
-</details>
+Both modes can be deployed via Docker Compose (recommended) or run natively with npm. See [Quick Start](#quick-start) and [Deployment](#deployment).
 
 ---
 
@@ -149,6 +126,7 @@ Condrix supports two authentication methods for AI access:
 Uses your Claude Pro/Max subscription via the Claude Code CLI subprocess. **Each Core authenticates independently.**
 
 **How it works:**
+
 1. Open **Settings → Cores** in the web client
 2. Click the **Sign In** icon (🔑) next to a connected Core
 3. Click **Start Authentication** → browser opens Claude's auth page
@@ -157,6 +135,7 @@ Uses your Claude Pro/Max subscription via the Claude Code CLI subprocess. **Each
 6. Done — the Core can now use all Claude models (Haiku, Sonnet, Opus)
 
 **Token lifecycle:**
+
 - Tokens are stored in `~/.claude/.credentials.json` on each Core
 - The `ClaudeAuthManager` service monitors token expiry every 5 minutes
 - Tokens are auto-refreshed 30 minutes before expiry
@@ -164,11 +143,13 @@ Uses your Claude Pro/Max subscription via the Claude Code CLI subprocess. **Each
 - Credentials persist across container restarts via Docker named volumes (`claude-data`)
 
 **How OAuth calls work:**
+
 - OAuth tokens are scoped to Claude Code — they cannot be used directly with the Anthropic API for premium models (Sonnet/Opus)
 - Condrix spawns a `claude` CLI subprocess (from the installed Claude Code package) which handles the API call internally
 - Streaming responses are parsed from the subprocess's NDJSON output
 
 **Requirements:**
+
 - Claude Code CLI must be installed on each Core host (included in Docker images via `@anthropic-ai/claude-code`)
 - A Claude Pro or Max subscription
 
@@ -203,43 +184,28 @@ claude auth status --text  # Check current auth state
 
 ### Prerequisites
 
-- **Node.js** >= 22.0.0 and **npm** >= 10.0.0
-- **Docker** + **Docker Compose** (optional, for containerized deployment)
+- **Docker** + **Docker Compose** (recommended)
+- **Node.js** >= 22.0.0 and **npm** >= 10.0.0 (for development only)
 
-### Option 1: Native (Fastest for Development)
-
-```bash
-# Clone and install
-git clone https://github.com/anastawfik/condrix.git && cd condrix
-npm install && npm run build
-
-# Start Core + Web Client
-npm run dev:core &
-npm run dev:web
-
-# Open http://localhost:5173 → Direct Connect → ws://localhost:9100
-```
-
-### Option 2: Docker Compose (Recommended for Deployment)
+### 1. Start the backend
 
 ```bash
 git clone https://github.com/anastawfik/condrix.git && cd condrix
-
-# Configure environment
 cp .env.example .env
-# Edit .env — set ANTHROPIC_API_KEY or use OAuth after startup
-
-# Docker (production — optimized builds, Nginx)
 docker compose up -d
 ```
 
-| Service | Dev Port | Docker (Prod) |
-|---------|----------|---------------|
-| Web Client | `http://localhost:5173` | `http://localhost` |
-| Core | `ws://localhost:9100` | Internal |
-| Maestro | `ws://localhost:9200` | Internal |
+### 2. Open the web client
 
-After startup, authenticate each Core via the web UI: **Settings → Cores → Sign In icon**.
+Go to [**app.condrix.dev**](https://app.condrix.dev) — the hosted web client connects to any Core or Maestro. No need to run the client yourself.
+
+> **Self-hosting the web client:** If you prefer to host your own, the web client is included in `docker compose up` and available at `http://localhost`.
+
+### 3. Connect and authenticate
+
+1. In the web client, connect to your Core (`ws://localhost:9100`) or Maestro (`ws://localhost:9200`)
+2. Go to **Settings → Cores → Sign In icon** to authenticate with Claude (OAuth or API key)
+3. Create a project, open a workspace, and start chatting with your AI agent
 
 ---
 
@@ -258,6 +224,7 @@ docker compose --profile tunnel up   # All + Cloudflare Tunnel
 ```
 
 **Persistent data** is stored in Docker named volumes:
+
 - `maestro-data` — Maestro database (users, registered cores, settings)
 - `core-data` — Core database, cloned repositories, workspaces
 - `claude-data` — Claude Code credentials (OAuth tokens)
@@ -272,10 +239,10 @@ Expose Condrix to the internet with zero port forwarding:
 
 **2. Add public hostname routes** pointing to Docker service names:
 
-| Public Hostname | Service | Type |
-|-----------------|---------|------|
+| Public Hostname          | Service               | Type |
+| ------------------------ | --------------------- | ---- |
 | `maestro.yourdomain.com` | `http://maestro:9200` | HTTP |
-| `condrix.yourdomain.com` | `http://web:80` | HTTP |
+| `condrix.yourdomain.com` | `http://web:80`       | HTTP |
 
 **3. Configure `.env`**:
 
@@ -321,22 +288,37 @@ cd apps/client-desktop && npm run dev
 
 ## Development
 
+### Running Natively (without Docker)
+
+For development, you can run services directly with npm:
+
+```bash
+git clone https://github.com/anastawfik/condrix.git && cd condrix
+npm install && npm run build
+
+# Start Core + Web Client
+npm run dev:core &
+npm run dev:web
+
+# Open http://localhost:5173 → connect to ws://localhost:9100
+```
+
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev:core` | Core daemon with hot-reload |
-| `npm run dev:maestro` | Maestro service with hot-reload |
-| `npm run dev:web` | Web client dev server (port 5173) |
-| `npm run dev:desktop` | Desktop client (Tauri) |
-| `npm run dev:cli` | CLI client |
-| `npm run build` | Build all packages |
-| `npm test` | Run all tests |
-| `npm run lint` | Lint all packages |
-| `npm run typecheck` | Type-check all packages |
-| `npm run docker:up` | Docker Compose production |
-| `npm run docker:build` | Build Docker images |
-| `npx nx graph` | Visualize dependency graph |
+| Command                | Description                       |
+| ---------------------- | --------------------------------- |
+| `npm run dev:core`     | Core daemon with hot-reload       |
+| `npm run dev:maestro`  | Maestro service with hot-reload   |
+| `npm run dev:web`      | Web client dev server (port 5173) |
+| `npm run dev:desktop`  | Desktop client (Tauri)            |
+| `npm run dev:cli`      | CLI client                        |
+| `npm run build`        | Build all packages                |
+| `npm test`             | Run all tests                     |
+| `npm run lint`         | Lint all packages                 |
+| `npm run typecheck`    | Type-check all packages           |
+| `npm run docker:up`    | Docker Compose production         |
+| `npm run docker:build` | Build Docker images               |
+| `npx nx graph`         | Visualize dependency graph        |
 
 ### Monorepo Structure
 
@@ -363,11 +345,11 @@ condrix/
 
 ### Default Ports
 
-| Service | Port | Docker (Dev) | Docker (Prod) |
-|---------|------|-------------|---------------|
-| Core | 9100 | 9100 | Internal |
-| Maestro | 9200 | 9200 | Internal |
-| Web Client | 5173 | 5173 | 80 |
+| Service    | Port | Docker (Dev) | Docker (Prod) |
+| ---------- | ---- | ------------ | ------------- |
+| Core       | 9100 | 9100         | Internal      |
+| Maestro    | 9200 | 9200         | Internal      |
+| Web Client | 5173 | 5173         | 80            |
 
 ---
 
@@ -398,6 +380,7 @@ Maestro integrates with WhatsApp and Telegram for proactive notifications when a
 ## Roadmap
 
 ### Milestone 1: Core Platform (Current)
+
 - [x] Core daemon with workspace, terminal, file, git management
 - [x] Web client with IDE-like interface (Monaco, xterm.js, git panel)
 - [x] Maestro orchestration with multi-core relay
@@ -411,23 +394,27 @@ Maestro integrates with WhatsApp and Telegram for proactive notifications when a
 - [ ] E2E tests with Playwright
 
 ### Milestone 2: Desktop & CLI Clients
+
 - [ ] Desktop client (Tauri wrapper for web client)
 - [ ] CLI client with Ink components (chat, file ops, terminal, git)
 - [ ] Desktop-specific features (system tray, native notifications)
 
 ### Milestone 3: Mobile Client
+
 - [ ] React Native (Expo) mobile app
 - [ ] Core browsing, workspace management, chat
 - [ ] Push notifications for workspace events
 
 ### Milestone 4: Advanced Orchestration
+
 - [ ] ConversationEngine — AI-powered Maestro natural language queries
 - [ ] NotificationRouter — WhatsApp/Telegram message adapters
 - [ ] Cross-agent communication (route messages between workspaces)
 - [ ] MCP server marketplace/discovery
-- [ ] Session-per-workspace for multi-turn context in Claude subprocess
+- [x] Session-per-workspace for multi-turn context in Claude subprocess
 
 ### Milestone 5: Security & Enterprise
+
 - [ ] TOTP 2FA for Core WebSocket connections
 - [ ] Bidirectional Core↔Maestro connections (outbound via tunnel)
 - [ ] Role-based access control (RBAC)
@@ -441,42 +428,46 @@ Maestro integrates with WhatsApp and Telegram for proactive notifications when a
 
 ### Core
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CONDRIX_CORE_HOST` | `127.0.0.1` | Bind host |
-| `CONDRIX_CORE_PORT` | `9100` | WebSocket port |
-| `CONDRIX_CORE_NAME` | `Condrix` | Display name |
-| `CONDRIX_CORE_ID` | `core-default` | Core identifier |
-| `CONDRIX_CORE_DB_PATH` | `~/.condrix/core.db` | Database file path |
-| `CONDRIX_CORE_DEV_MODE` | `true` | `false` for production |
-| `CONDRIX_CORE_CONTAINER` | — | Set `true` when running in Docker |
-| `CONDRIX_CORE_EXTERNAL_URL` | — | Public URL for OAuth callback (tunnel URL) |
-| `ANTHROPIC_API_KEY` | — | Anthropic API key (alternative to OAuth) |
-| `GITHUB_TOKEN` | — | GitHub PAT for cloning private repos |
-| `CONDRIX_CLAUDE_MODEL` | `claude-sonnet-4-5` | Default Claude model |
-| `CONDRIX_MAESTRO_URL` | — | Maestro WebSocket URL (for Core→Maestro connection) |
-| `CONDRIX_MAESTRO_TOKEN` | — | Access token for Maestro auth |
-| `CONDRIX_HOST_MOUNTS` | — | Host folder mounts for containerized Cores (e.g., `Projects=/host/projects`) |
+| Variable                    | Default              | Description                                                                  |
+| --------------------------- | -------------------- | ---------------------------------------------------------------------------- |
+| `CONDRIX_CORE_HOST`         | `127.0.0.1`          | Bind host                                                                    |
+| `CONDRIX_CORE_PORT`         | `9100`               | WebSocket port                                                               |
+| `CONDRIX_CORE_NAME`         | `Condrix`            | Display name                                                                 |
+| `CONDRIX_CORE_ID`           | `core-default`       | Core identifier                                                              |
+| `CONDRIX_CORE_DB_PATH`      | `~/.condrix/core.db` | Database file path                                                           |
+| `CONDRIX_CORE_DEV_MODE`     | `true`               | `false` for production                                                       |
+| `CONDRIX_CORE_CONTAINER`    | —                    | Set `true` when running in Docker                                            |
+| `CONDRIX_CORE_EXTERNAL_URL` | —                    | Public URL for OAuth callback (tunnel URL)                                   |
+| `ANTHROPIC_API_KEY`         | —                    | Anthropic API key (alternative to OAuth)                                     |
+| `GITHUB_TOKEN`              | —                    | GitHub PAT for cloning private repos                                         |
+| `CONDRIX_CLAUDE_MODEL`      | `claude-sonnet-4-5`  | Default Claude model                                                         |
+| `CONDRIX_MAESTRO_URL`       | —                    | Maestro WebSocket URL (for Core→Maestro connection)                          |
+| `CONDRIX_MAESTRO_TOKEN`     | —                    | Access token for Maestro auth                                                |
+| `CONDRIX_HOST_MOUNTS`       | —                    | Host folder mounts for containerized Cores (e.g., `Projects=/host/projects`) |
 
 ### Maestro
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CONDRIX_MAESTRO_HOST` | `0.0.0.0` | Bind host |
-| `CONDRIX_MAESTRO_PORT` | `9200` | WebSocket port |
-| `CONDRIX_MAESTRO_DB` | `~/.condrix/maestro.db` | Database file path |
-| `CONDRIX_MAESTRO_TUNNEL` | `false` | Enable built-in Cloudflare Tunnel |
-| `CONDRIX_MAESTRO_TUNNEL_MODE` | `quick` | `quick` or `named` |
-| `CONDRIX_MAESTRO_TUNNEL_TOKEN` | — | Cloudflare tunnel token |
+| Variable                       | Default                 | Description                       |
+| ------------------------------ | ----------------------- | --------------------------------- |
+| `CONDRIX_MAESTRO_HOST`         | `0.0.0.0`               | Bind host                         |
+| `CONDRIX_MAESTRO_PORT`         | `9200`                  | WebSocket port                    |
+| `CONDRIX_MAESTRO_DB`           | `~/.condrix/maestro.db` | Database file path                |
+| `CONDRIX_MAESTRO_TUNNEL`       | `false`                 | Enable built-in Cloudflare Tunnel |
+| `CONDRIX_MAESTRO_TUNNEL_MODE`  | `quick`                 | `quick` or `named`                |
+| `CONDRIX_MAESTRO_TUNNEL_TOKEN` | —                       | Cloudflare tunnel token           |
 
 ### Docker / Tunnel
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CF_TUNNEL_TOKEN` | — | Cloudflare tunnel token (Docker tunnel profile) |
-| `VITE_DEFAULT_MAESTRO_URL` | — | Pre-filled Maestro URL in web client |
+| Variable                   | Default | Description                                     |
+| -------------------------- | ------- | ----------------------------------------------- |
+| `CF_TUNNEL_TOKEN`          | —       | Cloudflare tunnel token (Docker tunnel profile) |
+| `VITE_DEFAULT_MAESTRO_URL` | —       | Pre-filled Maestro URL in web client            |
 
 ---
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, coding conventions, and PR guidelines.
 
 ## Documentation
 
@@ -484,4 +475,4 @@ Full architecture document: [`apps/docs/architecture/Condrix-Architecture-v1.0.m
 
 ## License
 
-MIT
+[MIT](./LICENSE)
