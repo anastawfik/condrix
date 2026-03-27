@@ -11,6 +11,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import { appendFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 import type { AgentMessage } from '@condrix/protocol';
 
 import type {
@@ -168,25 +171,17 @@ export class ClaudeProvider implements AgentProviderAdapter {
         ...(this.workDir ? { cwd: this.workDir } : {}),
       });
 
+      // Dump all raw NDJSON to a log file for analysis
+      const logFile = join(homedir(), '.condrix', 'claude-ndjson.log');
+      writeFileSync(logFile, `--- New request at ${new Date().toISOString()} ---\n`);
+      console.log(`[Claude] Raw NDJSON log: ${logFile}`);
+
       const rl = createInterface({ input: child.stdout });
       rl.on('line', (line) => {
         if (!line.trim()) return;
+        appendFileSync(logFile, line + '\n');
         try {
           const event = JSON.parse(line);
-
-          // Log all subprocess events for debugging
-          const evtType = event.type ?? 'unknown';
-          const evtSubtype = event.subtype ?? event.event?.type ?? '';
-          if (evtType !== 'stream_event' || evtSubtype !== 'content_block_delta') {
-            // For assistant/user events, log content block types
-            if ((evtType === 'assistant' || evtType === 'user') && event.message?.content) {
-              const blocks = (event.message.content as Array<{ type: string; name?: string; id?: string }>);
-              const summary = blocks.map((b) => b.name ? `${b.type}(${b.name})` : b.type).join(', ');
-              console.log(`[Claude:NDJSON] type=${evtType} blocks=[${summary}]`);
-            } else {
-              console.log(`[Claude:NDJSON] type=${evtType} subtype=${evtSubtype}`);
-            }
-          }
 
           // Stream deltas from content_block_delta events
           if (event.type === 'stream_event' && event.event?.type === 'content_block_delta') {
