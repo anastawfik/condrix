@@ -174,6 +174,16 @@ export class ClaudeProvider implements AgentProviderAdapter {
         try {
           const event = JSON.parse(line);
 
+          // Log all subprocess events for debugging (type summary only)
+          const evtType = event.type ?? 'unknown';
+          const evtSubtype = event.subtype ?? event.event?.type ?? '';
+          const toolName = event.tool_name ?? event.event?.name ?? '';
+          if (evtType !== 'stream_event' || evtSubtype !== 'content_block_delta') {
+            console.log(
+              `[Claude:NDJSON] type=${evtType} subtype=${evtSubtype}${toolName ? ` tool=${toolName}` : ''}`,
+            );
+          }
+
           // Stream deltas from content_block_delta events
           if (event.type === 'stream_event' && event.event?.type === 'content_block_delta') {
             const delta = event.event.delta;
