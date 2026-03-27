@@ -177,12 +177,13 @@ export class ClaudeProvider implements AgentProviderAdapter {
           // Stream deltas from content_block_delta events
           if (event.type === 'stream_event' && event.event?.type === 'content_block_delta') {
             const delta = event.event.delta;
+            const blockIndex = event.event.index as number | undefined;
             if (delta?.type === 'text_delta' && delta.text) {
               content += delta.text;
-              if (onStream) onStream({ type: 'text', delta: delta.text });
+              if (onStream) onStream({ type: 'text', delta: delta.text, blockIndex });
             } else if (delta?.type === 'thinking_delta' && delta.thinking) {
               thinking += delta.thinking;
-              if (onStream) onStream({ type: 'thinking', delta: delta.thinking });
+              if (onStream) onStream({ type: 'thinking', delta: delta.thinking, blockIndex });
             }
           }
           // Permission mode change detection

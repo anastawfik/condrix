@@ -8,7 +8,9 @@ import { ToolExecutor } from '../tools/tool-executor.js';
 
 /** Callback for streaming responses from an agent provider. */
 export type StreamCallback = (
-  event: { type: 'thinking' | 'text'; delta: string } | { type: 'modeChanged'; delta: string },
+  event:
+    | { type: 'thinking' | 'text'; delta: string; blockIndex?: number }
+    | { type: 'modeChanged'; delta: string },
 ) => void;
 
 /** Callback for executing a tool during an agentic loop. */
@@ -216,6 +218,7 @@ export class AgentManager {
       this.emitter.emit(`agent:${event.type}Delta`, {
         workspaceId,
         delta: event.delta,
+        blockIndex: event.blockIndex,
       });
     };
 

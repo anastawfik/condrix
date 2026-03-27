@@ -152,7 +152,11 @@ export const createChatStore = () =>
 
       // Subscribe to streaming deltas for other clients' requests
       const unsubThinking = sub('agent:thinkingDelta', (event) => {
-        const payload = event.payload as { workspaceId: string; delta: string };
+        const payload = event.payload as {
+          workspaceId: string;
+          delta: string;
+          blockIndex?: number;
+        };
 
         // If we have our own streaming placeholder, the sendMessage handler handles this
         if (get()._streamingPlaceholders.has(payload.workspaceId)) return;
@@ -184,13 +188,22 @@ export const createChatStore = () =>
           updateMessage(set, get, payload.workspaceId, remoteId, (msg) => ({
             ...msg,
             thinking: (msg.thinking ?? '') + payload.delta,
-            contentBlocks: appendToBlocks(msg.contentBlocks, 'thinking', payload.delta),
+            contentBlocks: appendToBlocks(
+              msg.contentBlocks,
+              'thinking',
+              payload.delta,
+              payload.blockIndex,
+            ),
           }));
         }
       });
 
       const unsubText = sub('agent:textDelta', (event) => {
-        const payload = event.payload as { workspaceId: string; delta: string };
+        const payload = event.payload as {
+          workspaceId: string;
+          delta: string;
+          blockIndex?: number;
+        };
 
         if (get()._streamingPlaceholders.has(payload.workspaceId)) return;
 
@@ -219,7 +232,12 @@ export const createChatStore = () =>
           updateMessage(set, get, payload.workspaceId, remoteId, (msg) => ({
             ...msg,
             content: msg.content + payload.delta,
-            contentBlocks: appendToBlocks(msg.contentBlocks, 'text', payload.delta),
+            contentBlocks: appendToBlocks(
+              msg.contentBlocks,
+              'text',
+              payload.delta,
+              payload.blockIndex,
+            ),
           }));
         }
       });
@@ -292,24 +310,42 @@ export const createChatStore = () =>
       const unsubThinking = multiCoreStore
         .getState()
         .subscribeOnCore(coreId, 'agent:thinkingDelta', (event) => {
-          const payload = event.payload as { workspaceId: string; delta: string };
+          const payload = event.payload as {
+            workspaceId: string;
+            delta: string;
+            blockIndex?: number;
+          };
           if (payload.workspaceId !== workspaceId) return;
           updateMessage(set, get, workspaceId, placeholderId, (msg) => ({
             ...msg,
             thinking: (msg.thinking ?? '') + payload.delta,
-            contentBlocks: appendToBlocks(msg.contentBlocks, 'thinking', payload.delta),
+            contentBlocks: appendToBlocks(
+              msg.contentBlocks,
+              'thinking',
+              payload.delta,
+              payload.blockIndex,
+            ),
           }));
         });
 
       const unsubText = multiCoreStore
         .getState()
         .subscribeOnCore(coreId, 'agent:textDelta', (event) => {
-          const payload = event.payload as { workspaceId: string; delta: string };
+          const payload = event.payload as {
+            workspaceId: string;
+            delta: string;
+            blockIndex?: number;
+          };
           if (payload.workspaceId !== workspaceId) return;
           updateMessage(set, get, workspaceId, placeholderId, (msg) => ({
             ...msg,
             content: msg.content + payload.delta,
-            contentBlocks: appendToBlocks(msg.contentBlocks, 'text', payload.delta),
+            contentBlocks: appendToBlocks(
+              msg.contentBlocks,
+              'text',
+              payload.delta,
+              payload.blockIndex,
+            ),
           }));
         });
 
@@ -502,17 +538,32 @@ function updateMessage(
 }
 
 /** Append a delta to an ordered content blocks array, merging with the last block if same type. */
+/**
+ * Append a delta to an ordered content blocks array.
+ * Merges with the last block if same type AND same blockIndex.
+ * A new blockIndex (from a new content_block in the stream) forces a new block,
+ * even if the type matches — this preserves interleaved thinking/text sections
+ * across multi-turn tool use.
+ */
 function appendToBlocks(
   blocks: ContentBlock[] | undefined,
   type: 'thinking' | 'text',
   delta: string,
+  blockIndex?: number,
 ): ContentBlock[] {
   const result = blocks ? [...blocks] : [];
   const last = result[result.length - 1];
-  if (last && last.type === type) {
+  const lastMeta = last ? (last as ContentBlock & { _blockIndex?: number }) : undefined;
+  const sameBlock =
+    last &&
+    last.type === type &&
+    (blockIndex === undefined || lastMeta?._blockIndex === blockIndex);
+  if (sameBlock) {
     result[result.length - 1] = { ...last, content: last.content + delta };
   } else {
-    result.push({ type, content: delta });
+    const block: ContentBlock & { _blockIndex?: number } = { type, content: delta };
+    if (blockIndex !== undefined) block._blockIndex = blockIndex;
+    result.push(block);
   }
   return result;
 }
