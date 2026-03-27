@@ -83,8 +83,11 @@ export class FileManager {
       const change: FileChange = { path: String(filePath), type: 'deleted' };
       this.notifyChange(change, workspaceId);
     });
-    watcher.on('error', (err: Error) => {
-      console.warn(`[FileManager] Watcher error (${dirPath}): ${err.message}`);
+    watcher.on('error', (...args: unknown[]) => {
+      const err = args[0];
+      console.warn(
+        `[FileManager] Watcher error (${dirPath}): ${err instanceof Error ? err.message : err}`,
+      );
     });
 
     this.watchers.set(dirPath, watcher);

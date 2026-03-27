@@ -88,7 +88,7 @@ export interface WorkspaceStore {
   enterWorkspace: (workspaceId: string, coreId?: string) => Promise<void>;
   suspendWorkspace: (workspaceId: string, coreId?: string) => Promise<void>;
   resumeWorkspace: (workspaceId: string, coreId?: string) => Promise<void>;
-  destroyWorkspace: (workspaceId: string, coreId?: string) => Promise<void>;
+  destroyWorkspace: (workspaceId: string, coreId?: string, deleteFiles?: boolean) => Promise<void>;
 }
 
 export const createWorkspaceStore = () =>
@@ -193,8 +193,8 @@ export const createWorkspaceStore = () =>
       }));
     },
 
-    destroyWorkspace: async (workspaceId, coreId?) => {
-      await request('workspace', 'destroy', { workspaceId }, coreId);
+    destroyWorkspace: async (workspaceId, coreId?, deleteFiles?) => {
+      await request('workspace', 'destroy', { workspaceId, deleteFiles }, coreId);
       set((s) => ({
         workspaces: s.workspaces.filter((w) => w.id !== workspaceId),
         currentWorkspaceId: s.currentWorkspaceId === workspaceId ? null : s.currentWorkspaceId,

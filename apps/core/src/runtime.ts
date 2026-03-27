@@ -576,8 +576,8 @@ export class CoreRuntime {
     });
 
     r.register('workspace', 'destroy', async (payload) => {
-      const p = payload as { workspaceId: string };
-      const destroyed = this.workspaceManager.destroyWorkspace(p.workspaceId);
+      const p = payload as { workspaceId: string; deleteFiles?: boolean };
+      const destroyed = this.workspaceManager.destroyWorkspace(p.workspaceId, p.deleteFiles);
       return { workspaceId: p.workspaceId, destroyed };
     });
 
@@ -925,6 +925,8 @@ export class CoreRuntime {
       ['agent:thinkingDelta', 'agent', 'thinkingDelta'],
       ['agent:textDelta', 'agent', 'textDelta'],
       ['agent:modeChanged', 'agent', 'modeChanged'],
+      ['agent:toolUse', 'agent', 'toolUse'],
+      ['agent:toolResult', 'agent', 'toolResult'],
     ];
     for (const [emitterEvent, namespace, action] of streamEvents) {
       this.emitter.on(emitterEvent, (payload: unknown) => {

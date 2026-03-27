@@ -7,11 +7,13 @@ import type { ToolResult } from '../tools/tool-executor.js';
 import { ToolExecutor } from '../tools/tool-executor.js';
 
 /** Callback for streaming responses from an agent provider. */
-export type StreamCallback = (
-  event:
-    | { type: 'thinking' | 'text'; delta: string; blockIndex?: number }
-    | { type: 'modeChanged'; delta: string },
-) => void;
+export type StreamEvent =
+  | { type: 'thinking' | 'text'; delta: string; blockIndex?: number }
+  | { type: 'toolUse'; toolId: string; toolName: string; input: Record<string, unknown> }
+  | { type: 'toolResult'; toolId: string; content: string }
+  | { type: 'modeChanged'; delta: string };
+
+export type StreamCallback = (event: StreamEvent) => void;
 
 /** Callback for executing a tool during an agentic loop. */
 export type ToolExecutorFn = (
@@ -66,10 +68,20 @@ interface AgentSession {
  * routing tool calls, and handling conversation history.
  */
 /** Tracks an in-flight streaming response so reconnecting clients can catch up. */
+interface ContentBlock {
+  type: 'thinking' | 'text' | 'toolUse' | 'toolResult';
+  content: string;
+  toolId?: string;
+  toolName?: string;
+  input?: Record<string, unknown>;
+  _blockIndex?: number;
+}
+
 interface ActiveStream {
   workspaceId: string;
   content: string;
   thinking: string;
+  contentBlocks: ContentBlock[];
   startedAt: string;
 }
 
@@ -196,17 +208,60 @@ export class AgentManager {
       workspaceId,
       content: '',
       thinking: '',
+      contentBlocks: [],
       startedAt: timestamp,
     });
+
+    /** Append to the server-side content blocks array (mirrors client-side appendToBlocks). */
+    const appendBlock = (block: ContentBlock) => {
+      const stream = this.activeStreams.get(workspaceId);
+      if (!stream) return;
+      const blocks = stream.contentBlocks;
+      const last = blocks[blocks.length - 1];
+      if (
+        (block.type === 'thinking' || block.type === 'text') &&
+        last?.type === block.type &&
+        (block._blockIndex === undefined || last._blockIndex === block._blockIndex)
+      ) {
+        last.content += block.content;
+      } else {
+        blocks.push({ ...block });
+      }
+    };
 
     // Stream callback: emit events for real-time UI updates + accumulate in buffer
     const onStream: StreamCallback = (event) => {
       if (event.type === 'modeChanged') {
-        // Persist the mode change and notify clients
         this.db.setWorkspaceConfig(workspaceId, 'permissionMode', event.delta);
-        this.emitter.emit('agent:modeChanged', {
+        this.emitter.emit('agent:modeChanged', { workspaceId, permissionMode: event.delta });
+        return;
+      }
+      if (event.type === 'toolUse') {
+        appendBlock({
+          type: 'toolUse',
+          content: '',
+          toolId: event.toolId,
+          toolName: event.toolName,
+          input: event.input,
+        });
+        this.emitter.emit('agent:toolUse', {
           workspaceId,
-          permissionMode: event.delta,
+          toolId: event.toolId,
+          toolName: event.toolName,
+          input: event.input,
+        });
+        return;
+      }
+      if (event.type === 'toolResult') {
+        appendBlock({
+          type: 'toolResult',
+          content: event.content,
+          toolId: event.toolId,
+        });
+        this.emitter.emit('agent:toolResult', {
+          workspaceId,
+          toolId: event.toolId,
+          content: event.content,
         });
         return;
       }
@@ -215,6 +270,7 @@ export class AgentManager {
         if (event.type === 'text') stream.content += event.delta;
         else if (event.type === 'thinking') stream.thinking += event.delta;
       }
+      appendBlock({ type: event.type, content: event.delta, _blockIndex: event.blockIndex });
       this.emitter.emit(`agent:${event.type}Delta`, {
         workspaceId,
         delta: event.delta,
@@ -311,6 +367,11 @@ export class AgentManager {
       }
     }
 
+    // Capture contentBlocks before clearing active stream
+    const streamBlocks = this.activeStreams.get(workspaceId)?.contentBlocks ?? [];
+    // Strip internal _blockIndex before persisting
+    const finalBlocks = streamBlocks.map(({ _blockIndex, ...rest }) => rest);
+
     // Clear active stream
     this.activeStreams.delete(workspaceId);
 
@@ -338,6 +399,7 @@ export class AgentManager {
       assistantTimestamp,
       undefined,
       result.thinking,
+      finalBlocks.length > 0 ? finalBlocks : undefined,
     );
 
     this.emitter.emit('agent:message', {
@@ -345,6 +407,7 @@ export class AgentManager {
       role: 'assistant' as const,
       content: result.content,
       thinking: result.thinking,
+      contentBlocks: finalBlocks.length > 0 ? finalBlocks : undefined,
       timestamp: assistantTimestamp,
     });
 
@@ -364,6 +427,7 @@ export class AgentManager {
       content: r.content,
       timestamp: r.timestamp,
       thinking: r.thinking,
+      contentBlocks: r.contentBlocks as ContentBlock[] | undefined,
     }));
     return { messages, hasMore };
   }

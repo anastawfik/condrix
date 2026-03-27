@@ -11,7 +11,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { appendFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import type { AgentMessage } from '@condrix/protocol';
@@ -164,6 +164,7 @@ export class ClaudeProvider implements AgentProviderAdapter {
       let content = '';
       let thinking = '';
       let stderr = '';
+      const emittedToolIds = new Set<string>();
 
       const child = spawn('claude', args, {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -171,10 +172,14 @@ export class ClaudeProvider implements AgentProviderAdapter {
         ...(this.workDir ? { cwd: this.workDir } : {}),
       });
 
-      // Dump all raw NDJSON to a log file for analysis
-      const logFile = join(homedir(), '.condrix', 'claude-ndjson.log');
-      writeFileSync(logFile, `--- New request at ${new Date().toISOString()} ---\n`);
-      console.log(`[Claude] Raw NDJSON log: ${logFile}`);
+      // Log raw NDJSON to file for debugging
+      const logDir = join(homedir(), '.condrix');
+      if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true });
+      const logFile = join(logDir, 'claude-ndjson.log');
+      writeFileSync(
+        logFile,
+        `--- Request at ${new Date().toISOString()} | model=${this.model} cwd=${this.workDir ?? 'inherited'} ---\n`,
+      );
 
       const rl = createInterface({ input: child.stdout });
       rl.on('line', (line) => {
@@ -193,6 +198,51 @@ export class ClaudeProvider implements AgentProviderAdapter {
             } else if (delta?.type === 'thinking_delta' && delta.thinking) {
               thinking += delta.thinking;
               if (onStream) onStream({ type: 'thinking', delta: delta.thinking, blockIndex });
+            }
+          }
+          // Tool use: emit from assistant partial messages (has complete input)
+          else if (event.type === 'assistant' && event.message?.content) {
+            for (const block of event.message.content as Array<{
+              type: string;
+              id?: string;
+              name?: string;
+              input?: Record<string, unknown>;
+            }>) {
+              if (
+                block.type === 'tool_use' &&
+                block.id &&
+                block.name &&
+                !emittedToolIds.has(block.id)
+              ) {
+                emittedToolIds.add(block.id);
+                if (onStream)
+                  onStream({
+                    type: 'toolUse',
+                    toolId: block.id,
+                    toolName: block.name,
+                    input: block.input ?? {},
+                  });
+              }
+            }
+          }
+          // Tool results from user messages (tool execution output)
+          else if (event.type === 'user' && event.message?.content) {
+            for (const block of event.message.content as Array<{
+              type: string;
+              tool_use_id?: string;
+              content?: string;
+            }>) {
+              if (block.type === 'tool_result' && block.tool_use_id) {
+                if (onStream)
+                  onStream({
+                    type: 'toolResult',
+                    toolId: block.tool_use_id,
+                    content:
+                      typeof block.content === 'string'
+                        ? block.content
+                        : JSON.stringify(block.content),
+                  });
+              }
             }
           }
           // Permission mode change detection

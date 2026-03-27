@@ -2,7 +2,16 @@ import { useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
-import { User, Bot, AlertTriangle, ChevronRight, Brain } from 'lucide-react';
+import {
+  User,
+  Bot,
+  AlertTriangle,
+  ChevronRight,
+  Brain,
+  Wrench,
+  FileText,
+  CheckCircle2,
+} from 'lucide-react';
 import type {
   ChatMessage as ChatMessageType,
   ContentBlock as ContentBlockType,
@@ -41,6 +50,9 @@ function ThinkingBlock({ thinking }: { thinking: string }) {
 
   if (!thinking.trim()) return null;
 
+  const lines = thinking.trimEnd().split('\n');
+  const preview = lines.slice(-2).join('\n');
+
   return (
     <button onClick={() => setExpanded(!expanded)} className="w-full text-left mb-2 group">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer hover:text-muted-foreground transition-colors">
@@ -51,9 +63,13 @@ function ThinkingBlock({ thinking }: { thinking: string }) {
         <Brain size={14} />
         <span className="font-medium">Thinking</span>
       </div>
-      {expanded && (
+      {expanded ? (
         <div className="mt-2 pl-5 text-xs text-muted-foreground italic leading-relaxed whitespace-pre-wrap border-l-2 border-border max-h-[300px] overflow-y-auto">
           {thinking}
+        </div>
+      ) : (
+        <div className="mt-1 pl-5 text-xs text-muted-foreground/60 italic leading-relaxed whitespace-pre-wrap border-l-2 border-border/50 line-clamp-2 overflow-hidden">
+          {preview}
         </div>
       )}
     </button>
@@ -102,16 +118,86 @@ function MarkdownContent({ content }: { content: string }) {
   );
 }
 
+function ToolUseBlock({ block }: { block: ContentBlockType }) {
+  const [expanded, setExpanded] = useState(false);
+  const inputStr = block.input ? JSON.stringify(block.input, null, 2) : '';
+  // Show a short summary of the input (first key=value)
+  const inputSummary = block.input
+    ? Object.entries(block.input)
+        .slice(0, 1)
+        .map(([k, v]) => {
+          const val = typeof v === 'string' ? v : JSON.stringify(v);
+          // Truncate long values (e.g., file paths)
+          const short = val.length > 60 ? '...' + val.slice(-50) : val;
+          return `${k}: ${short}`;
+        })
+        .join(', ')
+    : '';
+
+  return (
+    <button onClick={() => setExpanded(!expanded)} className="w-full text-left my-1.5 group">
+      <div className="flex items-center gap-1.5 text-xs cursor-pointer transition-colors">
+        <ChevronRight
+          size={14}
+          className={`transition-transform duration-200 text-muted-foreground ${expanded ? 'rotate-90' : ''}`}
+        />
+        <Wrench size={14} className="text-blue-500" />
+        <span className="font-medium text-blue-500">{block.toolName ?? 'Tool'}</span>
+        {inputSummary && <span className="text-muted-foreground truncate">{inputSummary}</span>}
+      </div>
+      {expanded && inputStr && (
+        <pre className="mt-1.5 ml-5 p-2 text-xs bg-background rounded border border-border overflow-x-auto max-h-[200px] overflow-y-auto text-muted-foreground">
+          {inputStr}
+        </pre>
+      )}
+    </button>
+  );
+}
+
+function ToolResultBlock({ block }: { block: ContentBlockType }) {
+  const [expanded, setExpanded] = useState(false);
+  const contentStr = block.content || '';
+  const lineCount = contentStr.split('\n').length;
+  const preview = contentStr.split('\n').slice(0, 3).join('\n');
+
+  return (
+    <button onClick={() => setExpanded(!expanded)} className="w-full text-left my-1 group">
+      <div className="flex items-center gap-1.5 text-xs cursor-pointer transition-colors">
+        <ChevronRight
+          size={14}
+          className={`transition-transform duration-200 text-muted-foreground ${expanded ? 'rotate-90' : ''}`}
+        />
+        <CheckCircle2 size={14} className="text-green-500" />
+        <span className="font-medium text-green-600">Result</span>
+        <span className="text-muted-foreground">
+          {lineCount > 1 ? `${lineCount} lines` : preview.slice(0, 60)}
+        </span>
+      </div>
+      {expanded && contentStr && (
+        <pre className="mt-1.5 ml-5 p-2 text-xs bg-background rounded border border-border overflow-x-auto max-h-[300px] overflow-y-auto text-muted-foreground whitespace-pre-wrap">
+          {contentStr}
+        </pre>
+      )}
+    </button>
+  );
+}
+
 function ContentBlockRenderer({ blocks }: { blocks: ContentBlockType[] }) {
   return (
     <>
-      {blocks.map((block, i) =>
-        block.type === 'thinking' ? (
-          <ThinkingBlock key={i} thinking={block.content} />
-        ) : (
-          <MarkdownContent key={i} content={block.content} />
-        ),
-      )}
+      {blocks.map((block, i) => {
+        switch (block.type) {
+          case 'thinking':
+            return <ThinkingBlock key={i} thinking={block.content} />;
+          case 'toolUse':
+            return <ToolUseBlock key={i} block={block} />;
+          case 'toolResult':
+            return <ToolResultBlock key={i} block={block} />;
+          case 'text':
+          default:
+            return <MarkdownContent key={i} content={block.content} />;
+        }
+      })}
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { mkdirSync, existsSync, cpSync } from 'node:fs';
+import { mkdirSync, existsSync, cpSync, rmSync } from 'node:fs';
 import type { WorkspaceInfo, WorkspaceState } from '@condrix/protocol';
 import { generateId } from '@condrix/protocol';
 import { simpleGit } from 'simple-git';
@@ -247,7 +247,7 @@ export class WorkspaceManager {
     return this.db.getWorkspace(id)!;
   }
 
-  destroyWorkspace(id: string): boolean {
+  destroyWorkspace(id: string, deleteFiles = false): boolean {
     const workspace = this.db.getWorkspace(id);
     if (!workspace) return false;
 
@@ -257,6 +257,19 @@ export class WorkspaceManager {
     }
     const deleted = this.db.deleteWorkspace(id);
     if (deleted) {
+      // Optionally remove workspace directory from disk
+      if (deleteFiles && workspace.workDir) {
+        try {
+          if (existsSync(workspace.workDir)) {
+            rmSync(workspace.workDir, { recursive: true, force: true });
+            console.log(`[WorkspaceManager] Deleted workspace files: ${workspace.workDir}`);
+          }
+        } catch (err) {
+          console.warn(
+            `[WorkspaceManager] Failed to delete workspace files: ${err instanceof Error ? err.message : err}`,
+          );
+        }
+      }
       this.emitter.emit('workspace:destroyed', { workspaceId: id });
     }
     return deleted;

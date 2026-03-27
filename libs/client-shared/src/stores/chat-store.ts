@@ -22,8 +22,11 @@ export interface ToolCall {
 }
 
 export interface ContentBlock {
-  type: 'thinking' | 'text';
+  type: 'thinking' | 'text' | 'toolUse' | 'toolResult';
   content: string;
+  toolId?: string;
+  toolName?: string;
+  input?: Record<string, unknown>;
 }
 
 export interface ChatMessage {
@@ -96,6 +99,7 @@ export const createChatStore = () =>
           role: string;
           content: string;
           thinking?: string;
+          contentBlocks?: ContentBlock[];
           timestamp: string;
         };
 
@@ -127,6 +131,7 @@ export const createChatStore = () =>
             role: 'assistant' as const,
             content: payload.content,
             thinking: payload.thinking,
+            contentBlocks: payload.contentBlocks,
             timestamp: payload.timestamp,
             isStreaming: false,
           }));
@@ -144,6 +149,7 @@ export const createChatStore = () =>
           role: payload.role as ChatMessage['role'],
           content: payload.content,
           thinking: payload.thinking,
+          contentBlocks: payload.contentBlocks,
           timestamp: payload.timestamp,
         };
 
@@ -242,10 +248,60 @@ export const createChatStore = () =>
         }
       });
 
+      // Subscribe to tool use events
+      const unsubToolUse = sub('agent:toolUse', (event) => {
+        const payload = event.payload as {
+          workspaceId: string;
+          toolId: string;
+          toolName: string;
+          input: Record<string, unknown>;
+        };
+        if (!payload.workspaceId) return;
+        if (get()._streamingPlaceholders.has(payload.workspaceId)) return;
+        const remoteId = `remote_streaming_${payload.workspaceId}`;
+        updateMessage(set, get, payload.workspaceId, remoteId, (msg) => ({
+          ...msg,
+          contentBlocks: [
+            ...(msg.contentBlocks ?? []),
+            {
+              type: 'toolUse' as const,
+              content: '',
+              toolId: payload.toolId,
+              toolName: payload.toolName,
+              input: payload.input,
+            },
+          ],
+        }));
+      });
+
+      const unsubToolResult = sub('agent:toolResult', (event) => {
+        const payload = event.payload as {
+          workspaceId: string;
+          toolId: string;
+          content: string;
+        };
+        if (!payload.workspaceId) return;
+        if (get()._streamingPlaceholders.has(payload.workspaceId)) return;
+        const remoteId = `remote_streaming_${payload.workspaceId}`;
+        updateMessage(set, get, payload.workspaceId, remoteId, (msg) => ({
+          ...msg,
+          contentBlocks: [
+            ...(msg.contentBlocks ?? []),
+            {
+              type: 'toolResult' as const,
+              content: payload.content,
+              toolId: payload.toolId,
+            },
+          ],
+        }));
+      });
+
       const cleanup = () => {
         unsubMessage();
         unsubThinking();
         unsubText();
+        unsubToolUse();
+        unsubToolResult();
       };
 
       const unsubs = new Map(get()._broadcastUnsubs);
@@ -349,6 +405,53 @@ export const createChatStore = () =>
           }));
         });
 
+      const unsubToolUse = multiCoreStore
+        .getState()
+        .subscribeOnCore(coreId, 'agent:toolUse', (event) => {
+          const payload = event.payload as {
+            workspaceId: string;
+            toolId: string;
+            toolName: string;
+            input: Record<string, unknown>;
+          };
+          if (payload.workspaceId !== workspaceId) return;
+          updateMessage(set, get, workspaceId, placeholderId, (msg) => ({
+            ...msg,
+            contentBlocks: [
+              ...(msg.contentBlocks ?? []),
+              {
+                type: 'toolUse' as const,
+                content: '',
+                toolId: payload.toolId,
+                toolName: payload.toolName,
+                input: payload.input,
+              },
+            ],
+          }));
+        });
+
+      const unsubToolResult = multiCoreStore
+        .getState()
+        .subscribeOnCore(coreId, 'agent:toolResult', (event) => {
+          const payload = event.payload as {
+            workspaceId: string;
+            toolId: string;
+            content: string;
+          };
+          if (payload.workspaceId !== workspaceId) return;
+          updateMessage(set, get, workspaceId, placeholderId, (msg) => ({
+            ...msg,
+            contentBlocks: [
+              ...(msg.contentBlocks ?? []),
+              {
+                type: 'toolResult' as const,
+                content: payload.content,
+                toolId: payload.toolId,
+              },
+            ],
+          }));
+        });
+
       try {
         const result = await multiCoreStore.getState().requestOnCore<{
           messageId: string;
@@ -382,6 +485,8 @@ export const createChatStore = () =>
       } finally {
         unsubThinking();
         unsubText();
+        unsubToolUse();
+        unsubToolResult();
 
         // Clear streaming placeholder and pending send tracking
         const ph = new Map(get()._streamingPlaceholders);
@@ -409,6 +514,7 @@ export const createChatStore = () =>
           timestamp: string;
           metadata?: Record<string, unknown>;
           thinking?: string;
+          contentBlocks?: ContentBlock[];
         }>;
         hasMore: boolean;
       }>(coreId, 'agent', 'history', { workspaceId, limit });
@@ -417,6 +523,7 @@ export const createChatStore = () =>
         role: m.role as ChatMessage['role'],
         content: m.content,
         thinking: m.thinking,
+        contentBlocks: m.contentBlocks,
         timestamp: m.timestamp,
         metadata: m.metadata,
       }));

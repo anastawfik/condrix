@@ -30,6 +30,17 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AddProjectDialog } from '@condrix/client-components';
 import { CoreTerminalModal } from './core-terminal-modal.js';
 
@@ -157,6 +168,14 @@ function SidebarTree({
   const [authStatuses, setAuthStatuses] = useState<Map<string, SidebarCore['authStatus']>>(
     new Map(),
   );
+
+  // Delete workspace modal state
+  const [deleteTarget, setDeleteTarget] = useState<{
+    wsId: string;
+    wsName: string;
+    coreId: string;
+  } | null>(null);
+  const [deleteFiles, setDeleteFiles] = useState(false);
 
   // Terminal modal state
   const [terminalTarget, setTerminalTarget] = useState<{ coreId: string; coreName: string } | null>(
@@ -293,12 +312,18 @@ function SidebarTree({
     }
   };
 
-  const handleDestroyWorkspace = async (wsId: string, coreId: string) => {
+  const confirmDestroyWorkspace = async () => {
+    if (!deleteTarget) return;
     try {
-      await workspaceStore.getState().destroyWorkspace(wsId, coreId);
-      fetchProjects(coreId);
+      await workspaceStore
+        .getState()
+        .destroyWorkspace(deleteTarget.wsId, deleteTarget.coreId, deleteFiles);
+      fetchProjects(deleteTarget.coreId);
     } catch {
       // error
+    } finally {
+      setDeleteTarget(null);
+      setDeleteFiles(false);
     }
   };
 
@@ -498,7 +523,13 @@ function SidebarTree({
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      onClick={() => handleDestroyWorkspace(ws.id, core.coreId)}
+                                      onClick={() =>
+                                        setDeleteTarget({
+                                          wsId: ws.id,
+                                          wsName: ws.name,
+                                          coreId: core.coreId,
+                                        })
+                                      }
                                       className="p-0.5 h-auto text-muted-foreground hover:text-red-500"
                                       title="Delete workspace"
                                       aria-label="Delete workspace"
@@ -616,6 +647,56 @@ function SidebarTree({
           onClose={() => setTerminalTarget(null)}
         />
       )}
+
+      {/* Delete workspace confirmation */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteFiles(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">
+              Delete workspace{deleteTarget ? ` "${deleteTarget.wsName}"` : ''}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the workspace and its entire conversation history. The agent session
+              and all settings will be permanently lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-3 py-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox
+                checked={deleteFiles}
+                onCheckedChange={(checked) => setDeleteFiles(checked === true)}
+              />
+              <span className="text-sm font-medium">Also delete workspace files from disk</span>
+            </label>
+
+            {deleteFiles && (
+              <div className="ml-6 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-sm text-destructive">
+                <strong>This cannot be undone.</strong> All files, uncommitted changes, and cloned
+                repository data in this workspace folder will be permanently deleted.
+              </div>
+            )}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDestroyWorkspace}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete workspace
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
