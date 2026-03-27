@@ -10,7 +10,13 @@ export interface CollapsibleSectionProps {
   children: React.ReactNode;
 }
 
-export function CollapsibleSection({ id, title, open, onToggle, children }: CollapsibleSectionProps) {
+export function CollapsibleSection({
+  id,
+  title,
+  open,
+  onToggle,
+  children,
+}: CollapsibleSectionProps) {
   return (
     <Collapsible.Root open={open} onOpenChange={onToggle}>
       <Collapsible.Trigger className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-[var(--bg-hover)] transition-colors">
@@ -26,9 +32,7 @@ export function CollapsibleSection({ id, title, open, onToggle, children }: Coll
         </span>
       </Collapsible.Trigger>
       <Collapsible.Content>
-        <div className="px-4 pb-4">
-          {children}
-        </div>
+        <div className="px-4 pb-4">{children}</div>
       </Collapsible.Content>
     </Collapsible.Root>
   );

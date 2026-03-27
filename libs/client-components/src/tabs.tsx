@@ -13,11 +13,7 @@ export interface TabsProps {
 
 export function Tabs({ defaultTab, children, className, onChange }: TabsProps) {
   return (
-    <RadixTabs.Root
-      defaultValue={defaultTab}
-      onValueChange={onChange}
-      className={className}
-    >
+    <RadixTabs.Root defaultValue={defaultTab} onValueChange={onChange} className={className}>
       {children}
     </RadixTabs.Root>
   );
@@ -34,7 +30,10 @@ export function TabList({ className, ...props }: TabListProps) {
   );
 }
 
-export interface TabProps extends Omit<ComponentPropsWithoutRef<typeof RadixTabs.Trigger>, 'value'> {
+export interface TabProps extends Omit<
+  ComponentPropsWithoutRef<typeof RadixTabs.Trigger>,
+  'value'
+> {
   id: string;
   icon?: ReactNode;
 }
@@ -57,16 +56,13 @@ export function Tab({ id, icon, className, children, ...props }: TabProps) {
   );
 }
 
-export interface TabPanelProps extends Omit<ComponentPropsWithoutRef<typeof RadixTabs.Content>, 'value'> {
+export interface TabPanelProps extends Omit<
+  ComponentPropsWithoutRef<typeof RadixTabs.Content>,
+  'value'
+> {
   id: string;
 }
 
 export function TabPanel({ id, className, ...props }: TabPanelProps) {
-  return (
-    <RadixTabs.Content
-      value={id}
-      className={cn('outline-none', className)}
-      {...props}
-    />
-  );
+  return <RadixTabs.Content value={id} className={cn('outline-none', className)} {...props} />;
 }

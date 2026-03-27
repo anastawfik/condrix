@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  maestroStore, multiCoreStore, coreRegistryStore,
-} from '@condrix/client-shared';
+import { maestroStore, multiCoreStore, coreRegistryStore } from '@condrix/client-shared';
 import type { MaestroConnectionState } from '@condrix/client-shared';
 import { cn } from './lib/utils.js';
 import { Button } from './button.js';
@@ -61,19 +59,26 @@ function ApiKeySection({ maestroConnected }: { maestroConnected: boolean }) {
       try {
         const config = await maestroStore.getState().getAiConfig();
         if (config.apiKey && typeof config.apiKey === 'string') setApiKey(config.apiKey as string);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     } else {
       const connections = multiCoreStore.getState().connections;
       const firstCoreId = connections.keys().next().value;
       if (!firstCoreId) return;
       try {
-        const result = await multiCoreStore.getState().requestOnCore<{ key: string; value: unknown }>(
-          firstCoreId, 'core', 'config.get', { key: 'model.apiKey' },
-        );
+        const result = await multiCoreStore
+          .getState()
+          .requestOnCore<{
+            key: string;
+            value: unknown;
+          }>(firstCoreId, 'core', 'config.get', { key: 'model.apiKey' });
         if (result.value && typeof result.value === 'string') {
           setApiKey(result.value as string);
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   };
 
@@ -89,10 +94,12 @@ function ApiKeySection({ maestroConnected }: { maestroConnected: boolean }) {
         const connections = multiCoreStore.getState().connections;
         for (const [coreId] of connections) {
           try {
-            await multiCoreStore.getState().requestOnCore(
-              coreId, 'core', 'config.set', { key: 'model.apiKey', value: apiKey },
-            );
-          } catch { /* Core may be offline */ }
+            await multiCoreStore
+              .getState()
+              .requestOnCore(coreId, 'core', 'config.set', { key: 'model.apiKey', value: apiKey });
+          } catch {
+            /* Core may be offline */
+          }
         }
       }
       setStatus({ type: 'success', message: 'API key saved' });
@@ -116,7 +123,10 @@ function ApiKeySection({ maestroConnected }: { maestroConnected: boolean }) {
         <input
           type="password"
           value={apiKey}
-          onChange={(e) => { setApiKey(e.target.value); setStatus(null); }}
+          onChange={(e) => {
+            setApiKey(e.target.value);
+            setStatus(null);
+          }}
           placeholder="sk-ant-..."
           className="flex-1 px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-blue)] font-mono"
         />
@@ -129,7 +139,12 @@ function ApiKeySection({ maestroConnected }: { maestroConnected: boolean }) {
         </Button>
       </div>
       {status && (
-        <p className={cn('text-[11px] mt-1.5', status.type === 'success' ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]')}>
+        <p
+          className={cn(
+            'text-[11px] mt-1.5',
+            status.type === 'success' ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]',
+          )}
+        >
           {status.message}
         </p>
       )}
@@ -146,7 +161,13 @@ interface CoreAuthInfo {
   authStatus: 'authenticated' | 'expired' | 'not-configured' | 'loading';
 }
 
-function OAuthCoresSection({ maestroConnected, onSignIn }: { maestroConnected: boolean; onSignIn?: (coreId: string, coreName: string) => void }) {
+function OAuthCoresSection({
+  maestroConnected,
+  onSignIn,
+}: {
+  maestroConnected: boolean;
+  onSignIn?: (coreId: string, coreName: string) => void;
+}) {
   const [cores, setCores] = useState<CoreAuthInfo[]>([]);
 
   const fetchCoreList = useCallback(() => {
@@ -163,19 +184,26 @@ function OAuthCoresSection({ maestroConnected, onSignIn }: { maestroConnected: b
       // Fetch auth status for each online core
       for (const mc of maestroCores) {
         if (mc.status !== 'online') continue;
-        multiCoreStore.getState().requestOnCore<{ authenticated: boolean; method: string; expiresAt?: string }>(
-          mc.id, 'core', 'auth.status', {},
-        ).then((result) => {
-          setCores((prev) => prev.map((c) =>
-            c.coreId === mc.id
-              ? { ...c, authStatus: resolveAuthStatus(result) }
-              : c,
-          ));
-        }).catch(() => {
-          setCores((prev) => prev.map((c) =>
-            c.coreId === mc.id ? { ...c, authStatus: 'not-configured' } : c,
-          ));
-        });
+        multiCoreStore
+          .getState()
+          .requestOnCore<{ authenticated: boolean; method: string; expiresAt?: string }>(
+            mc.id,
+            'core',
+            'auth.status',
+            {},
+          )
+          .then((result) => {
+            setCores((prev) =>
+              prev.map((c) =>
+                c.coreId === mc.id ? { ...c, authStatus: resolveAuthStatus(result) } : c,
+              ),
+            );
+          })
+          .catch(() => {
+            setCores((prev) =>
+              prev.map((c) => (c.coreId === mc.id ? { ...c, authStatus: 'not-configured' } : c)),
+            );
+          });
       }
     } else {
       const connections = multiCoreStore.getState().connections;
@@ -196,19 +224,26 @@ function OAuthCoresSection({ maestroConnected, onSignIn }: { maestroConnected: b
       for (const entry of registry) {
         const conn = connections.get(entry.id);
         if (conn?.connState !== 'connected') continue;
-        multiCoreStore.getState().requestOnCore<{ authenticated: boolean; method: string; expiresAt?: string }>(
-          entry.id, 'core', 'auth.status', {},
-        ).then((result) => {
-          setCores((prev) => prev.map((c) =>
-            c.coreId === entry.id
-              ? { ...c, authStatus: resolveAuthStatus(result) }
-              : c,
-          ));
-        }).catch(() => {
-          setCores((prev) => prev.map((c) =>
-            c.coreId === entry.id ? { ...c, authStatus: 'not-configured' } : c,
-          ));
-        });
+        multiCoreStore
+          .getState()
+          .requestOnCore<{ authenticated: boolean; method: string; expiresAt?: string }>(
+            entry.id,
+            'core',
+            'auth.status',
+            {},
+          )
+          .then((result) => {
+            setCores((prev) =>
+              prev.map((c) =>
+                c.coreId === entry.id ? { ...c, authStatus: resolveAuthStatus(result) } : c,
+              ),
+            );
+          })
+          .catch(() => {
+            setCores((prev) =>
+              prev.map((c) => (c.coreId === entry.id ? { ...c, authStatus: 'not-configured' } : c)),
+            );
+          });
       }
     }
   }, [maestroConnected]);
@@ -221,7 +256,10 @@ function OAuthCoresSection({ maestroConnected, onSignIn }: { maestroConnected: b
     const unsub2 = maestroConnected
       ? maestroStore.subscribe(() => fetchCoreList())
       : coreRegistryStore.subscribe(() => fetchCoreList());
-    return () => { unsub1(); unsub2(); };
+    return () => {
+      unsub1();
+      unsub2();
+    };
   }, [fetchCoreList]);
 
   return (
@@ -279,7 +317,11 @@ function OAuthCoresSection({ maestroConnected, onSignIn }: { maestroConnected: b
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 
-function resolveAuthStatus(result: { authenticated: boolean; method: string; expiresAt?: string }): CoreAuthInfo['authStatus'] {
+function resolveAuthStatus(result: {
+  authenticated: boolean;
+  method: string;
+  expiresAt?: string;
+}): CoreAuthInfo['authStatus'] {
   if (!result.authenticated) return 'not-configured';
 
   // Check for expiry

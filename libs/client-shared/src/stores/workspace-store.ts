@@ -11,20 +11,33 @@ import { maestroStore } from './maestro-store.js';
 
 const UI_STATE_KEY = 'condrix-ui-state';
 
-function saveWorkspaceUIState(coreId: string | null, projectId: string | null, workspaceId: string | null): void {
+function saveWorkspaceUIState(
+  coreId: string | null,
+  projectId: string | null,
+  workspaceId: string | null,
+): void {
   try {
     const existing = JSON.parse(localStorage.getItem(UI_STATE_KEY) ?? '{}');
     existing.activeCoreId = coreId;
     existing.currentProjectId = projectId;
     existing.currentWorkspaceId = workspaceId;
     localStorage.setItem(UI_STATE_KEY, JSON.stringify(existing));
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
-export function getSavedUIState(): { activeCoreId?: string; currentProjectId?: string; currentWorkspaceId?: string; activeView?: string } {
+export function getSavedUIState(): {
+  activeCoreId?: string;
+  currentProjectId?: string;
+  currentWorkspaceId?: string;
+  activeView?: string;
+} {
   try {
     return JSON.parse(localStorage.getItem(UI_STATE_KEY) ?? '{}');
-  } catch { return {}; }
+  } catch {
+    return {};
+  }
 }
 
 /** Helper: get coreId to use — explicit or active. */
@@ -34,7 +47,12 @@ function resolveCoreId(explicit?: string): string {
   return coreId;
 }
 
-async function request<T>(ns: string, action: string, payload: unknown, coreId?: string): Promise<T> {
+async function request<T>(
+  ns: string,
+  action: string,
+  payload: unknown,
+  coreId?: string,
+): Promise<T> {
   return multiCoreStore.getState().requestOnCore<T>(resolveCoreId(coreId), ns, action, payload);
 }
 
@@ -50,14 +68,23 @@ export interface WorkspaceStore {
 
   // Project operations
   fetchProjects: (coreId?: string) => Promise<void>;
-  createProject: (name: string, opts: { path?: string; url?: string }, coreId?: string) => Promise<ProjectInfo>;
+  createProject: (
+    name: string,
+    opts: { path?: string; url?: string },
+    coreId?: string,
+  ) => Promise<ProjectInfo>;
   deleteProject: (projectId: string, coreId?: string) => Promise<void>;
   setCurrentProject: (projectId: string | null) => void;
 
   // Workspace operations
   fetchWorkspaces: (projectId?: string, coreId?: string) => Promise<void>;
   setCurrentWorkspace: (workspaceId: string | null, coreId?: string) => void;
-  createWorkspace: (projectId: string, name: string, branch?: string, coreId?: string) => Promise<WorkspaceInfo>;
+  createWorkspace: (
+    projectId: string,
+    name: string,
+    branch?: string,
+    coreId?: string,
+  ) => Promise<WorkspaceInfo>;
   enterWorkspace: (workspaceId: string, coreId?: string) => Promise<void>;
   suspendWorkspace: (workspaceId: string, coreId?: string) => Promise<void>;
   resumeWorkspace: (workspaceId: string, coreId?: string) => Promise<void>;
@@ -100,7 +127,10 @@ export const createWorkspaceStore = () =>
 
     fetchWorkspaces: async (projectId?, coreId?) => {
       const result = await request<{ workspaces: WorkspaceInfo[] }>(
-        'workspace', 'list', projectId ? { projectId } : {}, coreId,
+        'workspace',
+        'list',
+        projectId ? { projectId } : {},
+        coreId,
       );
       set({ workspaces: result.workspaces });
       const { currentWorkspaceId } = get();
@@ -111,7 +141,7 @@ export const createWorkspaceStore = () =>
     },
 
     setCurrentWorkspace: (workspaceId, coreId?) => {
-      const ws = workspaceId ? get().workspaces.find((w) => w.id === workspaceId) ?? null : null;
+      const ws = workspaceId ? (get().workspaces.find((w) => w.id === workspaceId) ?? null) : null;
       const resolvedCoreId = coreId ?? get().currentCoreId;
       set({
         currentWorkspaceId: workspaceId,
@@ -122,7 +152,12 @@ export const createWorkspaceStore = () =>
     },
 
     createWorkspace: async (projectId, name, branch?, coreId?) => {
-      const ws = await request<WorkspaceInfo>('workspace', 'create', { projectId, name, branch }, coreId);
+      const ws = await request<WorkspaceInfo>(
+        'workspace',
+        'create',
+        { projectId, name, branch },
+        coreId,
+      );
       set((s) => ({ workspaces: [...s.workspaces, ws] }));
       return ws;
     },
@@ -196,7 +231,10 @@ export function initWorkspaceSync(): () => void {
 
   const workspaceEventHandler = () => {
     const { currentProjectId } = workspaceStore.getState();
-    workspaceStore.getState().fetchWorkspaces(currentProjectId ?? undefined).catch(() => {});
+    workspaceStore
+      .getState()
+      .fetchWorkspaces(currentProjectId ?? undefined)
+      .catch(() => {});
   };
 
   // Direct mode: subscribe via multiCoreStore connections
@@ -217,7 +255,10 @@ export function initWorkspaceSync(): () => void {
       if (!state.connections.has(coreId)) {
         connectedCores.delete(coreId);
         const coreUnsubs = unsubs.get(coreId);
-        if (coreUnsubs) { for (const u of coreUnsubs) u(); unsubs.delete(coreId); }
+        if (coreUnsubs) {
+          for (const u of coreUnsubs) u();
+          unsubs.delete(coreId);
+        }
       }
     }
   });
@@ -242,7 +283,11 @@ export function initWorkspaceSync(): () => void {
     setupMaestroSubs();
   }
 
-  const cleanup = () => { unsub(); maestroUnsub(); for (const u of maestroEventUnsubs) u(); };
+  const cleanup = () => {
+    unsub();
+    maestroUnsub();
+    for (const u of maestroEventUnsubs) u();
+  };
   _workspaceSyncCleanup = cleanup;
   return cleanup;
 }

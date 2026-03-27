@@ -33,9 +33,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
           {...props}
         />
-        {error && (
-          <p className="mt-1 text-[10px] text-[var(--accent-red)]">{error}</p>
-        )}
+        {error && <p className="mt-1 text-[10px] text-[var(--accent-red)]">{error}</p>}
       </div>
     );
   },

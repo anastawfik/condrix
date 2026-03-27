@@ -108,7 +108,8 @@ export const agentTools: Anthropic.Tool[] = [
       properties: {
         pattern: {
           type: 'string',
-          description: 'Glob-style pattern or text to search for in filenames (e.g., "*.ts", "component")',
+          description:
+            'Glob-style pattern or text to search for in filenames (e.g., "*.ts", "component")',
         },
       },
       required: ['pattern'],

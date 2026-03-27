@@ -33,10 +33,15 @@ describe('createRequest', () => {
   });
 
   it('includes optional fields', () => {
-    const req = createRequest('workspace', 'enter', { workspaceId: 'ws_1' }, {
-      workspaceId: 'ws_1',
-      correlationId: 'corr_1',
-    });
+    const req = createRequest(
+      'workspace',
+      'enter',
+      { workspaceId: 'ws_1' },
+      {
+        workspaceId: 'ws_1',
+        correlationId: 'corr_1',
+      },
+    );
     expect(req.workspaceId).toBe('ws_1');
     expect(req.correlationId).toBe('corr_1');
   });
@@ -44,26 +49,36 @@ describe('createRequest', () => {
 
 describe('createResponse', () => {
   it('creates a valid response envelope', () => {
-    const res = createResponse('core', 'info', {
-      coreId: 'c_1',
-      displayName: 'Test',
-      host: 'localhost',
-      port: 9100,
-      status: 'online',
-      lastHeartbeat: new Date().toISOString(),
-    }, { correlationId: 'corr_1' });
+    const res = createResponse(
+      'core',
+      'info',
+      {
+        coreId: 'c_1',
+        displayName: 'Test',
+        host: 'localhost',
+        port: 9100,
+        status: 'online',
+        lastHeartbeat: new Date().toISOString(),
+      },
+      { correlationId: 'corr_1' },
+    );
     expect(res.type).toBe('response');
     expect(res.success).toBe(true);
     expect(res.correlationId).toBe('corr_1');
   });
 
   it('validates against ResponseEnvelopeSchema', () => {
-    const res = createResponse('core', 'health', {
-      healthy: true,
-      uptime: 1000,
-      memoryUsage: 50,
-      activeWorkspaces: 2,
-    }, { correlationId: 'corr_1' });
+    const res = createResponse(
+      'core',
+      'health',
+      {
+        healthy: true,
+        uptime: 1000,
+        memoryUsage: 50,
+        activeWorkspaces: 2,
+      },
+      { correlationId: 'corr_1' },
+    );
     const result = ResponseEnvelopeSchema.safeParse(res);
     expect(result.success).toBe(true);
   });

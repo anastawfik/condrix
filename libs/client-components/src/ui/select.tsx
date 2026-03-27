@@ -35,10 +35,7 @@ const SelectScrollUpButton = forwardRef<
 >(({ className, ...props }, ref) => (
   <RadixSelect.ScrollUpButton
     ref={ref}
-    className={cn(
-      'flex cursor-default items-center justify-center py-1',
-      className,
-    )}
+    className={cn('flex cursor-default items-center justify-center py-1', className)}
     {...props}
   >
     <ChevronUp className="h-4 w-4 text-[var(--text-muted)]" />
@@ -52,10 +49,7 @@ const SelectScrollDownButton = forwardRef<
 >(({ className, ...props }, ref) => (
   <RadixSelect.ScrollDownButton
     ref={ref}
-    className={cn(
-      'flex cursor-default items-center justify-center py-1',
-      className,
-    )}
+    className={cn('flex cursor-default items-center justify-center py-1', className)}
     {...props}
   >
     <ChevronDown className="h-4 w-4 text-[var(--text-muted)]" />
@@ -95,41 +89,36 @@ const SelectContent = forwardRef<
 ));
 SelectContent.displayName = 'SelectContent';
 
-const SelectLabel = forwardRef<
-  HTMLDivElement,
-  ComponentPropsWithoutRef<typeof RadixSelect.Label>
->(({ className, ...props }, ref) => (
-  <RadixSelect.Label
-    ref={ref}
-    className={cn(
-      'px-2 py-1.5 text-sm font-semibold text-[var(--text-secondary)]',
-      className,
-    )}
-    {...props}
-  />
-));
+const SelectLabel = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof RadixSelect.Label>>(
+  ({ className, ...props }, ref) => (
+    <RadixSelect.Label
+      ref={ref}
+      className={cn('px-2 py-1.5 text-sm font-semibold text-[var(--text-secondary)]', className)}
+      {...props}
+    />
+  ),
+);
 SelectLabel.displayName = 'SelectLabel';
 
-const SelectItem = forwardRef<
-  HTMLDivElement,
-  ComponentPropsWithoutRef<typeof RadixSelect.Item>
->(({ className, children, ...props }, ref) => (
-  <RadixSelect.Item
-    ref={ref}
-    className={cn(
-      'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-[var(--bg-hover)] focus:text-[var(--text-primary)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-      className,
-    )}
-    {...props}
-  >
-    <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
-      <RadixSelect.ItemIndicator>
-        <Check className="h-4 w-4" />
-      </RadixSelect.ItemIndicator>
-    </span>
-    <RadixSelect.ItemText>{children}</RadixSelect.ItemText>
-  </RadixSelect.Item>
-));
+const SelectItem = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof RadixSelect.Item>>(
+  ({ className, children, ...props }, ref) => (
+    <RadixSelect.Item
+      ref={ref}
+      className={cn(
+        'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-[var(--bg-hover)] focus:text-[var(--text-primary)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        className,
+      )}
+      {...props}
+    >
+      <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
+        <RadixSelect.ItemIndicator>
+          <Check className="h-4 w-4" />
+        </RadixSelect.ItemIndicator>
+      </span>
+      <RadixSelect.ItemText>{children}</RadixSelect.ItemText>
+    </RadixSelect.Item>
+  ),
+);
 SelectItem.displayName = 'SelectItem';
 
 const SelectSeparator = forwardRef<

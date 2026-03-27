@@ -31,10 +31,12 @@ export const MaestroLoginResponseSchema = z.object({
   sessionToken: z.string().optional(),
   expiresAt: z.string().optional(),
   requiresTotp: z.boolean().optional(),
-  user: z.object({
-    username: z.string(),
-    role: z.enum(['admin', 'user']),
-  }).optional(),
+  user: z
+    .object({
+      username: z.string(),
+      role: z.enum(['admin', 'user']),
+    })
+    .optional(),
 });
 
 export const MaestroAuthRequestSchema = z.object({
@@ -43,10 +45,12 @@ export const MaestroAuthRequestSchema = z.object({
 
 export const MaestroAuthResponseSchema = z.object({
   authenticated: z.boolean(),
-  user: z.object({
-    username: z.string(),
-    role: z.enum(['admin', 'user']),
-  }).optional(),
+  user: z
+    .object({
+      username: z.string(),
+      role: z.enum(['admin', 'user']),
+    })
+    .optional(),
 });
 
 // ─── Core Registration ─────────────────────────────────────────────────────
@@ -99,12 +103,14 @@ export const MaestroCoreRenameResponseSchema = z.object({
 export const MaestroCoreListRequestSchema = z.object({});
 
 export const MaestroCoreListResponseSchema = z.object({
-  cores: z.array(z.object({
-    id: z.string(),
-    coreId: z.string(),
-    displayName: z.string(),
-    status: z.enum(['online', 'offline']),
-  })),
+  cores: z.array(
+    z.object({
+      id: z.string(),
+      coreId: z.string(),
+      displayName: z.string(),
+      status: z.enum(['online', 'offline']),
+    }),
+  ),
 });
 
 // ─── AI Configuration ──────────────────────────────────────────────────────
@@ -153,13 +159,15 @@ export const MaestroUserCreateResponseSchema = z.object({
 export const MaestroUserListRequestSchema = z.object({});
 
 export const MaestroUserListResponseSchema = z.object({
-  users: z.array(z.object({
-    id: z.string(),
-    username: z.string(),
-    role: z.enum(['admin', 'user']),
-    totpEnabled: z.boolean(),
-    createdAt: z.string(),
-  })),
+  users: z.array(
+    z.object({
+      id: z.string(),
+      username: z.string(),
+      role: z.enum(['admin', 'user']),
+      totpEnabled: z.boolean(),
+      createdAt: z.string(),
+    }),
+  ),
 });
 
 export const MaestroUserDeleteRequestSchema = z.object({

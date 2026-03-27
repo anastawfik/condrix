@@ -41,7 +41,9 @@ export function AppLayout({ renderCenter, renderRight, renderTitleBar }: AppLayo
             <Group orientation="horizontal" className="h-full">
               {/* Center: Editor/Chat */}
               <Panel defaultSize="60%" minSize="30%" className="min-w-0">
-                {renderCenter ? renderCenter(currentWorkspaceId) : (
+                {renderCenter ? (
+                  renderCenter(currentWorkspaceId)
+                ) : (
                   <div className="flex items-center justify-center h-full bg-[var(--bg-primary)]">
                     <EmptyState
                       icon={<Layers size={40} />}
@@ -56,7 +58,9 @@ export function AppLayout({ renderCenter, renderRight, renderTitleBar }: AppLayo
 
               {/* Right: Git + Terminals */}
               <Panel defaultSize="40%" minSize="200px" collapsible className="min-w-0">
-                {renderRight ? renderRight(currentWorkspaceId) : (
+                {renderRight ? (
+                  renderRight(currentWorkspaceId)
+                ) : (
                   <div className="flex items-center justify-center h-full bg-[var(--bg-primary)] text-[var(--text-muted)] text-xs">
                     Git changes & terminals
                   </div>

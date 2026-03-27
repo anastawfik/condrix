@@ -5,10 +5,7 @@
 import { safeParseMessage, isRequest } from '@condrix/protocol';
 import type { MessageEnvelope } from '@condrix/protocol';
 
-export type RouteHandler = (
-  payload: unknown,
-  envelope: MessageEnvelope,
-) => Promise<unknown>;
+export type RouteHandler = (payload: unknown, envelope: MessageEnvelope) => Promise<unknown>;
 
 export type ReplySender = (response: unknown) => void;
 
@@ -24,10 +21,7 @@ export class MessageRouter {
     return this.handlers.has(`${namespace}:${action}`);
   }
 
-  async dispatch(
-    raw: string,
-    reply: ReplySender,
-  ): Promise<void> {
+  async dispatch(raw: string, reply: ReplySender): Promise<void> {
     // Parse
     const result = safeParseMessage(raw);
     if (!result.success) {

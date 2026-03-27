@@ -40,11 +40,15 @@ export const createTerminalStore = () =>
     _outputListeners: new Map(),
 
     createTerminal: async (workspaceId, shell) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) throw new Error('No active Core connection');
-      const result = await multiCoreStore.getState().requestOnCore<{ id: string; shell: string }>(
-        coreId, 'terminal', 'create', { workspaceId, shell },
-      );
+      const result = await multiCoreStore
+        .getState()
+        .requestOnCore<{
+          id: string;
+          shell: string;
+        }>(coreId, 'terminal', 'create', { workspaceId, shell });
 
       const session: TerminalSession = {
         id: result.id,
@@ -62,22 +66,27 @@ export const createTerminalStore = () =>
     },
 
     closeTerminal: async (terminalId) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) throw new Error('No active Core connection');
       await multiCoreStore.getState().requestOnCore(coreId, 'terminal', 'close', { terminalId });
       removeTerminal(set, get, terminalId);
     },
 
     writeToTerminal: (terminalId, data) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
       multiCoreStore.getState().sendOnCore(coreId, 'terminal', 'write', { terminalId, data });
     },
 
     resizeTerminal: (terminalId, cols, rows) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
-      multiCoreStore.getState().sendOnCore(coreId, 'terminal', 'resize', { terminalId, cols, rows });
+      multiCoreStore
+        .getState()
+        .sendOnCore(coreId, 'terminal', 'resize', { terminalId, cols, rows });
     },
 
     setActiveTerminal: (terminalId) => set({ activeTerminalId: terminalId }),
@@ -107,7 +116,8 @@ export const createTerminalStore = () =>
     },
 
     restoreTerminals: async (workspaceId) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
       try {
         const result = await multiCoreStore.getState().requestOnCore<{
@@ -145,9 +155,12 @@ function removeTerminal(
 ): void {
   set((s) => {
     const terminals = s.terminals.filter((t) => t.id !== terminalId);
-    const activeTerminalId = s.activeTerminalId === terminalId
-      ? (terminals.length > 0 ? terminals[terminals.length - 1].id : null)
-      : s.activeTerminalId;
+    const activeTerminalId =
+      s.activeTerminalId === terminalId
+        ? terminals.length > 0
+          ? terminals[terminals.length - 1].id
+          : null
+        : s.activeTerminalId;
     return { terminals, activeTerminalId };
   });
   get()._outputListeners.delete(terminalId);
@@ -207,8 +220,12 @@ export function initTerminalSync(): () => void {
       if (conn.connState === 'connected' && !connectedCores.has(coreId)) {
         connectedCores.add(coreId);
         const coreUnsubs: Array<() => void> = [];
-        coreUnsubs.push(multiCoreStore.getState().subscribeOnCore(coreId, 'terminal:output', outputHandler));
-        coreUnsubs.push(multiCoreStore.getState().subscribeOnCore(coreId, 'terminal:exit', exitHandler));
+        coreUnsubs.push(
+          multiCoreStore.getState().subscribeOnCore(coreId, 'terminal:output', outputHandler),
+        );
+        coreUnsubs.push(
+          multiCoreStore.getState().subscribeOnCore(coreId, 'terminal:exit', exitHandler),
+        );
         unsubs.set(coreId, coreUnsubs);
       }
     }
@@ -216,7 +233,10 @@ export function initTerminalSync(): () => void {
       if (!state.connections.has(coreId)) {
         connectedCores.delete(coreId);
         const coreUnsubs = unsubs.get(coreId);
-        if (coreUnsubs) { for (const u of coreUnsubs) u(); unsubs.delete(coreId); }
+        if (coreUnsubs) {
+          for (const u of coreUnsubs) u();
+          unsubs.delete(coreId);
+        }
       }
     }
   });
@@ -240,7 +260,11 @@ export function initTerminalSync(): () => void {
     maestroEventUnsubs.push(sub('terminal:exit', exitHandler));
   }
 
-  const cleanup = () => { unsub(); maestroUnsub(); for (const u of maestroEventUnsubs) u(); };
+  const cleanup = () => {
+    unsub();
+    maestroUnsub();
+    for (const u of maestroEventUnsubs) u();
+  };
   _terminalSyncCleanup = cleanup;
   return cleanup;
 }

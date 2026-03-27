@@ -23,7 +23,12 @@ export function useFileTree(workspaceId: string | null): UseFileTreeReturn {
 
   useEffect(() => {
     if (workspaceId) {
-      fileStore.getState().fetchTree(workspaceId).catch(() => { /* ignore */ });
+      fileStore
+        .getState()
+        .fetchTree(workspaceId)
+        .catch(() => {
+          /* ignore */
+        });
     }
   }, [workspaceId]);
 
@@ -31,7 +36,8 @@ export function useFileTree(workspaceId: string | null): UseFileTreeReturn {
   useEffect(() => {
     if (!workspaceId) return;
 
-    const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+    const coreId =
+      workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
     if (!coreId) return;
 
     const unsub = multiCoreStore.getState().subscribeOnCore(coreId, 'file:changed', (event) => {
@@ -41,7 +47,12 @@ export function useFileTree(workspaceId: string | null): UseFileTreeReturn {
       // Debounce 500ms — batch operations like npm install generate hundreds of events
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        fileStore.getState().fetchTree(workspaceId).catch(() => { /* ignore */ });
+        fileStore
+          .getState()
+          .fetchTree(workspaceId)
+          .catch(() => {
+            /* ignore */
+          });
       }, 500);
     });
 

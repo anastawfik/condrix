@@ -156,7 +156,11 @@ export class WorkspaceManager {
 
     try {
       const parsed = new URL(url);
-      if (parsed.protocol === 'https:' && parsed.hostname.includes('github.com') && !parsed.username) {
+      if (
+        parsed.protocol === 'https:' &&
+        parsed.hostname.includes('github.com') &&
+        !parsed.username
+      ) {
         parsed.username = token;
         return parsed.toString();
       }
@@ -230,9 +234,7 @@ export class WorkspaceManager {
 
     const allowed = VALID_TRANSITIONS[workspace.state];
     if (!allowed.includes(newState)) {
-      throw new Error(
-        `Invalid transition: ${workspace.state} → ${newState}`,
-      );
+      throw new Error(`Invalid transition: ${workspace.state} → ${newState}`);
     }
 
     const previousState = workspace.state;

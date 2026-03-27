@@ -20,18 +20,36 @@ export { Badge, type BadgeProps } from './badge.js';
 export { Spinner, type SpinnerProps } from './spinner.js';
 export { Dialog, type DialogProps } from './dialog.js';
 export { EmptyState, type EmptyStateProps } from './empty-state.js';
-export { Tabs, TabList, Tab, TabPanel, type TabsProps, type TabListProps, type TabProps, type TabPanelProps } from './tabs.js';
+export {
+  Tabs,
+  TabList,
+  Tab,
+  TabPanel,
+  type TabsProps,
+  type TabListProps,
+  type TabProps,
+  type TabPanelProps,
+} from './tabs.js';
 export { FormGroup, type FormGroupProps } from './form-group.js';
 export { Divider, type DividerProps } from './divider.js';
 export { IconButton, type IconButtonProps } from './icon-button.js';
 export {
-  DropdownMenu, type DropdownMenuProps, type DropdownMenuItem,
-  DropdownMenuRoot, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuItemComponent, DropdownMenuSeparator,
+  DropdownMenu,
+  type DropdownMenuProps,
+  type DropdownMenuItem,
+  DropdownMenuRoot,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItemComponent,
+  DropdownMenuSeparator,
 } from './dropdown-menu.js';
 export {
-  Tooltip, type TooltipProps, TooltipProvider,
-  TooltipRoot, TooltipTrigger, TooltipContent,
+  Tooltip,
+  type TooltipProps,
+  TooltipProvider,
+  TooltipRoot,
+  TooltipTrigger,
+  TooltipContent,
 } from './tooltip.js';
 
 // Layout + composite components

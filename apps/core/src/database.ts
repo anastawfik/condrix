@@ -86,7 +86,7 @@ export class CoreDatabase {
 
     // Migrations: add columns that may be missing from older schemas
     this.migrateAddColumn('projects', 'url', 'TEXT');
-    this.migrateAddColumn('projects', 'path', 'TEXT NOT NULL DEFAULT \'\'');
+    this.migrateAddColumn('projects', 'path', "TEXT NOT NULL DEFAULT ''");
     this.migrateAddColumn('workspaces', 'work_dir', 'TEXT');
   }
 
@@ -107,20 +107,32 @@ export class CoreDatabase {
 
   findProjectByPath(path: string): ProjectInfo | undefined {
     const row = this.db
-      .prepare('SELECT * FROM projects WHERE path = ? AND path != \'\'')
+      .prepare("SELECT * FROM projects WHERE path = ? AND path != ''")
       .get(path) as { id: string; name: string; path: string; url: string | null } | undefined;
     if (!row) return undefined;
     const workspaces = this.listWorkspaces(row.id);
-    return { id: row.id, name: row.name, path: row.path, ...(row.url ? { url: row.url } : {}), workspaces };
+    return {
+      id: row.id,
+      name: row.name,
+      path: row.path,
+      ...(row.url ? { url: row.url } : {}),
+      workspaces,
+    };
   }
 
   findProjectByUrl(url: string): ProjectInfo | undefined {
-    const row = this.db
-      .prepare('SELECT * FROM projects WHERE url = ?')
-      .get(url) as { id: string; name: string; path: string; url: string | null } | undefined;
+    const row = this.db.prepare('SELECT * FROM projects WHERE url = ?').get(url) as
+      | { id: string; name: string; path: string; url: string | null }
+      | undefined;
     if (!row) return undefined;
     const workspaces = this.listWorkspaces(row.id);
-    return { id: row.id, name: row.name, path: row.path, ...(row.url ? { url: row.url } : {}), workspaces };
+    return {
+      id: row.id,
+      name: row.name,
+      path: row.path,
+      ...(row.url ? { url: row.url } : {}),
+      workspaces,
+    };
   }
 
   updateProjectPath(id: string, path: string): void {
@@ -130,18 +142,27 @@ export class CoreDatabase {
   }
 
   getProject(id: string): ProjectInfo | undefined {
-    const row = this.db
-      .prepare('SELECT * FROM projects WHERE id = ?')
-      .get(id) as { id: string; name: string; path: string; url: string | null } | undefined;
+    const row = this.db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as
+      | { id: string; name: string; path: string; url: string | null }
+      | undefined;
     if (!row) return undefined;
     const workspaces = this.listWorkspaces(row.id);
-    return { id: row.id, name: row.name, path: row.path, ...(row.url ? { url: row.url } : {}), workspaces };
+    return {
+      id: row.id,
+      name: row.name,
+      path: row.path,
+      ...(row.url ? { url: row.url } : {}),
+      workspaces,
+    };
   }
 
   listProjects(): ProjectInfo[] {
-    const rows = this.db
-      .prepare('SELECT * FROM projects ORDER BY created_at')
-      .all() as { id: string; name: string; path: string; url: string | null }[];
+    const rows = this.db.prepare('SELECT * FROM projects ORDER BY created_at').all() as {
+      id: string;
+      name: string;
+      path: string;
+      url: string | null;
+    }[];
     return rows.map((row) => ({
       id: row.id,
       name: row.name,
@@ -174,9 +195,9 @@ export class CoreDatabase {
   }
 
   getWorkspace(id: string): WorkspaceInfo | undefined {
-    const row = this.db
-      .prepare('SELECT * FROM workspaces WHERE id = ?')
-      .get(id) as WorkspaceRow | undefined;
+    const row = this.db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id) as
+      | WorkspaceRow
+      | undefined;
     if (!row) return undefined;
     return this.toWorkspaceInfo(row);
   }
@@ -186,9 +207,7 @@ export class CoreDatabase {
       ? (this.db
           .prepare('SELECT * FROM workspaces WHERE project_id = ? ORDER BY created_at')
           .all(projectId) as WorkspaceRow[])
-      : (this.db
-          .prepare('SELECT * FROM workspaces ORDER BY created_at')
-          .all() as WorkspaceRow[]);
+      : (this.db.prepare('SELECT * FROM workspaces ORDER BY created_at').all() as WorkspaceRow[]);
     return rows.map((row) => this.toWorkspaceInfo(row));
   }
 
@@ -230,7 +249,13 @@ export class CoreDatabase {
     workspaceId: string,
     limit?: number,
     before?: string,
-  ): { id: string; role: string; content: string; timestamp: string; metadata?: Record<string, unknown> }[] {
+  ): {
+    id: string;
+    role: string;
+    content: string;
+    timestamp: string;
+    metadata?: Record<string, unknown>;
+  }[] {
     let sql = 'SELECT * FROM conversations WHERE workspace_id = ?';
     const params: unknown[] = [workspaceId];
     if (before) {
@@ -269,7 +294,12 @@ export class CoreDatabase {
 
   // ─── Agent State ───────────────────────────────────────────────────────────
 
-  upsertAgentState(workspaceId: string, provider: string, model?: string, sessionData?: unknown): void {
+  upsertAgentState(
+    workspaceId: string,
+    provider: string,
+    model?: string,
+    sessionData?: unknown,
+  ): void {
     this.db
       .prepare(
         `INSERT INTO agent_state (workspace_id, provider, model, session_data)
@@ -281,11 +311,18 @@ export class CoreDatabase {
       .run(workspaceId, provider, model ?? null, sessionData ? JSON.stringify(sessionData) : null);
   }
 
-  getAgentState(workspaceId: string): { provider: string; model: string | null; sessionData: unknown } | undefined {
+  getAgentState(
+    workspaceId: string,
+  ): { provider: string; model: string | null; sessionData: unknown } | undefined {
     const row = this.db
       .prepare('SELECT * FROM agent_state WHERE workspace_id = ?')
       .get(workspaceId) as
-      | { workspace_id: string; provider: string; model: string | null; session_data: string | null }
+      | {
+          workspace_id: string;
+          provider: string;
+          model: string | null;
+          session_data: string | null;
+        }
       | undefined;
     if (!row) return undefined;
     return {
@@ -298,9 +335,9 @@ export class CoreDatabase {
   // ─── Settings CRUD ─────────────────────────────────────────────────────
 
   getSetting(key: string): unknown | undefined {
-    const row = this.db
-      .prepare('SELECT value FROM settings WHERE key = ?')
-      .get(key) as { value: string } | undefined;
+    const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
+      | { value: string }
+      | undefined;
     if (!row) return undefined;
     return JSON.parse(row.value) as unknown;
   }
@@ -316,9 +353,10 @@ export class CoreDatabase {
   }
 
   getAllSettings(): Record<string, unknown> {
-    const rows = this.db
-      .prepare('SELECT key, value FROM settings ORDER BY key')
-      .all() as { key: string; value: string }[];
+    const rows = this.db.prepare('SELECT key, value FROM settings ORDER BY key').all() as {
+      key: string;
+      value: string;
+    }[];
     const result: Record<string, unknown> = {};
     for (const row of rows) {
       result[row.key] = JSON.parse(row.value) as unknown;

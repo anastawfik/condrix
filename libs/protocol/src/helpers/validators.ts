@@ -45,12 +45,10 @@ export function safeParseMessage(input: unknown) {
   } catch {
     return {
       success: false as const,
-      error: new (
-        // We need a ZodError-like object for the JSON.parse failure case
-        class {
-          issues = [{ code: 'custom', message: 'Invalid JSON input', path: [] }];
-        }
-      )(),
+      error: new // We need a ZodError-like object for the JSON.parse failure case
+      (class {
+        issues = [{ code: 'custom', message: 'Invalid JSON input', path: [] }];
+      })(),
     };
   }
 }

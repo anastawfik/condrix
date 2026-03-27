@@ -32,13 +32,15 @@ export const CoreBrowseRequestSchema = z.object({
 
 export const CoreBrowseResponseSchema = z.object({
   path: z.string(),
-  entries: z.array(z.object({
-    path: z.string(),
-    name: z.string(),
-    type: z.enum(['file', 'directory', 'symlink']),
-    size: z.number().optional(),
-    modifiedAt: z.string().optional(),
-  })),
+  entries: z.array(
+    z.object({
+      path: z.string(),
+      name: z.string(),
+      type: z.enum(['file', 'directory', 'symlink']),
+      size: z.number().optional(),
+      modifiedAt: z.string().optional(),
+    }),
+  ),
 });
 
 // ─── Requests ───────────────────────────────────────────────────────────────

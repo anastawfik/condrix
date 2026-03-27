@@ -6,7 +6,11 @@ import { createStore } from 'zustand/vanilla';
 import type { CoreInfo } from '@condrix/protocol';
 
 import type { MessageEnvelope } from '@condrix/protocol';
-import { createConnectionStore, type ConnectionStore, type ConnectionState } from './connection-store.js';
+import {
+  createConnectionStore,
+  type ConnectionStore,
+  type ConnectionState,
+} from './connection-store.js';
 import { coreRegistryStore, type CoreEntry } from './core-registry-store.js';
 import { maestroStore } from './maestro-store.js';
 
@@ -27,8 +31,18 @@ export interface MultiCoreStore {
   setActiveCoreId: (coreId: string | null) => void;
   getConnection: (coreId: string) => CoreConnection | undefined;
   getActiveConnection: () => CoreConnection | undefined;
-  requestOnCore: <T = unknown>(coreId: string, ns: string, action: string, payload: unknown, timeout?: number) => Promise<T>;
-  subscribeOnCore: (coreId: string, pattern: string, listener: (event: MessageEnvelope) => void) => () => void;
+  requestOnCore: <T = unknown>(
+    coreId: string,
+    ns: string,
+    action: string,
+    payload: unknown,
+    timeout?: number,
+  ) => Promise<T>;
+  subscribeOnCore: (
+    coreId: string,
+    pattern: string,
+    listener: (event: MessageEnvelope) => void,
+  ) => () => void;
   sendOnCore: (coreId: string, ns: string, action: string, payload: unknown) => void;
   autoConnectAll: () => void;
 }
@@ -43,7 +57,12 @@ export const createMultiCoreStore = () =>
       if (connections.has(entry.id)) return;
 
       const store = createConnectionStore();
-      const conn: CoreConnection = { id: entry.id, store, coreInfo: null, connState: 'disconnected' };
+      const conn: CoreConnection = {
+        id: entry.id,
+        store,
+        coreInfo: null,
+        connState: 'disconnected',
+      };
 
       const newMap = new Map(connections);
       newMap.set(entry.id, conn);
@@ -55,7 +74,10 @@ export const createMultiCoreStore = () =>
         const existing = current.get(entry.id);
         if (!existing) return;
 
-        if (state.state !== existing.connState || (state.coreInfo && state.coreInfo !== existing.coreInfo)) {
+        if (
+          state.state !== existing.connState ||
+          (state.coreInfo && state.coreInfo !== existing.coreInfo)
+        ) {
           const updated = new Map(current);
           updated.set(entry.id, {
             ...existing,
@@ -94,7 +116,12 @@ export const createMultiCoreStore = () =>
       newMap.delete(coreId);
       set({
         connections: newMap,
-        activeCoreId: activeCoreId === coreId ? (newMap.size > 0 ? newMap.keys().next().value ?? null : null) : activeCoreId,
+        activeCoreId:
+          activeCoreId === coreId
+            ? newMap.size > 0
+              ? (newMap.keys().next().value ?? null)
+              : null
+            : activeCoreId,
       });
     },
 
@@ -120,7 +147,13 @@ export const createMultiCoreStore = () =>
       return connections.get(activeCoreId);
     },
 
-    requestOnCore: async <T = unknown>(coreId: string, ns: string, action: string, payload: unknown, timeout?: number): Promise<T> => {
+    requestOnCore: async <T = unknown>(
+      coreId: string,
+      ns: string,
+      action: string,
+      payload: unknown,
+      timeout?: number,
+    ): Promise<T> => {
       // Maestro mode: route through Maestro if connected
       const maestro = maestroStore.getState();
       if (maestro.state === 'connected') {

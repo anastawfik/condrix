@@ -43,14 +43,15 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
 
     try {
       // Save URL for next time
-      try { localStorage.setItem('condrix-maestro-url', url.trim()); } catch { /* ignore */ }
+      try {
+        localStorage.setItem('condrix-maestro-url', url.trim());
+      } catch {
+        /* ignore */
+      }
 
-      await maestroStore.getState().login(
-        url.trim(),
-        username.trim(),
-        password,
-        showTotp ? totpCode.trim() : undefined,
-      );
+      await maestroStore
+        .getState()
+        .login(url.trim(), username.trim(), password, showTotp ? totpCode.trim() : undefined);
 
       onClose();
     } catch (err) {
@@ -82,7 +83,9 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       role="dialog"
       aria-modal="true"
     >
@@ -102,7 +105,9 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
         {/* Form */}
         <div className="px-6 pb-4 space-y-3">
           <div className="space-y-1">
-            <label className="block text-[11px] font-medium text-[var(--text-secondary)]">Maestro URL</label>
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)]">
+              Maestro URL
+            </label>
             <input
               type="text"
               value={url}
@@ -115,7 +120,9 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
           </div>
 
           <div className="space-y-1">
-            <label className="block text-[11px] font-medium text-[var(--text-secondary)]">Username</label>
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)]">
+              Username
+            </label>
             <input
               type="text"
               value={username}
@@ -127,7 +134,9 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
           </div>
 
           <div className="space-y-1">
-            <label className="block text-[11px] font-medium text-[var(--text-secondary)]">Password</label>
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)]">
+              Password
+            </label>
             <input
               type="password"
               value={password}
@@ -139,7 +148,9 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
 
           {showTotp && (
             <div className="space-y-1">
-              <label className="block text-[11px] font-medium text-[var(--text-secondary)]">TOTP Code</label>
+              <label className="block text-[11px] font-medium text-[var(--text-secondary)]">
+                TOTP Code
+              </label>
               <input
                 type="text"
                 value={totpCode}
@@ -152,9 +163,7 @@ export function MaestroLoginDialog({ open, onClose, onDirectConnect }: MaestroLo
             </div>
           )}
 
-          {error && (
-            <p className="text-[11px] text-[var(--accent-red)]">{error}</p>
-          )}
+          {error && <p className="text-[11px] text-[var(--accent-red)]">{error}</p>}
 
           <Button
             className="w-full"

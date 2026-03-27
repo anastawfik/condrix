@@ -7,11 +7,14 @@ export function CodeEditor() {
   const workspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);
   const { activeFile, saveFile, updateContent } = useFileContent(workspaceId);
 
-  const handleChange = useCallback((value: string | undefined) => {
-    if (activeFile && value !== undefined) {
-      updateContent(activeFile.path, value);
-    }
-  }, [activeFile, updateContent]);
+  const handleChange = useCallback(
+    (value: string | undefined) => {
+      if (activeFile && value !== undefined) {
+        updateContent(activeFile.path, value);
+      }
+    },
+    [activeFile, updateContent],
+  );
 
   const handleSave = useCallback(() => {
     if (activeFile && activeFile.dirty) {

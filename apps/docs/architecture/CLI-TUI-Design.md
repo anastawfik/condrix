@@ -32,30 +32,30 @@ tmux-like panel system with resizable, collapsible regions:
 
 ### Layout Modes
 
-| Mode | Description |
-|------|-------------|
-| **Single** | Main panel only (chat or file viewer, full width) |
-| **Split-Vertical** | Sidebar (file tree) + Main panel |
-| **Three-Way** | Sidebar + Main panel + Terminal (bottom) |
+| Mode               | Description                                       |
+| ------------------ | ------------------------------------------------- |
+| **Single**         | Main panel only (chat or file viewer, full width) |
+| **Split-Vertical** | Sidebar (file tree) + Main panel                  |
+| **Three-Way**      | Sidebar + Main panel + Terminal (bottom)          |
 
 Cycle layouts with `Ctrl+L`. Each panel is independently collapsible.
 
 ## Keyboard Navigation
 
-| Key | Action |
-|-----|--------|
-| `F2` | Focus file tree panel |
-| `F3` | Focus chat panel |
-| `F4` | Focus terminal panel |
-| `F5` | Focus git panel |
-| `Tab` | Cycle focus between visible panels |
-| `Ctrl+L` | Cycle layout mode |
-| `Ctrl+Q` | Quit |
-| `Arrow keys` | Navigate within focused panel |
-| `Enter` | Select / expand in file tree; send in chat |
-| `Ctrl+Enter` | Newline in chat input |
-| `/` | Quick search within focused panel |
-| `Ctrl+P` | Quick-open file by name |
+| Key          | Action                                     |
+| ------------ | ------------------------------------------ |
+| `F2`         | Focus file tree panel                      |
+| `F3`         | Focus chat panel                           |
+| `F4`         | Focus terminal panel                       |
+| `F5`         | Focus git panel                            |
+| `Tab`        | Cycle focus between visible panels         |
+| `Ctrl+L`     | Cycle layout mode                          |
+| `Ctrl+Q`     | Quit                                       |
+| `Arrow keys` | Navigate within focused panel              |
+| `Enter`      | Select / expand in file tree; send in chat |
+| `Ctrl+Enter` | Newline in chat input                      |
+| `/`          | Quick search within focused panel          |
+| `Ctrl+P`     | Quick-open file by name                    |
 
 ## Panels
 
@@ -134,14 +134,14 @@ condrix (CLI binary)
 
 ## Technology
 
-| Library | Purpose |
-|---------|---------|
-| **Ink 5** | React renderer for terminals (flexbox layout engine) |
-| **React 19** | Component model, hooks, context |
-| **Commander** | CLI argument parsing (`condrix connect`, `condrix exec`) |
-| **ink-text-input** | Text input components |
-| **cli-highlight** | Syntax highlighting for file viewer |
-| **cli-spinners** | Loading/streaming indicators |
+| Library            | Purpose                                                  |
+| ------------------ | -------------------------------------------------------- |
+| **Ink 5**          | React renderer for terminals (flexbox layout engine)     |
+| **React 19**       | Component model, hooks, context                          |
+| **Commander**      | CLI argument parsing (`condrix connect`, `condrix exec`) |
+| **ink-text-input** | Text input components                                    |
+| **cli-highlight**  | Syntax highlighting for file viewer                      |
+| **cli-spinners**   | Loading/streaming indicators                             |
 
 ## CLI Commands
 

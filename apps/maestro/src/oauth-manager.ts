@@ -95,7 +95,10 @@ export class OAuthManager {
   }
 
   /** Start a browser-based OAuth login flow. Returns the authorization URL. */
-  async startBrowserLogin(): Promise<{ url: string; completion: Promise<{ success: boolean; message: string }> }> {
+  async startBrowserLogin(): Promise<{
+    url: string;
+    completion: Promise<{ success: boolean; message: string }>;
+  }> {
     this.cleanupLoginServer();
 
     const codeVerifier = randomBytes(32).toString('base64url');
@@ -103,7 +106,7 @@ export class OAuthManager {
     const state = randomBytes(16).toString('hex');
 
     // Use a fixed port (Maestro port + 1) so Docker can expose it
-    const callbackPort = (parseInt(process.env.CONDRIX_MAESTRO_PORT ?? '9200', 10)) + 1;
+    const callbackPort = parseInt(process.env.CONDRIX_MAESTRO_PORT ?? '9200', 10) + 1;
     const { server, port } = await this.startCallbackServer(callbackPort);
     this.loginServer = server;
 
@@ -204,7 +207,10 @@ export class OAuthManager {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('ENOENT')) {
-        return { success: false, message: 'Claude Code credentials file not found (~/.claude/.credentials.json)' };
+        return {
+          success: false,
+          message: 'Claude Code credentials file not found (~/.claude/.credentials.json)',
+        };
       }
       return { success: false, message: `Failed to import: ${msg}` };
     }

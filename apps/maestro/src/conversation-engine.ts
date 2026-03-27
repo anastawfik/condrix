@@ -46,7 +46,9 @@ export class ConversationEngine {
   // ─── Built-in Query Handlers ──────────────────────────────────────────────
 
   private isStatusQuery(msg: string): boolean {
-    return /^(status|health|overview|dashboard|how.s.*(everything|system)|what.s.*(up|going on))/.test(msg);
+    return /^(status|health|overview|dashboard|how.s.*(everything|system)|what.s.*(up|going on))/.test(
+      msg,
+    );
   }
 
   private isCoreListQuery(msg: string): boolean {
@@ -102,15 +104,16 @@ export class ConversationEngine {
 
     const lines = ['**Workspaces:**'];
     for (const ws of workspaces) {
-      const stateIcon = {
-        CREATING: '🔄',
-        IDLE: '💤',
-        ACTIVE: '🟢',
-        WAITING: '⏳',
-        SUSPENDED: '⏸️',
-        ERRORED: '🔴',
-        DESTROYED: '💀',
-      }[ws.state] ?? '❓';
+      const stateIcon =
+        {
+          CREATING: '🔄',
+          IDLE: '💤',
+          ACTIVE: '🟢',
+          WAITING: '⏳',
+          SUSPENDED: '⏸️',
+          ERRORED: '🔴',
+          DESTROYED: '💀',
+        }[ws.state] ?? '❓';
 
       lines.push(`${stateIcon} ${ws.name || ws.id} — ${ws.state}`);
     }
@@ -156,7 +159,7 @@ export class ConversationEngine {
         'You are Maestro, the orchestration assistant for Condrix.',
         'You help developers manage their AI agent workspaces and Cores.',
         `Current state: ${summary.cores.online}/${summary.cores.total} cores online, ` +
-        `${summary.workspaces.active} active workspaces, ${summary.workspaces.waiting} waiting.`,
+          `${summary.workspaces.active} active workspaces, ${summary.workspaces.waiting} waiting.`,
         `Registered cores: ${cores.map((c) => `${c.displayName} (${c.status})`).join(', ') || 'none'}`,
         'Keep responses concise and helpful. Use markdown formatting.',
       ].join('\n');

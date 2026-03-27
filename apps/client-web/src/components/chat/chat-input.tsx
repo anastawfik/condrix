@@ -71,12 +71,20 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
       </div>
       <div className="flex items-center justify-between mt-1.5 px-1">
         <span className="text-[10px] text-muted-foreground">
-          <kbd className="px-1 py-0.5 rounded bg-secondary text-muted-foreground font-mono text-[9px]">Enter</kbd> to send
+          <kbd className="px-1 py-0.5 rounded bg-secondary text-muted-foreground font-mono text-[9px]">
+            Enter
+          </kbd>{' '}
+          to send
           <span className="mx-1.5 text-border">&middot;</span>
-          <kbd className="px-1 py-0.5 rounded bg-secondary text-muted-foreground font-mono text-[9px]">Shift+Enter</kbd> new line
+          <kbd className="px-1 py-0.5 rounded bg-secondary text-muted-foreground font-mono text-[9px]">
+            Shift+Enter
+          </kbd>{' '}
+          new line
         </span>
         {charCount > 0 && (
-          <span className={`text-[10px] tabular-nums ${isNearLimit ? 'text-destructive' : 'text-muted-foreground'}`}>
+          <span
+            className={`text-[10px] tabular-nums ${isNearLimit ? 'text-destructive' : 'text-muted-foreground'}`}
+          >
             {charCount}/{MAX_LENGTH}
           </span>
         )}

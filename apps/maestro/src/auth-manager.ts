@@ -47,7 +47,13 @@ export class AuthManager {
     this.db.updateUserPassword(userId, hash, salt);
   }
 
-  listUsers(): { id: string; username: string; role: 'admin' | 'user'; totpEnabled: boolean; createdAt: string }[] {
+  listUsers(): {
+    id: string;
+    username: string;
+    role: 'admin' | 'user';
+    totpEnabled: boolean;
+    createdAt: string;
+  }[] {
     return this.db.listUsers().map((u) => ({
       id: u.id,
       username: u.username,
@@ -59,7 +65,11 @@ export class AuthManager {
 
   // ─── Login / Session ──────────────────────────────────────────────────────
 
-  login(username: string, password: string, totpCode?: string): SessionInfo | { error: string; requiresTotp?: boolean; retryAfterMs?: number } {
+  login(
+    username: string,
+    password: string,
+    totpCode?: string,
+  ): SessionInfo | { error: string; requiresTotp?: boolean; retryAfterMs?: number } {
     // Check rate limiting
     const attempt = this.loginAttempts.get(username);
     if (attempt && attempt.lockedUntil > Date.now()) {
@@ -99,7 +109,9 @@ export class AuthManager {
     const lockedUntil = count >= MAX_LOGIN_ATTEMPTS ? Date.now() + LOCKOUT_DURATION_MS : 0;
     this.loginAttempts.set(username, { count, lockedUntil });
     if (lockedUntil > 0) {
-      console.warn(`[Maestro] Account "${username}" locked for ${LOCKOUT_DURATION_MS / 60000}min after ${count} failed attempts`);
+      console.warn(
+        `[Maestro] Account "${username}" locked for ${LOCKOUT_DURATION_MS / 60000}min after ${count} failed attempts`,
+      );
     }
   }
 
@@ -154,7 +166,11 @@ export class AuthManager {
 
   // ─── Self-Service ────────────────────────────────────────────────────────
 
-  changePassword(userId: string, oldPassword: string, newPassword: string): { success: boolean; error?: string } {
+  changePassword(
+    userId: string,
+    oldPassword: string,
+    newPassword: string,
+  ): { success: boolean; error?: string } {
     const user = this.db.getUser(userId);
     if (!user) return { success: false, error: 'User not found' };
 
@@ -196,7 +212,9 @@ export class AuthManager {
 
   private createSession(user: UserRow): SessionInfo {
     const token = `nxm_${randomBytes(32).toString('hex')}`;
-    const expiresAt = new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(
+      Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
     this.db.insertSession(token, user.id, expiresAt);
 
     return {

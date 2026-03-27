@@ -1,6 +1,13 @@
 import {
-  File, FileCode, FileJson, FileText, FileType,
-  Folder, FolderOpen, Image, Settings,
+  File,
+  FileCode,
+  FileJson,
+  FileText,
+  FileType,
+  Folder,
+  FolderOpen,
+  Image,
+  Settings,
 } from 'lucide-react';
 
 const ICON_MAP: Record<string, typeof File> = {

@@ -18,11 +18,12 @@ function generateToken(): string {
 }
 
 function deriveCoreId(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    || `core-${Date.now()}`;
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || `core-${Date.now()}`
+  );
 }
 
 export function CoreAddForm({ mode, onDone }: CoreAddFormProps) {
@@ -46,7 +47,10 @@ export function CoreAddForm({ mode, onDone }: CoreAddFormProps) {
 
   const connectDirect = (displayName: string, url: string, token?: string) => {
     const entry = coreRegistryStore.getState().addCore({
-      name: displayName, url, token: token || undefined, autoConnect: true,
+      name: displayName,
+      url,
+      token: token || undefined,
+      autoConnect: true,
     });
     multiCoreStore.getState().connectCore(entry);
     onDone?.();
@@ -113,7 +117,11 @@ export function CoreAddForm({ mode, onDone }: CoreAddFormProps) {
 
       let displayName = tunnelName;
       if (!displayName) {
-        try { displayName = new URL(wsUrl.replace('wss://', 'https://')).hostname; } catch { displayName = wsUrl; }
+        try {
+          displayName = new URL(wsUrl.replace('wss://', 'https://')).hostname;
+        } catch {
+          displayName = wsUrl;
+        }
       }
 
       if (mode === 'maestro') {
@@ -145,13 +153,19 @@ export function CoreAddForm({ mode, onDone }: CoreAddFormProps) {
             {registeredToken}
           </code>
           <button
-            onClick={() => { navigator.clipboard.writeText(registeredToken); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+            onClick={() => {
+              navigator.clipboard.writeText(registeredToken);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
             className="shrink-0 px-2 py-1 rounded text-[10px] bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
           >
             {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>
-        <Button size="sm" variant="secondary" onClick={() => onDone?.()}>Done</Button>
+        <Button size="sm" variant="secondary" onClick={() => onDone?.()}>
+          Done
+        </Button>
       </div>
     );
   }
@@ -190,8 +204,15 @@ export function CoreAddForm({ mode, onDone }: CoreAddFormProps) {
       {tab === 'local' && (
         <div className="space-y-2">
           <div>
-            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Port</label>
-            <Input value={localPort} onChange={(e) => setLocalPort(e.target.value)} placeholder="9100" inputSize="sm" />
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+              Port
+            </label>
+            <Input
+              value={localPort}
+              onChange={(e) => setLocalPort(e.target.value)}
+              placeholder="9100"
+              inputSize="sm"
+            />
           </div>
           {error && <p className="text-[11px] text-[var(--accent-red)]">{error}</p>}
           <Button size="sm" onClick={handleLocal} disabled={loading} className="w-full">
@@ -203,25 +224,59 @@ export function CoreAddForm({ mode, onDone }: CoreAddFormProps) {
       {tab === 'remote' && (
         <div className="space-y-2">
           <div>
-            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Host</label>
-            <Input value={remoteHost} onChange={(e) => setRemoteHost(e.target.value)} placeholder="192.168.1.50" inputSize="sm" />
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+              Host
+            </label>
+            <Input
+              value={remoteHost}
+              onChange={(e) => setRemoteHost(e.target.value)}
+              placeholder="192.168.1.50"
+              inputSize="sm"
+            />
           </div>
           <div>
-            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Port</label>
-            <Input value={remotePort} onChange={(e) => setRemotePort(e.target.value)} placeholder="9100" inputSize="sm" />
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+              Port
+            </label>
+            <Input
+              value={remotePort}
+              onChange={(e) => setRemotePort(e.target.value)}
+              placeholder="9100"
+              inputSize="sm"
+            />
           </div>
           {mode === 'direct' && (
             <div>
-              <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Token</label>
-              <Input value={remoteToken} onChange={(e) => setRemoteToken(e.target.value)} placeholder="Optional in dev" inputSize="sm" type="password" />
+              <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                Token
+              </label>
+              <Input
+                value={remoteToken}
+                onChange={(e) => setRemoteToken(e.target.value)}
+                placeholder="Optional in dev"
+                inputSize="sm"
+                type="password"
+              />
             </div>
           )}
           <div>
-            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Display Name</label>
-            <Input value={remoteName} onChange={(e) => setRemoteName(e.target.value)} placeholder="Work Machine" inputSize="sm" />
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+              Display Name
+            </label>
+            <Input
+              value={remoteName}
+              onChange={(e) => setRemoteName(e.target.value)}
+              placeholder="Work Machine"
+              inputSize="sm"
+            />
           </div>
           {error && <p className="text-[11px] text-[var(--accent-red)]">{error}</p>}
-          <Button size="sm" onClick={handleRemote} disabled={loading || !remoteHost} className="w-full">
+          <Button
+            size="sm"
+            onClick={handleRemote}
+            disabled={loading || !remoteHost}
+            className="w-full"
+          >
             {loading ? loadingLabel : actionLabel}
           </Button>
         </div>
@@ -230,22 +285,49 @@ export function CoreAddForm({ mode, onDone }: CoreAddFormProps) {
       {tab === 'tunnel' && (
         <div className="space-y-2">
           <div>
-            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Tunnel URL</label>
-            <Input value={tunnelUrl} onChange={(e) => setTunnelUrl(e.target.value)} placeholder="https://abc-xyz.trycloudflare.com" inputSize="sm" />
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+              Tunnel URL
+            </label>
+            <Input
+              value={tunnelUrl}
+              onChange={(e) => setTunnelUrl(e.target.value)}
+              placeholder="https://abc-xyz.trycloudflare.com"
+              inputSize="sm"
+            />
           </div>
           {mode === 'direct' && (
             <div>
-              <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Auth Token</label>
-              <Input value={tunnelToken} onChange={(e) => setTunnelToken(e.target.value)} placeholder="Required" inputSize="sm" type="password" />
+              <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+                Auth Token
+              </label>
+              <Input
+                value={tunnelToken}
+                onChange={(e) => setTunnelToken(e.target.value)}
+                placeholder="Required"
+                inputSize="sm"
+                type="password"
+              />
             </div>
           )}
           <div>
-            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">Display Name</label>
-            <Input value={tunnelName} onChange={(e) => setTunnelName(e.target.value)} placeholder="Remote Server" inputSize="sm" />
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
+              Display Name
+            </label>
+            <Input
+              value={tunnelName}
+              onChange={(e) => setTunnelName(e.target.value)}
+              placeholder="Remote Server"
+              inputSize="sm"
+            />
           </div>
           {error && <p className="text-[11px] text-[var(--accent-red)]">{error}</p>}
-          <Button size="sm" onClick={handleTunnel} disabled={loading || !tunnelUrl || (mode === 'direct' && !tunnelToken)} className="w-full">
-            {loading ? loadingLabel : (mode === 'direct' ? 'Connect via Tunnel' : actionLabel)}
+          <Button
+            size="sm"
+            onClick={handleTunnel}
+            disabled={loading || !tunnelUrl || (mode === 'direct' && !tunnelToken)}
+            className="w-full"
+          >
+            {loading ? loadingLabel : mode === 'direct' ? 'Connect via Tunnel' : actionLabel}
           </Button>
         </div>
       )}

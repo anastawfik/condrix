@@ -61,9 +61,20 @@ export interface MaestroStore {
   setAiConfig: (config: Record<string, unknown>) => Promise<void>;
 
   // Message relay
-  requestOnCore: <T = unknown>(coreId: string, ns: string, action: string, payload: unknown) => Promise<T>;
+  requestOnCore: <T = unknown>(
+    coreId: string,
+    ns: string,
+    action: string,
+    payload: unknown,
+  ) => Promise<T>;
   sendOnCore: (coreId: string, ns: string, action: string, payload: unknown) => void;
-  request: <T = unknown>(ns: string, action: string, payload: unknown, timeout?: number, targetCoreId?: string) => Promise<T>;
+  request: <T = unknown>(
+    ns: string,
+    action: string,
+    payload: unknown,
+    timeout?: number,
+    targetCoreId?: string,
+  ) => Promise<T>;
   subscribe: (pattern: string, listener: (event: MessageEnvelope) => void) => () => void;
 }
 
@@ -121,7 +132,10 @@ export const createMaestroStore = () =>
           if (pending) {
             clearTimeout(pending.timer);
             get()._pending.delete(msg.correlationId);
-            const resp = msg as MessageEnvelope & { success?: boolean; error?: { message: string } };
+            const resp = msg as MessageEnvelope & {
+              success?: boolean;
+              error?: { message: string };
+            };
             if (resp.success) {
               pending.resolve(msg.payload);
             } else {
@@ -143,8 +157,13 @@ export const createMaestroStore = () =>
           const { _listeners } = get();
 
           // Update core list on core online/offline events
-          if (msg.namespace === 'maestro' && (msg.action === 'core.online' || msg.action === 'core.offline')) {
-            get().fetchCores().catch(() => {});
+          if (
+            msg.namespace === 'maestro' &&
+            (msg.action === 'core.online' || msg.action === 'core.offline')
+          ) {
+            get()
+              .fetchCores()
+              .catch(() => {});
           }
 
           for (const [pattern, listeners] of _listeners) {
@@ -215,13 +234,18 @@ export const createMaestroStore = () =>
       // Persist session
       try {
         if (typeof localStorage !== 'undefined' && result.sessionToken) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            url,
-            sessionToken: result.sessionToken,
-            expiresAt: result.expiresAt,
-          }));
+          localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              url,
+              sessionToken: result.sessionToken,
+              expiresAt: result.expiresAt,
+            }),
+          );
         }
-      } catch { /* storage unavailable */ }
+      } catch {
+        /* storage unavailable */
+      }
 
       // Fetch cores after login
       await get().fetchCores();
@@ -242,7 +266,9 @@ export const createMaestroStore = () =>
           if (typeof localStorage !== 'undefined') {
             localStorage.removeItem(STORAGE_KEY);
           }
-        } catch { /* storage unavailable */ }
+        } catch {
+          /* storage unavailable */
+        }
         get().disconnect();
         throw new Error('Session expired');
       }
@@ -261,7 +287,9 @@ export const createMaestroStore = () =>
         if (typeof localStorage !== 'undefined') {
           localStorage.removeItem(STORAGE_KEY);
         }
-      } catch { /* storage unavailable */ }
+      } catch {
+        /* storage unavailable */
+      }
       get().disconnect();
     },
 
@@ -310,7 +338,12 @@ export const createMaestroStore = () =>
       await get().request('maestro', 'ai.config.set', config);
     },
 
-    requestOnCore: async <T = unknown>(coreId: string, ns: string, action: string, payload: unknown): Promise<T> => {
+    requestOnCore: async <T = unknown>(
+      coreId: string,
+      ns: string,
+      action: string,
+      payload: unknown,
+    ): Promise<T> => {
       return get().request<T>(ns, action, payload, REQUEST_TIMEOUT, coreId);
     },
 
@@ -330,7 +363,13 @@ export const createMaestroStore = () =>
       _ws.send(JSON.stringify(msg));
     },
 
-    request: <T = unknown>(ns: string, action: string, payload: unknown, timeout = REQUEST_TIMEOUT, targetCoreId?: string): Promise<T> => {
+    request: <T = unknown>(
+      ns: string,
+      action: string,
+      payload: unknown,
+      timeout = REQUEST_TIMEOUT,
+      targetCoreId?: string,
+    ): Promise<T> => {
       return new Promise((resolve, reject) => {
         const { _ws } = get();
         if (!_ws || _ws.readyState !== WebSocket.OPEN) {
@@ -433,10 +472,15 @@ try {
       };
       // Check if session hasn't expired
       if (!expiresAt || new Date(expiresAt) > new Date()) {
-        maestroStore.getState().authWithToken(url, sessionToken).catch(() => {
-          // Session expired or invalid — silent fail
-        });
+        maestroStore
+          .getState()
+          .authWithToken(url, sessionToken)
+          .catch(() => {
+            // Session expired or invalid — silent fail
+          });
       }
     }
   }
-} catch { /* storage unavailable */ }
+} catch {
+  /* storage unavailable */
+}

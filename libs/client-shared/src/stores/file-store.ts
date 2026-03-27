@@ -49,10 +49,25 @@ export interface FileStore {
 function detectLanguage(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase() ?? '';
   const map: Record<string, string> = {
-    ts: 'typescript', tsx: 'typescriptreact', js: 'javascript', jsx: 'javascriptreact',
-    json: 'json', md: 'markdown', css: 'css', html: 'html', scss: 'scss',
-    py: 'python', rs: 'rust', go: 'go', yaml: 'yaml', yml: 'yaml',
-    toml: 'toml', sh: 'shell', bash: 'shell', sql: 'sql', graphql: 'graphql',
+    ts: 'typescript',
+    tsx: 'typescriptreact',
+    js: 'javascript',
+    jsx: 'javascriptreact',
+    json: 'json',
+    md: 'markdown',
+    css: 'css',
+    html: 'html',
+    scss: 'scss',
+    py: 'python',
+    rs: 'rust',
+    go: 'go',
+    yaml: 'yaml',
+    yml: 'yaml',
+    toml: 'toml',
+    sh: 'shell',
+    bash: 'shell',
+    sql: 'sql',
+    graphql: 'graphql',
   };
   return map[ext] ?? 'plaintext';
 }
@@ -68,7 +83,9 @@ function saveFileUIState(openFiles: OpenFile[], activeFilePath: string | null): 
       existing.openFiles = openFiles.map((f) => f.path);
       existing.activeFilePath = activeFilePath;
       localStorage.setItem(UI_STATE_KEY, JSON.stringify(existing));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, 1000);
 }
 
@@ -80,13 +97,16 @@ export const createFileStore = () =>
     treeLoading: false,
 
     fetchTree: async (workspaceId, path) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return [];
       set({ treeLoading: true });
       try {
-        const result = await multiCoreStore.getState().requestOnCore<{ entries: FileNode[] }>(
-          coreId, 'file', 'tree', { workspaceId, path, depth: 1 },
-        );
+        const result = await multiCoreStore
+          .getState()
+          .requestOnCore<{
+            entries: FileNode[];
+          }>(coreId, 'file', 'tree', { workspaceId, path, depth: 1 });
         if (!path) {
           set({ tree: result.entries });
         }
@@ -119,11 +139,15 @@ export const createFileStore = () =>
         return;
       }
 
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) throw new Error('No active Core connection');
-      const result = await multiCoreStore.getState().requestOnCore<{ path: string; content: string }>(
-        coreId, 'file', 'read', { workspaceId, path },
-      );
+      const result = await multiCoreStore
+        .getState()
+        .requestOnCore<{
+          path: string;
+          content: string;
+        }>(coreId, 'file', 'read', { workspaceId, path });
 
       const name = path.split('/').pop() ?? path;
       const file: OpenFile = {
@@ -144,9 +168,12 @@ export const createFileStore = () =>
     closeFile: (path) => {
       set((s) => {
         const newFiles = s.openFiles.filter((f) => f.path !== path);
-        const newActive = s.activeFilePath === path
-          ? (newFiles.length > 0 ? newFiles[newFiles.length - 1].path : null)
-          : s.activeFilePath;
+        const newActive =
+          s.activeFilePath === path
+            ? newFiles.length > 0
+              ? newFiles[newFiles.length - 1].path
+              : null
+            : s.activeFilePath;
         return { openFiles: newFiles, activeFilePath: newActive };
       });
       saveFileUIState(get().openFiles, get().activeFilePath);
@@ -158,21 +185,20 @@ export const createFileStore = () =>
     },
 
     saveFile: async (workspaceId, path, content) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) throw new Error('No active Core connection');
-      await multiCoreStore.getState().requestOnCore(coreId, 'file', 'write', { workspaceId, path, content });
+      await multiCoreStore
+        .getState()
+        .requestOnCore(coreId, 'file', 'write', { workspaceId, path, content });
       set((s) => ({
-        openFiles: s.openFiles.map((f) =>
-          f.path === path ? { ...f, content, dirty: false } : f,
-        ),
+        openFiles: s.openFiles.map((f) => (f.path === path ? { ...f, content, dirty: false } : f)),
       }));
     },
 
     updateFileContent: (path, content) => {
       set((s) => ({
-        openFiles: s.openFiles.map((f) =>
-          f.path === path ? { ...f, content, dirty: true } : f,
-        ),
+        openFiles: s.openFiles.map((f) => (f.path === path ? { ...f, content, dirty: true } : f)),
       }));
     },
 
@@ -191,24 +217,33 @@ export const createFileStore = () =>
         for (const path of paths) {
           try {
             await get().openFile(workspaceId, path);
-          } catch { /* file may no longer exist */ }
+          } catch {
+            /* file may no longer exist */
+          }
         }
 
         // Restore active file selection
         if (activePath && get().openFiles.some((f) => f.path === activePath)) {
           set({ activeFilePath: activePath });
         }
-      } catch { /* ignore corrupt state */ }
+      } catch {
+        /* ignore corrupt state */
+      }
     },
 
     renameFile: async (workspaceId, oldPath, newPath) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) throw new Error('No active Core connection');
-      await multiCoreStore.getState().requestOnCore(coreId, 'file', 'rename', { workspaceId, oldPath, newPath });
+      await multiCoreStore
+        .getState()
+        .requestOnCore(coreId, 'file', 'rename', { workspaceId, oldPath, newPath });
       // Update open files if renamed file was open
       set((s) => ({
         openFiles: s.openFiles.map((f) =>
-          f.path === oldPath ? { ...f, path: newPath, name: newPath.split('/').pop() ?? newPath } : f,
+          f.path === oldPath
+            ? { ...f, path: newPath, name: newPath.split('/').pop() ?? newPath }
+            : f,
         ),
         activeFilePath: s.activeFilePath === oldPath ? newPath : s.activeFilePath,
       }));
@@ -217,9 +252,12 @@ export const createFileStore = () =>
     },
 
     deleteFile: async (workspaceId, path) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) throw new Error('No active Core connection');
-      await multiCoreStore.getState().requestOnCore(coreId, 'file', 'delete', { workspaceId, path });
+      await multiCoreStore
+        .getState()
+        .requestOnCore(coreId, 'file', 'delete', { workspaceId, path });
       // Close file if it was open
       get().closeFile(path);
       // Refresh tree
@@ -227,16 +265,22 @@ export const createFileStore = () =>
     },
 
     createFile: async (workspaceId, path) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) throw new Error('No active Core connection');
-      await multiCoreStore.getState().requestOnCore(coreId, 'file', 'createFile', { workspaceId, path });
+      await multiCoreStore
+        .getState()
+        .requestOnCore(coreId, 'file', 'createFile', { workspaceId, path });
       await get().fetchTree(workspaceId);
     },
 
     createDir: async (workspaceId, path) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) throw new Error('No active Core connection');
-      await multiCoreStore.getState().requestOnCore(coreId, 'file', 'createDir', { workspaceId, path });
+      await multiCoreStore
+        .getState()
+        .requestOnCore(coreId, 'file', 'createDir', { workspaceId, path });
       await get().fetchTree(workspaceId);
     },
   }));
@@ -264,6 +308,8 @@ if (typeof window !== 'undefined') {
       existing.openFiles = openFiles.map((f) => f.path);
       existing.activeFilePath = activeFilePath;
       localStorage.setItem(UI_STATE_KEY, JSON.stringify(existing));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   });
 }

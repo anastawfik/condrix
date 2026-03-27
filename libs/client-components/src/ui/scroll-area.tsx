@@ -6,11 +6,7 @@ const ScrollArea = forwardRef<
   HTMLDivElement,
   ComponentPropsWithoutRef<typeof RadixScrollArea.Root>
 >(({ className, children, ...props }, ref) => (
-  <RadixScrollArea.Root
-    ref={ref}
-    className={cn('relative overflow-hidden', className)}
-    {...props}
-  >
+  <RadixScrollArea.Root ref={ref} className={cn('relative overflow-hidden', className)} {...props}>
     <RadixScrollArea.Viewport className="h-full w-full rounded-[inherit]">
       {children}
     </RadixScrollArea.Viewport>
@@ -30,10 +26,8 @@ const ScrollBar = forwardRef<
     orientation={orientation}
     className={cn(
       'flex touch-none select-none transition-colors',
-      orientation === 'vertical' &&
-        'h-full w-2.5 border-l border-l-transparent p-[1px]',
-      orientation === 'horizontal' &&
-        'h-2.5 flex-col border-t border-t-transparent p-[1px]',
+      orientation === 'vertical' && 'h-full w-2.5 border-l border-l-transparent p-[1px]',
+      orientation === 'horizontal' && 'h-2.5 flex-col border-t border-t-transparent p-[1px]',
       className,
     )}
     {...props}

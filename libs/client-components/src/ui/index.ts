@@ -18,14 +18,7 @@ export { Badge, badgeVariants, type BadgeProps } from './badge.js';
 
 export { Button, buttonVariants, type ButtonProps } from './button.js';
 
-export {
-  Card,
-  CardHeader,
-  CardFooter,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from './card.js';
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from './card.js';
 
 export {
   Command,
@@ -134,9 +127,4 @@ export { Tabs, TabsList, TabsTrigger, TabsContent } from './tabs.js';
 
 export { Textarea, type TextareaProps } from './textarea.js';
 
-export {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-  TooltipProvider,
-} from './tooltip.js';
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tooltip.js';

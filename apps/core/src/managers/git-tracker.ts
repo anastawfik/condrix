@@ -85,7 +85,11 @@ export class GitTracker {
     };
   }
 
-  async getDiff(repoPath: string, staged = false, path?: string): Promise<{
+  async getDiff(
+    repoPath: string,
+    staged = false,
+    path?: string,
+  ): Promise<{
     diff: string;
     files: string[];
   }> {
@@ -100,7 +104,11 @@ export class GitTracker {
     return { diff, files };
   }
 
-  async getLog(repoPath: string, limit = 20, branch?: string): Promise<{
+  async getLog(
+    repoPath: string,
+    limit = 20,
+    branch?: string,
+  ): Promise<{
     commits: { hash: string; message: string; author: string; date: string }[];
   }> {
     const git = this.getGit(repoPath);

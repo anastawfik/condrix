@@ -8,18 +8,15 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          'bg-[var(--accent-blue)] text-white hover:bg-[var(--accent-blue-hover)]',
+        default: 'bg-[var(--accent-blue)] text-white hover:bg-[var(--accent-blue-hover)]',
         secondary:
           'bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-active)]',
         ghost:
           'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-        destructive:
-          'bg-[var(--accent-red)] text-white hover:opacity-90',
+        destructive: 'bg-[var(--accent-red)] text-white hover:opacity-90',
         outline:
           'border border-[var(--border-color)] bg-transparent text-[var(--text-primary)] hover:bg-[var(--bg-hover)]',
-        link:
-          'text-[var(--accent-blue)] underline-offset-4 hover:underline bg-transparent',
+        link: 'text-[var(--accent-blue)] underline-offset-4 hover:underline bg-transparent',
       },
       size: {
         default: 'h-8 px-3 py-1.5',
@@ -36,8 +33,7 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+  extends ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
 
@@ -45,11 +41,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot.Slot : 'button';
     return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
+      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
     );
   },
 );

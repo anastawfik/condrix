@@ -1,8 +1,18 @@
 import { useStore } from 'zustand';
 import { MessageSquare, GitCompareArrows, X } from 'lucide-react';
-import { workspaceStore, useFileContent, gitStore, fileStore, chatStore } from '@condrix/client-shared';
 import {
-  ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
+  workspaceStore,
+  useFileContent,
+  gitStore,
+  fileStore,
+  chatStore,
+} from '@condrix/client-shared';
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
 } from '@/components/ui/context-menu';
 import type { WorkspaceInfo } from '@condrix/protocol';
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -38,9 +48,16 @@ export function EditorTabs() {
       const saved = localStorage.getItem(UI_STATE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.activeView === 'chat' || parsed.activeView === 'editor' || parsed.activeView === 'diff') return parsed.activeView;
+        if (
+          parsed.activeView === 'chat' ||
+          parsed.activeView === 'editor' ||
+          parsed.activeView === 'diff'
+        )
+          return parsed.activeView;
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return 'chat';
   });
 
@@ -64,7 +81,9 @@ export function EditorTabs() {
       const existing = JSON.parse(localStorage.getItem(UI_STATE_KEY) ?? '{}');
       existing.activeView = activeView;
       localStorage.setItem(UI_STATE_KEY, JSON.stringify(existing));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [activeView]);
 
   const handleFileSelect = (path: string) => {
@@ -93,12 +112,15 @@ export function EditorTabs() {
     setActiveView('chat');
   };
 
-  const handleCloseOthers = useCallback((path: string) => {
-    const { openFiles: files } = fileStore.getState();
-    for (const f of files) {
-      if (f.path !== path) closeFile(f.path);
-    }
-  }, [closeFile]);
+  const handleCloseOthers = useCallback(
+    (path: string) => {
+      const { openFiles: files } = fileStore.getState();
+      for (const f of files) {
+        if (f.path !== path) closeFile(f.path);
+      }
+    },
+    [closeFile],
+  );
 
   const handleCloseAll = useCallback(() => {
     const { openFiles: files } = fileStore.getState();
@@ -138,7 +160,10 @@ export function EditorTabs() {
               <MessageSquare size={12} />
               <span className="truncate max-w-[120px]">{wsTabName(ws)}</span>
               {streamingWorkspaces.has(ws.id) && (
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" title="Agent working..." />
+                <span
+                  className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0"
+                  title="Agent working..."
+                />
               )}
             </button>
           ))
@@ -185,7 +210,10 @@ export function EditorTabs() {
                 <GitCompareArrows size={12} className="text-success shrink-0" />
                 <span className="truncate max-w-[120px]">{fileName(diff.path)}</span>
                 <button
-                  onClick={(e) => { e.stopPropagation(); handleDiffClose(diff.path); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDiffClose(diff.path);
+                  }}
                   aria-label={`Close diff ${fileName(diff.path)}`}
                   className="p-0.5 rounded hover:bg-accent opacity-0 group-hover:opacity-100 shrink-0"
                 >

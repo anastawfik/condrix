@@ -86,7 +86,10 @@ export function DropdownMenuItemComponent({
 }
 DropdownMenuItemComponent.displayName = 'DropdownMenuItem';
 
-export function DropdownMenuSeparator({ className, ...props }: ComponentPropsWithoutRef<typeof RadixDropdownMenu.Separator>) {
+export function DropdownMenuSeparator({
+  className,
+  ...props
+}: ComponentPropsWithoutRef<typeof RadixDropdownMenu.Separator>) {
   return (
     <RadixDropdownMenu.Separator
       className={cn('h-px my-1 bg-[var(--border-color)]', className)}

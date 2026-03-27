@@ -114,7 +114,9 @@ describe('CoreDatabase', () => {
     });
 
     it('should store and retrieve JSON metadata', () => {
-      db.insertConversation('msg_1', 'ws_1', 'user', 'test', '2024-01-01T00:00:00Z', { key: 'value' });
+      db.insertConversation('msg_1', 'ws_1', 'user', 'test', '2024-01-01T00:00:00Z', {
+        key: 'value',
+      });
       const history = db.getConversationHistory('ws_1');
       expect(history[0].metadata).toEqual({ key: 'value' });
     });

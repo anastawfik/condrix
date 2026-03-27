@@ -22,7 +22,12 @@ export function useSettings(prefix?: string): UseSettingsReturn {
   const error = useStore(settingsStore, (s: SettingsStore) => s.error);
 
   useEffect(() => {
-    settingsStore.getState().loadSettings(prefix).catch(() => { /* ignore */ });
+    settingsStore
+      .getState()
+      .loadSettings(prefix)
+      .catch(() => {
+        /* ignore */
+      });
   }, [prefix]);
 
   return {

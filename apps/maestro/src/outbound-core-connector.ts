@@ -111,7 +111,9 @@ export class OutboundCoreConnector {
   connectAll(): void {
     const outboundCores = this.db.getOutboundCores();
     for (const core of outboundCores) {
-      console.log(`[OutboundConnector] Auto-connecting to ${core.display_name} at ${core.tunnel_url}`);
+      console.log(
+        `[OutboundConnector] Auto-connecting to ${core.display_name} at ${core.tunnel_url}`,
+      );
       this.connect(core.id);
     }
   }
@@ -147,14 +149,16 @@ export class OutboundCoreConnector {
           authPayload.totpCode = this.generateTotpCode(coreRow.totp_secret);
         }
 
-        ws.send(JSON.stringify({
-          id: generateMessageId(),
-          type: 'request',
-          namespace: 'core',
-          action: 'auth',
-          payload: authPayload,
-          timestamp: new Date().toISOString(),
-        }));
+        ws.send(
+          JSON.stringify({
+            id: generateMessageId(),
+            type: 'request',
+            namespace: 'core',
+            action: 'auth',
+            payload: authPayload,
+            timestamp: new Date().toISOString(),
+          }),
+        );
       });
 
       ws.on('message', (data) => {
@@ -174,8 +178,12 @@ export class OutboundCoreConnector {
             this.startHeartbeat(conn);
             this.onCoreOnline?.(coreRow);
           } else {
-            const error = (msg as Record<string, unknown>).error as { code?: string; message?: string } | undefined;
-            console.error(`[OutboundConnector] Auth failed for ${coreRow.display_name}: ${error?.message ?? 'unknown'}`);
+            const error = (msg as Record<string, unknown>).error as
+              | { code?: string; message?: string }
+              | undefined;
+            console.error(
+              `[OutboundConnector] Auth failed for ${coreRow.display_name}: ${error?.message ?? 'unknown'}`,
+            );
             ws.close();
           }
           return;
@@ -206,7 +214,9 @@ export class OutboundCoreConnector {
         console.error(`[OutboundConnector] Error with ${coreRow.display_name}: ${err.message}`);
       });
     } catch (err) {
-      console.error(`[OutboundConnector] Failed to connect to ${coreRow.display_name}: ${(err as Error).message}`);
+      console.error(
+        `[OutboundConnector] Failed to connect to ${coreRow.display_name}: ${(err as Error).message}`,
+      );
       if (!conn.destroyed) {
         this.scheduleReconnect(conn, coreRow);
       }
@@ -222,7 +232,9 @@ export class OutboundCoreConnector {
   }
 
   private scheduleReconnect(conn: OutboundConnection, coreRow: CoreRow): void {
-    console.log(`[OutboundConnector] Reconnecting to ${coreRow.display_name} in ${conn.reconnectDelay / 1000}s...`);
+    console.log(
+      `[OutboundConnector] Reconnecting to ${coreRow.display_name} in ${conn.reconnectDelay / 1000}s...`,
+    );
     conn.reconnectTimer = setTimeout(() => {
       // Re-read core row in case token/URL changed
       const freshRow = this.db.getCore(conn.coreDbId);
@@ -234,8 +246,14 @@ export class OutboundCoreConnector {
   }
 
   private cleanupTimers(conn: OutboundConnection): void {
-    if (conn.heartbeatTimer) { clearInterval(conn.heartbeatTimer); conn.heartbeatTimer = null; }
-    if (conn.reconnectTimer) { clearTimeout(conn.reconnectTimer); conn.reconnectTimer = null; }
+    if (conn.heartbeatTimer) {
+      clearInterval(conn.heartbeatTimer);
+      conn.heartbeatTimer = null;
+    }
+    if (conn.reconnectTimer) {
+      clearTimeout(conn.reconnectTimer);
+      conn.reconnectTimer = null;
+    }
   }
 
   private cleanupConnection(conn: OutboundConnection): void {

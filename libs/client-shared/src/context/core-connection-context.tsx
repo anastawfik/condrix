@@ -5,7 +5,11 @@
 import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { useStore } from 'zustand';
 
-import { connectionStore, type ConnectionStore, type ConnectionConfig } from '../stores/connection-store.js';
+import {
+  connectionStore,
+  type ConnectionStore,
+  type ConnectionConfig,
+} from '../stores/connection-store.js';
 import { chatStore } from '../stores/chat-store.js';
 import { terminalStore } from '../stores/terminal-store.js';
 import type { MessageEnvelope } from '@condrix/protocol';
@@ -30,20 +34,24 @@ export function CoreConnectionProvider({ children }: CoreConnectionProviderProps
     subscriptionsRef.current.push(unsubAgent);
 
     // Subscribe to terminal events
-    const unsubTermOutput = connectionStore.getState().subscribe('terminal:output', (event: MessageEnvelope) => {
-      const payload = event.payload as { terminalId: string; data: string };
-      if (payload.terminalId) {
-        terminalStore.getState().handleOutputEvent(payload.terminalId, payload.data);
-      }
-    });
+    const unsubTermOutput = connectionStore
+      .getState()
+      .subscribe('terminal:output', (event: MessageEnvelope) => {
+        const payload = event.payload as { terminalId: string; data: string };
+        if (payload.terminalId) {
+          terminalStore.getState().handleOutputEvent(payload.terminalId, payload.data);
+        }
+      });
     subscriptionsRef.current.push(unsubTermOutput);
 
-    const unsubTermExit = connectionStore.getState().subscribe('terminal:exit', (event: MessageEnvelope) => {
-      const payload = event.payload as { terminalId: string };
-      if (payload.terminalId) {
-        terminalStore.getState().handleExitEvent(payload.terminalId);
-      }
-    });
+    const unsubTermExit = connectionStore
+      .getState()
+      .subscribe('terminal:exit', (event: MessageEnvelope) => {
+        const payload = event.payload as { terminalId: string };
+        if (payload.terminalId) {
+          terminalStore.getState().handleExitEvent(payload.terminalId);
+        }
+      });
     subscriptionsRef.current.push(unsubTermExit);
 
     return () => {

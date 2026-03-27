@@ -29,14 +29,22 @@ export function TitleBar({ onSettingsOpen, maestroConnected }: TitleBarProps) {
     ).length;
   }
 
-  const statusColor = connectedCount > 0
-    ? connectedCount === totalCount ? 'bg-green-500' : 'bg-yellow-500'
-    : totalCount > 0 ? 'bg-red-500' : 'bg-muted-foreground';
+  const statusColor =
+    connectedCount > 0
+      ? connectedCount === totalCount
+        ? 'bg-green-500'
+        : 'bg-yellow-500'
+      : totalCount > 0
+        ? 'bg-red-500'
+        : 'bg-muted-foreground';
 
   const currentProject = currentProjectId ? projects.find((p) => p.id === currentProjectId) : null;
 
   return (
-    <div className="flex items-center h-10 px-4 bg-card border-b border-border select-none shrink-0" data-testid="title-bar">
+    <div
+      className="flex items-center h-10 px-4 bg-card border-b border-border select-none shrink-0"
+      data-testid="title-bar"
+    >
       <span className="font-semibold text-primary mr-4">Condrix</span>
 
       <div className="flex items-center gap-2 text-muted-foreground text-sm">

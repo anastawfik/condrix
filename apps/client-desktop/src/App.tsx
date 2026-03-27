@@ -29,25 +29,35 @@ export function App() {
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100vh',
-      backgroundColor: '#1e1e2e',
-      color: '#cdd6f4',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      padding: '2rem',
-    }}>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-        Condrix
-      </h1>
-      <p style={{ fontSize: '0.8rem', color: '#6c7086', marginBottom: '2rem', textAlign: 'center' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        backgroundColor: '#1e1e2e',
+        color: '#cdd6f4',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        padding: '2rem',
+      }}
+    >
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem' }}>Condrix</h1>
+      <p
+        style={{ fontSize: '0.8rem', color: '#6c7086', marginBottom: '2rem', textAlign: 'center' }}
+      >
         Enter the URL of a running Condrix web client to connect.
       </p>
 
-      <div style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '400px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem',
+        }}
+      >
         <input
           type="text"
           value={url}
@@ -87,9 +97,7 @@ export function App() {
         </button>
 
         {error && (
-          <p style={{ fontSize: '0.8rem', color: '#f38ba8', textAlign: 'center' }}>
-            {error}
-          </p>
+          <p style={{ fontSize: '0.8rem', color: '#f38ba8', textAlign: 'center' }}>{error}</p>
         )}
       </div>
 

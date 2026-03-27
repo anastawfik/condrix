@@ -107,10 +107,14 @@ export class MaestroDatabase {
     for (const col of [
       'ALTER TABLE cores ADD COLUMN tunnel_url TEXT',
       'ALTER TABLE cores ADD COLUMN totp_secret TEXT',
-      "ALTER TABLE cores ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0",
+      'ALTER TABLE cores ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0',
       "ALTER TABLE cores ADD COLUMN connection_mode TEXT NOT NULL DEFAULT 'inbound'",
     ]) {
-      try { this.db.exec(col); } catch { /* already exists */ }
+      try {
+        this.db.exec(col);
+      } catch {
+        /* already exists */
+      }
     }
 
     this.db.exec(`
@@ -125,28 +129,30 @@ export class MaestroDatabase {
 
   // ─── Users ────────────────────────────────────────────────────────────────
 
-  insertUser(id: string, username: string, passwordHash: string, salt: string, role: 'admin' | 'user'): void {
+  insertUser(
+    id: string,
+    username: string,
+    passwordHash: string,
+    salt: string,
+    role: 'admin' | 'user',
+  ): void {
     this.db
       .prepare('INSERT INTO users (id, username, password_hash, salt, role) VALUES (?, ?, ?, ?, ?)')
       .run(id, username, passwordHash, salt, role);
   }
 
   getUserByUsername(username: string): UserRow | undefined {
-    return this.db
-      .prepare('SELECT * FROM users WHERE username = ?')
-      .get(username) as UserRow | undefined;
+    return this.db.prepare('SELECT * FROM users WHERE username = ?').get(username) as
+      | UserRow
+      | undefined;
   }
 
   getUser(id: string): UserRow | undefined {
-    return this.db
-      .prepare('SELECT * FROM users WHERE id = ?')
-      .get(id) as UserRow | undefined;
+    return this.db.prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow | undefined;
   }
 
   listUsers(): UserRow[] {
-    return this.db
-      .prepare('SELECT * FROM users ORDER BY created_at')
-      .all() as UserRow[];
+    return this.db.prepare('SELECT * FROM users ORDER BY created_at').all() as UserRow[];
   }
 
   deleteUser(id: string): boolean {
@@ -156,13 +162,13 @@ export class MaestroDatabase {
 
   updateUserPassword(id: string, passwordHash: string, salt: string): void {
     this.db
-      .prepare("UPDATE users SET password_hash = ?, salt = ? WHERE id = ?")
+      .prepare('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?')
       .run(passwordHash, salt, id);
   }
 
   updateUserTotp(id: string, secret: string | null, enabled: boolean): void {
     this.db
-      .prepare("UPDATE users SET totp_secret = ?, totp_enabled = ? WHERE id = ?")
+      .prepare('UPDATE users SET totp_secret = ?, totp_enabled = ? WHERE id = ?')
       .run(secret, enabled ? 1 : 0, id);
   }
 
@@ -174,7 +180,9 @@ export class MaestroDatabase {
       .run(token, userId, expiresAt);
   }
 
-  getSession(token: string): (SessionRow & { username: string; role: 'admin' | 'user' }) | undefined {
+  getSession(
+    token: string,
+  ): (SessionRow & { username: string; role: 'admin' | 'user' }) | undefined {
     return this.db
       .prepare(
         `SELECT s.*, u.username, u.role FROM sessions s
@@ -201,27 +209,23 @@ export class MaestroDatabase {
   }
 
   getCore(id: string): CoreRow | undefined {
-    return this.db
-      .prepare('SELECT * FROM cores WHERE id = ?')
-      .get(id) as CoreRow | undefined;
+    return this.db.prepare('SELECT * FROM cores WHERE id = ?').get(id) as CoreRow | undefined;
   }
 
   getCoreByAccessToken(accessToken: string): CoreRow | undefined {
-    return this.db
-      .prepare('SELECT * FROM cores WHERE access_token = ?')
-      .get(accessToken) as CoreRow | undefined;
+    return this.db.prepare('SELECT * FROM cores WHERE access_token = ?').get(accessToken) as
+      | CoreRow
+      | undefined;
   }
 
   getCoreByCoreId(coreId: string): CoreRow | undefined {
-    return this.db
-      .prepare('SELECT * FROM cores WHERE core_id = ?')
-      .get(coreId) as CoreRow | undefined;
+    return this.db.prepare('SELECT * FROM cores WHERE core_id = ?').get(coreId) as
+      | CoreRow
+      | undefined;
   }
 
   listCores(): CoreRow[] {
-    return this.db
-      .prepare('SELECT * FROM cores ORDER BY created_at')
-      .all() as CoreRow[];
+    return this.db.prepare('SELECT * FROM cores ORDER BY created_at').all() as CoreRow[];
   }
 
   updateCoreStatus(id: string, status: 'online' | 'offline'): void {
@@ -231,15 +235,11 @@ export class MaestroDatabase {
   }
 
   updateCoreDisplayName(id: string, displayName: string): void {
-    this.db
-      .prepare("UPDATE cores SET display_name = ? WHERE id = ?")
-      .run(displayName, id);
+    this.db.prepare('UPDATE cores SET display_name = ? WHERE id = ?').run(displayName, id);
   }
 
   updateCoreAccessToken(id: string, accessToken: string): void {
-    this.db
-      .prepare("UPDATE cores SET access_token = ? WHERE id = ?")
-      .run(accessToken, id);
+    this.db.prepare('UPDATE cores SET access_token = ? WHERE id = ?').run(accessToken, id);
   }
 
   deleteCore(id: string): boolean {
@@ -268,9 +268,9 @@ export class MaestroDatabase {
   // ─── AI Config ────────────────────────────────────────────────────────────
 
   getAiConfig(key: string): string | undefined {
-    const row = this.db
-      .prepare('SELECT value FROM ai_config WHERE key = ?')
-      .get(key) as { value: string } | undefined;
+    const row = this.db.prepare('SELECT value FROM ai_config WHERE key = ?').get(key) as
+      | { value: string }
+      | undefined;
     return row?.value;
   }
 
@@ -285,9 +285,10 @@ export class MaestroDatabase {
   }
 
   getAllAiConfig(): Record<string, string> {
-    const rows = this.db
-      .prepare('SELECT key, value FROM ai_config ORDER BY key')
-      .all() as { key: string; value: string }[];
+    const rows = this.db.prepare('SELECT key, value FROM ai_config ORDER BY key').all() as {
+      key: string;
+      value: string;
+    }[];
     const result: Record<string, string> = {};
     for (const row of rows) {
       result[row.key] = row.value;
@@ -298,9 +299,9 @@ export class MaestroDatabase {
   // ─── Settings ─────────────────────────────────────────────────────────────
 
   getSetting(key: string): string | undefined {
-    const row = this.db
-      .prepare('SELECT value FROM settings WHERE key = ?')
-      .get(key) as { value: string } | undefined;
+    const row = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
+      | { value: string }
+      | undefined;
     return row?.value;
   }
 

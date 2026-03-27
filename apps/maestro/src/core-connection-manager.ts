@@ -211,7 +211,12 @@ export class CoreConnectionManager {
     }
   }
 
-  private sendAuthResponse(ws: WebSocket, correlationId: string, success: boolean, errorMsg?: string): void {
+  private sendAuthResponse(
+    ws: WebSocket,
+    correlationId: string,
+    success: boolean,
+    errorMsg?: string,
+  ): void {
     const response = {
       id: generateMessageId(),
       type: 'response' as const,

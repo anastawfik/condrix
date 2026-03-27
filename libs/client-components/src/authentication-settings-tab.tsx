@@ -62,12 +62,14 @@ function SessionInfoSection() {
         </div>
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-[var(--text-muted)]">Role</span>
-          <span className={cn(
-            'px-1.5 py-0.5 rounded text-[10px] font-medium',
-            user?.role === 'admin'
-              ? 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]'
-              : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]',
-          )}>
+          <span
+            className={cn(
+              'px-1.5 py-0.5 rounded text-[10px] font-medium',
+              user?.role === 'admin'
+                ? 'bg-[var(--accent-blue)]/10 text-[var(--accent-blue)]'
+                : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]',
+            )}
+          >
             {user?.role}
           </span>
         </div>
@@ -128,7 +130,9 @@ function ChangePasswordSection() {
       <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Change Password</h3>
       <div className="space-y-2">
         <div className="space-y-1">
-          <label className="block text-[11px] font-medium text-[var(--text-secondary)]">Current Password</label>
+          <label className="block text-[11px] font-medium text-[var(--text-secondary)]">
+            Current Password
+          </label>
           <input
             type="password"
             value={oldPassword}
@@ -137,7 +141,9 @@ function ChangePasswordSection() {
           />
         </div>
         <div className="space-y-1">
-          <label className="block text-[11px] font-medium text-[var(--text-secondary)]">New Password</label>
+          <label className="block text-[11px] font-medium text-[var(--text-secondary)]">
+            New Password
+          </label>
           <input
             type="password"
             value={newPassword}
@@ -146,7 +152,9 @@ function ChangePasswordSection() {
           />
         </div>
         <div className="space-y-1">
-          <label className="block text-[11px] font-medium text-[var(--text-secondary)]">Confirm New Password</label>
+          <label className="block text-[11px] font-medium text-[var(--text-secondary)]">
+            Confirm New Password
+          </label>
           <input
             type="password"
             value={confirmPassword}
@@ -159,7 +167,14 @@ function ChangePasswordSection() {
             {loading ? 'Changing...' : 'Change Password'}
           </Button>
           {status && (
-            <span className={cn('text-[11px]', status.type === 'success' ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]')}>
+            <span
+              className={cn(
+                'text-[11px]',
+                status.type === 'success'
+                  ? 'text-[var(--accent-green)]'
+                  : 'text-[var(--accent-red)]',
+              )}
+            >
               {status.message}
             </span>
           )}
@@ -183,22 +198,24 @@ function TotpSection() {
 
   // Fetch TOTP status on mount
   useEffect(() => {
-    maestroStore.getState().request<{ enabled: boolean }>(
-      'maestro', 'auth.totp.status', {},
-    ).then((result) => {
-      setTotpEnabled(result.enabled);
-    }).catch(() => {
-      setTotpEnabled(false);
-    });
+    maestroStore
+      .getState()
+      .request<{ enabled: boolean }>('maestro', 'auth.totp.status', {})
+      .then((result) => {
+        setTotpEnabled(result.enabled);
+      })
+      .catch(() => {
+        setTotpEnabled(false);
+      });
   }, []);
 
   const handleSetup = async () => {
     setLoading(true);
     setStatus(null);
     try {
-      const result = await maestroStore.getState().request<{ secret: string; otpauthUri: string }>(
-        'maestro', 'auth.totp.setup', {},
-      );
+      const result = await maestroStore
+        .getState()
+        .request<{ secret: string; otpauthUri: string }>('maestro', 'auth.totp.setup', {});
       setSetupData(result);
 
       // Generate QR code data URL from otpauthUri
@@ -228,9 +245,9 @@ function TotpSection() {
     setLoading(true);
     setStatus(null);
     try {
-      const result = await maestroStore.getState().request<{ enabled: boolean }>(
-        'maestro', 'auth.totp.enable', { code: verifyCode.trim() },
-      );
+      const result = await maestroStore
+        .getState()
+        .request<{ enabled: boolean }>('maestro', 'auth.totp.enable', { code: verifyCode.trim() });
       if (result.enabled) {
         setStatus({ type: 'success', message: 'TOTP enabled successfully' });
         setSetupData(null);
@@ -255,7 +272,9 @@ function TotpSection() {
     setLoading(true);
     setStatus(null);
     try {
-      await maestroStore.getState().request('maestro', 'auth.totp.disable', { password: disablePassword });
+      await maestroStore
+        .getState()
+        .request('maestro', 'auth.totp.disable', { password: disablePassword });
       setStatus({ type: 'success', message: 'TOTP disabled' });
       setShowDisable(false);
       setDisablePassword('');
@@ -269,7 +288,9 @@ function TotpSection() {
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Two-Factor Authentication</h3>
+      <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">
+        Two-Factor Authentication
+      </h3>
 
       {!setupData ? (
         <div className="space-y-3">
@@ -287,16 +308,22 @@ function TotpSection() {
           </div>
 
           {totpEnabled && !showDisable && (
-            <p className="text-[11px] text-[var(--accent-green)]">TOTP is enabled for your account.</p>
+            <p className="text-[11px] text-[var(--accent-green)]">
+              TOTP is enabled for your account.
+            </p>
           )}
 
           {totpEnabled === false && !loading && (
-            <p className="text-[11px] text-[var(--text-muted)]">TOTP is not enabled. Set up two-factor authentication for additional security.</p>
+            <p className="text-[11px] text-[var(--text-muted)]">
+              TOTP is not enabled. Set up two-factor authentication for additional security.
+            </p>
           )}
 
           {showDisable && (
             <div className="p-3 rounded border border-[var(--border-color)] bg-[var(--bg-primary)] space-y-2">
-              <p className="text-[11px] text-[var(--text-secondary)]">Enter your password to confirm disabling TOTP.</p>
+              <p className="text-[11px] text-[var(--text-secondary)]">
+                Enter your password to confirm disabling TOTP.
+              </p>
               <input
                 type="password"
                 value={disablePassword}
@@ -319,20 +346,26 @@ function TotpSection() {
 
             {qrDataUrl && (
               <div className="flex justify-center py-2">
-                <img src={qrDataUrl} alt="TOTP QR Code" width={200} height={200} className="rounded" />
+                <img
+                  src={qrDataUrl}
+                  alt="TOTP QR Code"
+                  width={200}
+                  height={200}
+                  className="rounded"
+                />
               </div>
             )}
 
-            <p className="text-[10px] text-[var(--text-muted)]">
-              Or enter this secret manually:
-            </p>
+            <p className="text-[10px] text-[var(--text-muted)]">Or enter this secret manually:</p>
             <code className="block text-xs font-mono text-[var(--text-primary)] bg-[var(--bg-secondary)] px-2 py-1.5 rounded break-all select-all">
               {setupData.secret}
             </code>
           </div>
 
           <div className="space-y-1">
-            <label className="block text-[11px] font-medium text-[var(--text-secondary)]">Verification Code</label>
+            <label className="block text-[11px] font-medium text-[var(--text-secondary)]">
+              Verification Code
+            </label>
             <input
               type="text"
               value={verifyCode}
@@ -347,7 +380,15 @@ function TotpSection() {
             <Button size="sm" onClick={handleEnable} disabled={loading}>
               {loading ? 'Verifying...' : 'Enable TOTP'}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setSetupData(null); setQrDataUrl(null); setVerifyCode(''); }}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setSetupData(null);
+                setQrDataUrl(null);
+                setVerifyCode('');
+              }}
+            >
               Cancel
             </Button>
           </div>
@@ -355,7 +396,12 @@ function TotpSection() {
       )}
 
       {status && (
-        <p className={cn('text-[11px] mt-2', status.type === 'success' ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]')}>
+        <p
+          className={cn(
+            'text-[11px] mt-2',
+            status.type === 'success' ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]',
+          )}
+        >
           {status.message}
         </p>
       )}

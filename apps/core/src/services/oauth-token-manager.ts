@@ -72,7 +72,10 @@ export class OAuthTokenManager {
   }
 
   /** Wire the OAuth callback to the Core's HTTP server (same port as WebSocket). */
-  setHttpCallback(registerRoute: (path: string, handler: HttpRouteHandler) => void, port: number): void {
+  setHttpCallback(
+    registerRoute: (path: string, handler: HttpRouteHandler) => void,
+    port: number,
+  ): void {
     this.registerRoute = registerRoute;
     this.callbackPort = port;
   }
@@ -219,7 +222,10 @@ export class OAuthTokenManager {
           clearTimeout(timeout);
 
           if (reqState !== state) {
-            resolve({ success: false, message: 'OAuth state mismatch — possible CSRF. Try again.' });
+            resolve({
+              success: false,
+              message: 'OAuth state mismatch — possible CSRF. Try again.',
+            });
             return;
           }
 
@@ -330,7 +336,10 @@ export class OAuthTokenManager {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('ENOENT')) {
-        return { success: false, message: 'Claude Code credentials file not found (~/.claude/.credentials.json)' };
+        return {
+          success: false,
+          message: 'Claude Code credentials file not found (~/.claude/.credentials.json)',
+        };
       }
       return { success: false, message: `Failed to import: ${msg}` };
     }
@@ -344,9 +353,8 @@ export class OAuthTokenManager {
     const expiresAt = this.db.getSetting('oauth.expiresAt') as string | number | undefined;
 
     if (authMethod === 'oauth' && accessToken) {
-      const expiresStr = typeof expiresAt === 'number'
-        ? new Date(expiresAt).toISOString()
-        : expiresAt;
+      const expiresStr =
+        typeof expiresAt === 'number' ? new Date(expiresAt).toISOString() : expiresAt;
       return {
         authenticated: true,
         method: 'oauth',

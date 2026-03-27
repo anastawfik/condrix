@@ -26,11 +26,14 @@ export function NetworkSettings() {
   const getActiveCoreId = () =>
     workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
 
-  const requestOnCore = useCallback(async <T,>(action: string, payload: unknown = {}): Promise<T> => {
-    const coreId = getActiveCoreId();
-    if (!coreId) throw new Error('No Core connected');
-    return multiCoreStore.getState().requestOnCore<T>(coreId, 'core', action, payload);
-  }, []);
+  const requestOnCore = useCallback(
+    async <T,>(action: string, payload: unknown = {}): Promise<T> => {
+      const coreId = getActiveCoreId();
+      if (!coreId) throw new Error('No Core connected');
+      return multiCoreStore.getState().requestOnCore<T>(coreId, 'core', action, payload);
+    },
+    [],
+  );
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -100,10 +103,13 @@ export function NetworkSettings() {
         await setSetting('tunnel.token', token);
       }
 
-      const result = await requestOnCore<{ running: boolean; url?: string; mode: string }>('tunnel.start', {
-        mode,
-        token: mode === 'named' ? token : undefined,
-      });
+      const result = await requestOnCore<{ running: boolean; url?: string; mode: string }>(
+        'tunnel.start',
+        {
+          mode,
+          token: mode === 'named' ? token : undefined,
+        },
+      );
 
       if (result.url) {
         setTunnelStatus((prev) => ({
@@ -153,7 +159,9 @@ export function NetworkSettings() {
     setAutoStart(enabled);
     try {
       await setSetting('tunnel.autoStart', enabled);
-    } catch { /* will be saved on next setting change */ }
+    } catch {
+      /* will be saved on next setting change */
+    }
   };
 
   const handleCopy = (text: string) => {
@@ -170,19 +178,21 @@ export function NetworkSettings() {
     <div className="p-6 space-y-5 max-w-lg">
       <h2 className="text-lg font-semibold text-[var(--text-primary)]">Network</h2>
       <p className="text-sm text-[var(--text-muted)]">
-        Expose this Core to the internet via Cloudflare Tunnel.
-        No port forwarding or firewall changes needed.
+        Expose this Core to the internet via Cloudflare Tunnel. No port forwarding or firewall
+        changes needed.
       </p>
 
       {/* cloudflared status */}
       <div className="p-3 rounded bg-[var(--bg-primary)] border border-[var(--border-color)]">
         <div className="flex items-center justify-between">
           <span className="text-sm text-[var(--text-secondary)]">cloudflared</span>
-          <span className={`text-sm font-medium ${
-            tunnelStatus?.cloudflaredInstalled
-              ? 'text-[var(--accent-green)]'
-              : 'text-[var(--accent-red)]'
-          }`}>
+          <span
+            className={`text-sm font-medium ${
+              tunnelStatus?.cloudflaredInstalled
+                ? 'text-[var(--accent-green)]'
+                : 'text-[var(--accent-red)]'
+            }`}
+          >
             {tunnelStatus?.cloudflaredInstalled ? 'Installed' : 'Not found'}
           </span>
         </div>
@@ -246,7 +256,8 @@ export function NetworkSettings() {
             className="w-full px-3 py-2 rounded bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent-blue)]"
           />
           <p className="text-xs text-[var(--text-muted)]">
-            Get your token from Cloudflare Zero Trust &rarr; Networks &rarr; Tunnels &rarr; Create &rarr; Token.
+            Get your token from Cloudflare Zero Trust &rarr; Networks &rarr; Tunnels &rarr; Create
+            &rarr; Token.
           </p>
         </div>
       )}
@@ -259,7 +270,9 @@ export function NetworkSettings() {
           onChange={(e) => handleAutoStartChange(e.target.checked)}
           className="w-4 h-4 rounded border-[var(--border-color)] accent-[var(--accent-blue)]"
         />
-        <span className="text-sm text-[var(--text-secondary)]">Auto-start tunnel when Core starts</span>
+        <span className="text-sm text-[var(--text-secondary)]">
+          Auto-start tunnel when Core starts
+        </span>
       </label>
 
       {/* Tunnel status & URL */}
@@ -283,8 +296,8 @@ export function NetworkSettings() {
             </div>
           )}
           <p className="text-xs text-[var(--text-muted)]">
-            Remote clients can connect using this URL.
-            They will need an auth token — generate one with <code className="text-[var(--accent-orange)]">condrix --generate-token</code>
+            Remote clients can connect using this URL. They will need an auth token — generate one
+            with <code className="text-[var(--accent-orange)]">condrix --generate-token</code>
           </p>
         </div>
       )}
@@ -294,7 +307,9 @@ export function NetworkSettings() {
         {!tunnelStatus?.running ? (
           <button
             onClick={handleStart}
-            disabled={actionLoading || !tunnelStatus?.cloudflaredInstalled || (mode === 'named' && !token)}
+            disabled={
+              actionLoading || !tunnelStatus?.cloudflaredInstalled || (mode === 'named' && !token)
+            }
             className="px-4 py-2 rounded bg-[var(--accent-blue)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
             {actionLoading ? 'Starting...' : 'Start Tunnel'}
@@ -309,7 +324,9 @@ export function NetworkSettings() {
           </button>
         )}
         {status && (
-          <span className={`text-sm ${status.type === 'success' ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}>
+          <span
+            className={`text-sm ${status.type === 'success' ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}
+          >
             {status.message}
           </span>
         )}

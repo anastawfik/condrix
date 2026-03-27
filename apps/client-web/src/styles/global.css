@@ -1,9 +1,9 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 @source "../../../../libs/client-components/src/**/*.{ts,tsx}";
 @source "../../../../libs/client-shared/src/**/*.{ts,tsx}";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/geist';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -20,10 +20,20 @@
 }
 
 /* ─── Scrollbar styling ────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: var(--background); }
-::-webkit-scrollbar-thumb { background: oklch(0.35 0 0); border-radius: 5px; }
-::-webkit-scrollbar-thumb:hover { background: oklch(0.42 0 0); }
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.35 0 0);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.42 0 0);
+}
 
 /* Panel resize handles */
 [data-panel-resize-handle-id] {
@@ -164,11 +174,11 @@
   --bg-secondary: var(--card);
   --bg-tertiary: var(--secondary);
   --bg-hover: var(--accent);
-  --bg-active: oklch(0.30 0.005 260);
+  --bg-active: oklch(0.3 0.005 260);
   --bg-input: var(--input);
   --text-primary: var(--foreground);
   --text-secondary: var(--muted-foreground);
-  --text-muted: oklch(0.50 0 0);
+  --text-muted: oklch(0.5 0 0);
   --accent-blue: var(--primary);
   --accent-blue-hover: oklch(0.68 0.2 260);
   --accent-red: var(--destructive);
@@ -195,11 +205,75 @@
 }
 
 /* Radix UI animation keyframes */
-@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes overlay-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes dialog-in { from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
-@keyframes dialog-out { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0; transform: translate(-50%, -50%) scale(0.96); } }
-@keyframes dropdown-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes dropdown-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-4px); } }
-@keyframes tooltip-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes tooltip-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+}
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes dropdown-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes tooltip-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

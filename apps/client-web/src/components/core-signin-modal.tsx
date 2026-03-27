@@ -37,13 +37,15 @@ export function CoreSignInModal({ coreId, coreName, open, onClose }: CoreSignInM
   // Listen for auth completing automatically (native mode — CLI handles callback itself)
   useEffect(() => {
     if (!open || authStep === 'idle' || authStep === 'success') return;
-    const unsub = multiCoreStore.getState().subscribeOnCore(coreId, 'core:authLoginComplete', (event) => {
-      const payload = event.payload as { success: boolean; message: string };
-      if (payload.success) {
-        setAuthStep('success');
-        setAuthMessage('Authentication successful! You can now use all Claude models.');
-      }
-    });
+    const unsub = multiCoreStore
+      .getState()
+      .subscribeOnCore(coreId, 'core:authLoginComplete', (event) => {
+        const payload = event.payload as { success: boolean; message: string };
+        if (payload.success) {
+          setAuthStep('success');
+          setAuthMessage('Authentication successful! You can now use all Claude models.');
+        }
+      });
     return unsub;
   }, [open, coreId, authStep]);
 
@@ -51,9 +53,9 @@ export function CoreSignInModal({ coreId, coreName, open, onClose }: CoreSignInM
     setAuthStep('starting');
     setAuthMessage('');
     try {
-      const result = await multiCoreStore.getState().requestOnCore<{ url: string }>(
-        coreId, 'core', 'auth.login', {},
-      );
+      const result = await multiCoreStore
+        .getState()
+        .requestOnCore<{ url: string }>(coreId, 'core', 'auth.login', {});
       setAuthUrl(result.url);
       setAuthStep('waiting-for-code');
       window.open(result.url, '_blank', 'noopener');
@@ -67,9 +69,12 @@ export function CoreSignInModal({ coreId, coreName, open, onClose }: CoreSignInM
     if (!authCode.trim()) return;
     setAuthStep('submitting');
     try {
-      await multiCoreStore.getState().requestOnCore<{ submitted: boolean; message: string }>(
-        coreId, 'core', 'auth.submitCode', { code: authCode.trim() },
-      );
+      await multiCoreStore
+        .getState()
+        .requestOnCore<{
+          submitted: boolean;
+          message: string;
+        }>(coreId, 'core', 'auth.submitCode', { code: authCode.trim() });
       setAuthStep('success');
       setAuthMessage('Authentication successful! You can now use all Claude models.');
     } catch (err) {
@@ -81,7 +86,12 @@ export function CoreSignInModal({ coreId, coreName, open, onClose }: CoreSignInM
   return (
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
     <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-      <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+      <Dialog
+        open={open}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) onClose();
+        }}
+      >
         <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Sign in with Claude — {coreName}</DialogTitle>
@@ -120,7 +130,11 @@ export function CoreSignInModal({ coreId, coreName, open, onClose }: CoreSignInM
                 {authUrl && (
                   <div className="flex items-center gap-2 px-3 py-2 bg-secondary rounded-md text-xs">
                     <span className="truncate flex-1 text-muted-foreground">{authUrl}</span>
-                    <Button size="sm" variant="ghost" onClick={() => window.open(authUrl, '_blank', 'noopener')}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => window.open(authUrl, '_blank', 'noopener')}
+                    >
                       <ExternalLink className="size-3.5" />
                     </Button>
                   </div>
@@ -130,12 +144,16 @@ export function CoreSignInModal({ coreId, coreName, open, onClose }: CoreSignInM
                   <Input
                     value={authCode}
                     onChange={(e) => setAuthCode(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') submitCode(); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') submitCode();
+                    }}
                     placeholder="Paste auth code here..."
                     className="flex-1 font-mono text-sm"
                     autoFocus
                   />
-                  <Button onClick={submitCode} disabled={!authCode.trim()}>Submit</Button>
+                  <Button onClick={submitCode} disabled={!authCode.trim()}>
+                    Submit
+                  </Button>
                 </div>
               </div>
             )}
@@ -151,14 +169,18 @@ export function CoreSignInModal({ coreId, coreName, open, onClose }: CoreSignInM
               <div className="text-center space-y-4">
                 <CheckCircle className="size-10 mx-auto text-green-500" />
                 <p className="text-sm text-muted-foreground">{authMessage}</p>
-                <Button variant="secondary" onClick={onClose}>Done</Button>
+                <Button variant="secondary" onClick={onClose}>
+                  Done
+                </Button>
               </div>
             )}
 
             {authStep === 'error' && (
               <div className="text-center space-y-4">
                 <p className="text-sm text-destructive">{authMessage}</p>
-                <Button variant="secondary" onClick={() => setAuthStep('idle')}>Try Again</Button>
+                <Button variant="secondary" onClick={() => setAuthStep('idle')}>
+                  Try Again
+                </Button>
               </div>
             )}
           </div>

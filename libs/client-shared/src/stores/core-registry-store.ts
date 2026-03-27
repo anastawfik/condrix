@@ -60,7 +60,9 @@ export const createCoreRegistryStore = () =>
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(get().cores));
         }
-      } catch { /* SSR or storage unavailable */ }
+      } catch {
+        /* SSR or storage unavailable */
+      }
     },
 
     _hydrate: () => {
@@ -72,7 +74,9 @@ export const createCoreRegistryStore = () =>
             set({ cores });
           }
         }
-      } catch { /* SSR or storage unavailable */ }
+      } catch {
+        /* SSR or storage unavailable */
+      }
     },
   }));
 

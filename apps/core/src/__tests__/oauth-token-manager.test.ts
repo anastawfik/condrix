@@ -188,13 +188,15 @@ describe('OAuthTokenManager', () => {
     });
 
     it('should import tokens from valid credentials file', async () => {
-      mockedReadFile.mockResolvedValue(JSON.stringify({
-        claudeAiOauth: {
-          accessToken: 'sk-ant-oat01-imported',
-          refreshToken: 'sk-ant-ort01-imported',
-          expiresAt: '2026-12-31T00:00:00.000Z',
-        },
-      }) as never);
+      mockedReadFile.mockResolvedValue(
+        JSON.stringify({
+          claudeAiOauth: {
+            accessToken: 'sk-ant-oat01-imported',
+            refreshToken: 'sk-ant-ort01-imported',
+            expiresAt: '2026-12-31T00:00:00.000Z',
+          },
+        }) as never,
+      );
 
       const result = await manager.importFromClaudeCode();
       expect(result.success).toBe(true);

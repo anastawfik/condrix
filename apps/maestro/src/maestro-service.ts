@@ -92,7 +92,11 @@ export class MaestroService {
     this.stateStore = new StateStore(this.db);
     this.notificationRouter = new NotificationRouter(this.db, this.clientManager);
     this.notificationRouter.wireEventBus(this.eventBus);
-    this.conversationEngine = new ConversationEngine(this.stateStore, this.coreManager, this.aiConfigDistributor);
+    this.conversationEngine = new ConversationEngine(
+      this.stateStore,
+      this.coreManager,
+      this.aiConfigDistributor,
+    );
 
     // 4c. Init outbound Core connector (Maestro → Core via tunnel)
     this.outboundConnector = new OutboundCoreConnector(this.db);

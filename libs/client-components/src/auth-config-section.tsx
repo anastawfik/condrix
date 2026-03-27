@@ -19,7 +19,9 @@ export interface AuthConfigSectionProps {
   onOAuthRefresh?: () => Promise<{ success: boolean }>;
   onOAuthStatus?: () => Promise<OAuthStatus>;
   /** Called when OAuth login completes (browser callback received). */
-  onOAuthComplete?: (handler: (result: { success: boolean; message: string }) => void) => (() => void);
+  onOAuthComplete?: (
+    handler: (result: { success: boolean; message: string }) => void,
+  ) => () => void;
   initialMethod?: 'apikey' | 'oauth';
   initialApiKey?: string;
   saveLabel?: string;
@@ -76,7 +78,10 @@ export function AuthConfigSection({
       // Listen for completion
       if (onOAuthComplete) {
         const unsub = onOAuthComplete((completionResult) => {
-          setStatus({ type: completionResult.success ? 'success' : 'error', message: completionResult.message });
+          setStatus({
+            type: completionResult.success ? 'success' : 'error',
+            message: completionResult.message,
+          });
           setOAuthLoading(false);
           if (completionResult.success) {
             setAuthMethod('oauth');
@@ -85,7 +90,13 @@ export function AuthConfigSection({
           unsub();
         });
         // Timeout fallback
-        setTimeout(() => { setOAuthLoading(false); unsub(); }, 5.5 * 60 * 1000);
+        setTimeout(
+          () => {
+            setOAuthLoading(false);
+            unsub();
+          },
+          5.5 * 60 * 1000,
+        );
       } else {
         // No completion listener — just set a timeout
         setTimeout(() => setOAuthLoading(false), 30_000);
@@ -184,7 +195,9 @@ export function AuthConfigSection({
       {/* API Key input */}
       {authMethod === 'apikey' && (
         <div className="space-y-1">
-          <label className="block text-[11px] font-medium text-[var(--text-secondary)]">API Key</label>
+          <label className="block text-[11px] font-medium text-[var(--text-secondary)]">
+            API Key
+          </label>
           <input
             type="password"
             value={apiKey}
@@ -243,7 +256,9 @@ export function AuthConfigSection({
             {onOAuthRefresh && (
               <button
                 onClick={handleRefreshOAuth}
-                disabled={oauthLoading || !(oauthStatus?.authenticated && oauthStatus?.method === 'oauth')}
+                disabled={
+                  oauthLoading || !(oauthStatus?.authenticated && oauthStatus?.method === 'oauth')
+                }
                 className="flex-1 px-2 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-primary)] text-[10px] hover:opacity-90 disabled:opacity-50"
               >
                 Refresh Token

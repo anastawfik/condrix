@@ -86,13 +86,11 @@ export function useWorkspaceConfig(workspaceId: string | null): UseWorkspaceConf
       setConfigState((prev) => ({ ...prev, [key]: value }));
 
       try {
-        await multiCoreStore
-          .getState()
-          .requestOnCore(coreId, 'workspace', 'config.set', {
-            workspaceId,
-            key,
-            value: value !== undefined ? String(value) : '',
-          });
+        await multiCoreStore.getState().requestOnCore(coreId, 'workspace', 'config.set', {
+          workspaceId,
+          key,
+          value: value !== undefined ? String(value) : '',
+        });
       } catch {
         // Revert on failure — reload
         try {

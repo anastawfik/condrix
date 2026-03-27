@@ -12,9 +12,7 @@ export interface TooltipProps {
 export function Tooltip({ content, children, side = 'top', className }: TooltipProps) {
   return (
     <RadixTooltip.Root>
-      <RadixTooltip.Trigger asChild>
-        {children}
-      </RadixTooltip.Trigger>
+      <RadixTooltip.Trigger asChild>{children}</RadixTooltip.Trigger>
       <RadixTooltip.Portal>
         <RadixTooltip.Content
           side={side}

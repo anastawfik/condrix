@@ -111,7 +111,12 @@ export class MaestroConnector {
       }
 
       // Handle auth response
-      if (!this.authenticated && msg.namespace === 'core' && msg.action === 'auth' && msg.type === 'response') {
+      if (
+        !this.authenticated &&
+        msg.namespace === 'core' &&
+        msg.action === 'auth' &&
+        msg.type === 'response'
+      ) {
         const resp = msg as MessageEnvelope & { success?: boolean; error?: { message: string } };
         if (resp.success) {
           this.authenticated = true;

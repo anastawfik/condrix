@@ -53,7 +53,8 @@ export const createGitStore = () =>
     activeDiffPath: null,
 
     fetchStatus: async (workspaceId) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
       set({ loading: true });
       try {
@@ -83,38 +84,47 @@ export const createGitStore = () =>
     },
 
     fetchDiff: async (workspaceId, path, staged) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
-      const result = await multiCoreStore.getState().requestOnCore<{ diff: string }>(
-        coreId, 'git', 'diff', { workspaceId, path, staged },
-      );
+      const result = await multiCoreStore
+        .getState()
+        .requestOnCore<{ diff: string }>(coreId, 'git', 'diff', { workspaceId, path, staged });
       set({ diffContent: result.diff, diffPath: path ?? null });
     },
 
     stageFiles: async (workspaceId, paths) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
       await multiCoreStore.getState().requestOnCore(coreId, 'git', 'stage', { workspaceId, paths });
     },
 
     commit: async (workspaceId, message) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
-      await multiCoreStore.getState().requestOnCore(coreId, 'git', 'commit', { workspaceId, message });
+      await multiCoreStore
+        .getState()
+        .requestOnCore(coreId, 'git', 'commit', { workspaceId, message });
     },
 
     unstageFiles: async (workspaceId, paths) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
-      await multiCoreStore.getState().requestOnCore(coreId, 'git', 'unstage', { workspaceId, paths });
+      await multiCoreStore
+        .getState()
+        .requestOnCore(coreId, 'git', 'unstage', { workspaceId, paths });
     },
 
     openDiffTab: async (workspaceId, path, staged) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
-      const result = await multiCoreStore.getState().requestOnCore<{ diff: string }>(
-        coreId, 'git', 'diff', { workspaceId, path, staged },
-      );
+      const result = await multiCoreStore
+        .getState()
+        .requestOnCore<{ diff: string }>(coreId, 'git', 'diff', { workspaceId, path, staged });
       const existing = get().openDiffs;
       const idx = existing.findIndex((d) => d.path === path);
       const tab: DiffTab = { path, staged, diff: result.diff };
@@ -130,9 +140,12 @@ export const createGitStore = () =>
     closeDiffTab: (path) => {
       set((s) => {
         const newDiffs = s.openDiffs.filter((d) => d.path !== path);
-        const newActive = s.activeDiffPath === path
-          ? (newDiffs.length > 0 ? newDiffs[newDiffs.length - 1].path : null)
-          : s.activeDiffPath;
+        const newActive =
+          s.activeDiffPath === path
+            ? newDiffs.length > 0
+              ? newDiffs[newDiffs.length - 1].path
+              : null
+            : s.activeDiffPath;
         return { openDiffs: newDiffs, activeDiffPath: newActive };
       });
     },
@@ -143,12 +156,18 @@ export const createGitStore = () =>
 /** Map descriptive status from Core's GitTracker to short codes. */
 function statusToCode(status: string): string {
   switch (status) {
-    case 'modified': return 'M';
-    case 'added': return 'A';
-    case 'deleted': return 'D';
-    case 'renamed': return 'R';
-    case 'untracked': return '?';
-    default: return status.charAt(0).toUpperCase();
+    case 'modified':
+      return 'M';
+    case 'added':
+      return 'A';
+    case 'deleted':
+      return 'D';
+    case 'renamed':
+      return 'R';
+    case 'untracked':
+      return '?';
+    default:
+      return status.charAt(0).toUpperCase();
   }
 }
 

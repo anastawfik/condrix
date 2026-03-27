@@ -8,10 +8,7 @@
     "moduleResolution": "Bundler",
     "lib": ["ES2023", "DOM", "DOM.Iterable"]
   },
-  "references": [
-    { "path": "../protocol" },
-    { "path": "../client-shared" }
-  ],
+  "references": [{ "path": "../protocol" }, { "path": "../client-shared" }],
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.test.tsx"]
 }

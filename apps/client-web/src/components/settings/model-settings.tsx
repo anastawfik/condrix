@@ -67,9 +67,9 @@ export function ModelSettings() {
     const coreId = getActiveCoreId();
     if (!coreId) return;
     try {
-      const result = await multiCoreStore.getState().requestOnCore<OAuthStatus>(
-        coreId, 'core', 'config.oauthStatus', {},
-      );
+      const result = await multiCoreStore
+        .getState()
+        .requestOnCore<OAuthStatus>(coreId, 'core', 'config.oauthStatus', {});
       setOAuthStatus(result);
     } catch {
       // Non-critical
@@ -82,12 +82,15 @@ export function ModelSettings() {
     try {
       const coreId = getActiveCoreId();
       if (!coreId) throw new Error('No Core connected');
-      const result = await multiCoreStore.getState().requestOnCore<{ url: string }>(
-        coreId, 'core', 'oauth.login', {},
-      );
+      const result = await multiCoreStore
+        .getState()
+        .requestOnCore<{ url: string }>(coreId, 'core', 'oauth.login', {});
       // Open the authorization URL in the browser
       window.open(result.url, '_blank', 'noopener');
-      setStatus({ type: 'success', message: 'Browser opened — complete sign-in there, then come back.' });
+      setStatus({
+        type: 'success',
+        message: 'Browser opened — complete sign-in there, then come back.',
+      });
 
       // Subscribe to the OAuth completion event
       const conn = multiCoreStore.getState().getConnection(coreId);
@@ -105,10 +108,13 @@ export function ModelSettings() {
         });
 
         // Timeout fallback — stop loading after 5.5 minutes if no event
-        setTimeout(() => {
-          setOAuthLoading(false);
-          unsub();
-        }, 5.5 * 60 * 1000);
+        setTimeout(
+          () => {
+            setOAuthLoading(false);
+            unsub();
+          },
+          5.5 * 60 * 1000,
+        );
       }
     } catch (err) {
       setStatus({ type: 'error', message: (err as Error).message });
@@ -122,9 +128,12 @@ export function ModelSettings() {
     try {
       const coreId = getActiveCoreId();
       if (!coreId) throw new Error('No Core connected');
-      const result = await multiCoreStore.getState().requestOnCore<{ success: boolean; message: string }>(
-        coreId, 'core', 'config.importOAuth', {},
-      );
+      const result = await multiCoreStore
+        .getState()
+        .requestOnCore<{
+          success: boolean;
+          message: string;
+        }>(coreId, 'core', 'config.importOAuth', {});
       setStatus({ type: result.success ? 'success' : 'error', message: result.message });
       if (result.success) {
         setAuthMethod('oauth');
@@ -144,9 +153,12 @@ export function ModelSettings() {
     try {
       const coreId = getActiveCoreId();
       if (!coreId) throw new Error('No Core connected');
-      const result = await multiCoreStore.getState().requestOnCore<{ success: boolean; expiresAt?: string }>(
-        coreId, 'core', 'config.refreshOAuth', {},
-      );
+      const result = await multiCoreStore
+        .getState()
+        .requestOnCore<{
+          success: boolean;
+          expiresAt?: string;
+        }>(coreId, 'core', 'config.refreshOAuth', {});
       if (result.success) {
         setStatus({ type: 'success', message: 'Token refreshed' });
         await fetchOAuthStatus();
@@ -243,11 +255,13 @@ export function ModelSettings() {
           <div className="p-3 rounded bg-[var(--bg-primary)] border border-[var(--border-color)]">
             <div className="flex items-center justify-between">
               <span className="text-sm text-[var(--text-secondary)]">Status</span>
-              <span className={`text-sm font-medium ${
-                oauthStatus?.authenticated && oauthStatus?.method === 'oauth'
-                  ? 'text-[var(--accent-green)]'
-                  : 'text-[var(--accent-red)]'
-              }`}>
+              <span
+                className={`text-sm font-medium ${
+                  oauthStatus?.authenticated && oauthStatus?.method === 'oauth'
+                    ? 'text-[var(--accent-green)]'
+                    : 'text-[var(--accent-red)]'
+                }`}
+              >
                 {oauthStatus?.authenticated && oauthStatus?.method === 'oauth'
                   ? 'Authenticated'
                   : 'Not authenticated'}
@@ -279,7 +293,9 @@ export function ModelSettings() {
             </button>
             <button
               onClick={handleRefreshOAuth}
-              disabled={oauthLoading || !(oauthStatus?.authenticated && oauthStatus?.method === 'oauth')}
+              disabled={
+                oauthLoading || !(oauthStatus?.authenticated && oauthStatus?.method === 'oauth')
+              }
               className="px-3 py-2 rounded bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-primary)] text-sm hover:opacity-90 disabled:opacity-50"
             >
               Refresh Token
@@ -299,7 +315,9 @@ export function ModelSettings() {
           className="w-full px-3 py-2 rounded bg-[var(--bg-primary)] border border-[var(--border-color)] text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent-blue)]"
         >
           {MODELS.map((m) => (
-            <option key={m.id} value={m.id}>{m.label}</option>
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
           ))}
         </select>
       </div>
@@ -336,7 +354,9 @@ export function ModelSettings() {
           {saving ? 'Saving...' : 'Save'}
         </button>
         {status && (
-          <span className={`text-sm ${status.type === 'success' ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}>
+          <span
+            className={`text-sm ${status.type === 'success' ? 'text-[var(--accent-green)]' : 'text-[var(--accent-red)]'}`}
+          >
             {status.message}
           </span>
         )}

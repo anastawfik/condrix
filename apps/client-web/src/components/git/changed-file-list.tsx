@@ -29,7 +29,9 @@ export function ChangedFileList({ files, title, onStageToggle, onSelect }: Chang
           key={file.path}
           className="flex items-center gap-1 px-2 py-[2px] hover:bg-[var(--bg-hover)] group"
         >
-          <span className={`text-xs font-mono w-3 text-center ${STATUS_COLORS[file.status] ?? 'text-[var(--text-secondary)]'}`}>
+          <span
+            className={`text-xs font-mono w-3 text-center ${STATUS_COLORS[file.status] ?? 'text-[var(--text-secondary)]'}`}
+          >
             {file.status}
           </span>
           <button

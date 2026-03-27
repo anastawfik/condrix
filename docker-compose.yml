@@ -16,7 +16,7 @@ services:
       target: core
     env_file: .env
     environment:
-      CONDRIX_CORE_HOST: "0.0.0.0"
+      CONDRIX_CORE_HOST: '0.0.0.0'
     volumes:
       - core-data:/root/.condrix
       - claude-data:/root/.claude
@@ -31,7 +31,7 @@ services:
       args:
         VITE_DEFAULT_MAESTRO_URL: ${VITE_DEFAULT_MAESTRO_URL:-wss://maestro.yourdomain.com}
     ports:
-      - "80:80"
+      - '80:80'
     networks:
       - condrix
     restart: unless-stopped

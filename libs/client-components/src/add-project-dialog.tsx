@@ -31,7 +31,14 @@ function repoNameFromUrl(url: string): string {
   return match?.[1] ?? '';
 }
 
-export function AddProjectDialog({ coreId, open, onClose, onCreated, containerized, hostMounts }: AddProjectDialogProps) {
+export function AddProjectDialog({
+  coreId,
+  open,
+  onClose,
+  onCreated,
+  containerized,
+  hostMounts,
+}: AddProjectDialogProps) {
   const [selectedPath, setSelectedPath] = useState('');
   const [name, setName] = useState('');
   const [gitUrl, setGitUrl] = useState('');
@@ -63,17 +70,13 @@ export function AddProjectDialog({ coreId, open, onClose, onCreated, containeriz
     try {
       let project;
       if (activeTab === 'folder' && selectedPath) {
-        project = await workspaceStore.getState().createProject(
-          name || folderName(selectedPath),
-          { path: selectedPath },
-          coreId,
-        );
+        project = await workspaceStore
+          .getState()
+          .createProject(name || folderName(selectedPath), { path: selectedPath }, coreId);
       } else if (activeTab === 'git' && gitUrl) {
-        project = await workspaceStore.getState().createProject(
-          gitName || repoNameFromUrl(gitUrl),
-          { url: gitUrl },
-          coreId,
-        );
+        project = await workspaceStore
+          .getState()
+          .createProject(gitName || repoNameFromUrl(gitUrl), { url: gitUrl }, coreId);
       }
       if (project) {
         onCreated?.(project.id);
@@ -105,7 +108,12 @@ export function AddProjectDialog({ coreId, open, onClose, onCreated, containeriz
         {containerized && (
           <div className="flex items-center gap-2 mx-4 mt-1 mb-2 px-3 py-2 rounded-md bg-[var(--bg-tertiary)] text-xs text-[var(--text-secondary)]">
             <Container size={14} className="shrink-0 text-[var(--accent-blue)]" />
-            <span>Core is running in a container.{hasHostMounts ? ' Host folders are available via mounted volumes.' : ' Add projects via Git URL.'}</span>
+            <span>
+              Core is running in a container.
+              {hasHostMounts
+                ? ' Host folders are available via mounted volumes.'
+                : ' Add projects via Git URL.'}
+            </span>
           </div>
         )}
 
@@ -116,7 +124,9 @@ export function AddProjectDialog({ coreId, open, onClose, onCreated, containeriz
                 {containerized ? 'Host Folders' : 'Local Folder'}
               </Tab>
             )}
-            <Tab id="git" icon={<Globe size={12} />}>Git URL</Tab>
+            <Tab id="git" icon={<Globe size={12} />}>
+              Git URL
+            </Tab>
           </TabList>
 
           {showFolderTab && (
@@ -132,7 +142,11 @@ export function AddProjectDialog({ coreId, open, onClose, onCreated, containeriz
                       setSelectedPath(e.target.value);
                       if (e.target.value) setName(folderName(e.target.value));
                     }}
-                    placeholder={containerized ? 'Select from mounted host folders...' : '/path/to/project or Browse...'}
+                    placeholder={
+                      containerized
+                        ? 'Select from mounted host folders...'
+                        : '/path/to/project or Browse...'
+                    }
                     inputSize="sm"
                     className="flex-1"
                   />
@@ -142,7 +156,9 @@ export function AddProjectDialog({ coreId, open, onClose, onCreated, containeriz
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Name</label>
+                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                  Name
+                </label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -155,7 +171,9 @@ export function AddProjectDialog({ coreId, open, onClose, onCreated, containeriz
 
           <TabPanel id="git" className="p-4 space-y-3">
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Repository URL</label>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                Repository URL
+              </label>
               <Input
                 value={gitUrl}
                 onChange={(e) => handleGitUrlChange(e.target.value)}
@@ -164,7 +182,9 @@ export function AddProjectDialog({ coreId, open, onClose, onCreated, containeriz
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Name</label>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                Name
+              </label>
               <Input
                 value={gitName}
                 onChange={(e) => setGitName(e.target.value)}
@@ -182,7 +202,9 @@ export function AddProjectDialog({ coreId, open, onClose, onCreated, containeriz
         )}
 
         <div className="flex justify-end gap-2 px-4 py-3 border-t border-[var(--border-color)]">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
           <Button size="sm" onClick={handleCreate} disabled={!canCreate || loading}>
             {loading ? 'Creating...' : 'Add Project'}
           </Button>

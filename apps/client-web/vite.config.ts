@@ -40,8 +40,23 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('monaco-editor') || id.includes('@monaco-editor/react')) return 'monaco';
-          if (id.includes('highlight.js') || id.includes('lowlight') || id.includes('rehype-highlight')) return 'highlight';
-          if (id.includes('react-markdown') || id.includes('remark') || id.includes('rehype') || id.includes('unified') || id.includes('mdast') || id.includes('hast') || id.includes('micromark') || id.includes('unist')) return 'markdown';
+          if (
+            id.includes('highlight.js') ||
+            id.includes('lowlight') ||
+            id.includes('rehype-highlight')
+          )
+            return 'highlight';
+          if (
+            id.includes('react-markdown') ||
+            id.includes('remark') ||
+            id.includes('rehype') ||
+            id.includes('unified') ||
+            id.includes('mdast') ||
+            id.includes('hast') ||
+            id.includes('micromark') ||
+            id.includes('unist')
+          )
+            return 'markdown';
           if (id.includes('node_modules/react-dom')) return 'react-vendor';
           if (id.includes('node_modules/react/')) return 'react-vendor';
           if (id.includes('@xterm/')) return 'xterm';

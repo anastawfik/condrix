@@ -10,9 +10,14 @@ import type { AuthManager } from '../auth.js';
 export type HttpRouteHandler = (req: IncomingMessage, res: ServerResponse) => void;
 
 const ALL_SCOPES: AuthScope[] = [
-  'read:files', 'write:files', 'exec:terminal',
-  'admin:workspace', 'admin:project', 'admin:core',
-  'chat:agent', 'chat:maestro',
+  'read:files',
+  'write:files',
+  'exec:terminal',
+  'admin:workspace',
+  'admin:project',
+  'admin:core',
+  'chat:agent',
+  'chat:maestro',
 ];
 
 const HEARTBEAT_INTERVAL = 15_000;
@@ -90,14 +95,17 @@ export class ConnectionManager {
         maxPayload: 1 * 1024 * 1024, // 1 MiB limit
         verifyClient: (info, cb) => {
           const origin = info.origin ?? info.req.headers.origin ?? '';
-          const isLocalhost = !origin
-            || origin.startsWith('http://localhost')
-            || origin.startsWith('http://127.0.0.1')
-            || origin.startsWith('http://[::1]');
+          const isLocalhost =
+            !origin ||
+            origin.startsWith('http://localhost') ||
+            origin.startsWith('http://127.0.0.1') ||
+            origin.startsWith('http://[::1]');
 
           // In dev mode without external access, only allow localhost
           if (this.devMode && !isLocalhost && !this.externalAccessEnabled) {
-            console.warn(`[ConnectionManager] Rejected connection from non-local origin: ${origin}`);
+            console.warn(
+              `[ConnectionManager] Rejected connection from non-local origin: ${origin}`,
+            );
             cb(false, 403, 'Forbidden: non-localhost origin');
             return;
           }
@@ -147,7 +155,10 @@ export class ConnectionManager {
     }
 
     this.sessions.set(session.id, session);
-    this.emitter.emit('core:connected', { coreId: session.id, timestamp: new Date().toISOString() });
+    this.emitter.emit('core:connected', {
+      coreId: session.id,
+      timestamp: new Date().toISOString(),
+    });
 
     ws.on('pong', () => {
       session.lastPong = Date.now();
@@ -205,7 +216,11 @@ export class ConnectionManager {
     }
 
     // Handle subscribe
-    if (parsed?.namespace === 'core' && parsed?.action === 'subscribe' && parsed?.type === 'request') {
+    if (
+      parsed?.namespace === 'core' &&
+      parsed?.action === 'subscribe' &&
+      parsed?.type === 'request'
+    ) {
       this.handleSubscribe(session, parsed);
       return;
     }

@@ -2,7 +2,11 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { GeneralSettings } from './general-settings.js';
 import { ThemeSettings } from './theme-settings.js';
 import { NotificationSettings } from './notification-settings.js';
-import { CoresSettingsTab, AiSettingsTab, AuthenticationSettingsTab } from '@condrix/client-components';
+import {
+  CoresSettingsTab,
+  AiSettingsTab,
+  AuthenticationSettingsTab,
+} from '@condrix/client-components';
 import { maestroStore } from '@condrix/client-shared';
 import type { MaestroConnectionState } from '@condrix/client-shared';
 import { CoreTerminalModal } from '../core-terminal-modal.js';
@@ -24,7 +28,10 @@ const STATIC_TABS: TabDefinition[] = [
 ];
 
 const AUTH_TAB: TabDefinition = {
-  id: 'authentication', label: 'Account', icon: '\uD83D\uDD12', component: AuthenticationSettingsTab,
+  id: 'authentication',
+  label: 'Account',
+  icon: '\uD83D\uDD12',
+  component: AuthenticationSettingsTab,
 };
 
 interface SettingsDialogProps {
@@ -57,8 +64,12 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
   // Modal state
-  const [terminalTarget, setTerminalTarget] = useState<{ coreId: string; coreName: string } | null>(null);
-  const [signInTarget, setSignInTarget] = useState<{ coreId: string; coreName: string } | null>(null);
+  const [terminalTarget, setTerminalTarget] = useState<{ coreId: string; coreName: string } | null>(
+    null,
+  );
+  const [signInTarget, setSignInTarget] = useState<{ coreId: string; coreName: string } | null>(
+    null,
+  );
 
   // Focus trap + Escape key
   useEffect(() => {
@@ -135,9 +146,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             </button>
           </div>
           {activeTabDef.id === 'auth' ? (
-            <AiSettingsTab
-              onSignIn={(coreId, coreName) => setSignInTarget({ coreId, coreName })}
-            />
+            <AiSettingsTab onSignIn={(coreId, coreName) => setSignInTarget({ coreId, coreName })} />
           ) : activeTabDef.id === 'cores' ? (
             <CoresSettingsTab />
           ) : (

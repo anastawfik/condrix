@@ -183,7 +183,9 @@ if (hasFlag('enable-totp')) {
   if (enabled) {
     console.log(`TOTP enabled for token "${tokenName}". 2FA is now required for authentication.`);
   } else {
-    console.error(`Failed to enable TOTP. Invalid code or token "${tokenName}" has no TOTP configured.`);
+    console.error(
+      `Failed to enable TOTP. Invalid code or token "${tokenName}" has no TOTP configured.`,
+    );
   }
   db.close();
   process.exit(enabled ? 0 : 1);
@@ -210,9 +212,11 @@ if (hasFlag('oauth-login')) {
       try {
         const { exec } = await import('node:child_process');
         const openCmd =
-          process.platform === 'win32' ? `start "" "${url}"` :
-          process.platform === 'darwin' ? `open "${url}"` :
-          `xdg-open "${url}"`;
+          process.platform === 'win32'
+            ? `start "" "${url}"`
+            : process.platform === 'darwin'
+              ? `open "${url}"`
+              : `xdg-open "${url}"`;
         exec(openCmd);
       } catch {
         // Browser open failed — URL is printed above for manual use
@@ -278,7 +282,10 @@ function startServer(): void {
   const model = getArg('model') ?? process.env.CONDRIX_CLAUDE_MODEL;
   const maxTokensStr = getArg('max-tokens') ?? process.env.CONDRIX_CLAUDE_MAX_TOKENS;
   const tunnelEnabled = hasFlag('tunnel') || process.env.CONDRIX_TUNNEL_ENABLED === 'true';
-  const tunnelMode = (getArg('tunnel-mode') ?? process.env.CONDRIX_TUNNEL_MODE) as 'quick' | 'named' | undefined;
+  const tunnelMode = (getArg('tunnel-mode') ?? process.env.CONDRIX_TUNNEL_MODE) as
+    | 'quick'
+    | 'named'
+    | undefined;
   const tunnelToken = getArg('tunnel-token') ?? process.env.CONDRIX_TUNNEL_TOKEN;
 
   // Only include settings that were explicitly provided

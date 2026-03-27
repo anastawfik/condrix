@@ -38,8 +38,12 @@ const EMPTY_MESSAGES: ChatMessage[] = [];
 
 export function useWorkspace(workspaceId: string | null): UseWorkspaceReturn {
   const workspace = useStore(workspaceStore, (s) => s.currentWorkspace);
-  const messages = useStore(chatStore, (s) => workspaceId ? (s.messages.get(workspaceId) ?? EMPTY_MESSAGES) : EMPTY_MESSAGES);
-  const isStreaming = useStore(chatStore, (s) => workspaceId ? s.streamingWorkspaces.has(workspaceId) : false);
+  const messages = useStore(chatStore, (s) =>
+    workspaceId ? (s.messages.get(workspaceId) ?? EMPTY_MESSAGES) : EMPTY_MESSAGES,
+  );
+  const isStreaming = useStore(chatStore, (s) =>
+    workspaceId ? s.streamingWorkspaces.has(workspaceId) : false,
+  );
   const projects = useStore(workspaceStore, (s) => s.projects);
   const workspaces = useStore(workspaceStore, (s) => s.workspaces);
   const currentProjectId = useStore(workspaceStore, (s) => s.currentProjectId);
@@ -47,19 +51,30 @@ export function useWorkspace(workspaceId: string | null): UseWorkspaceReturn {
   useEffect(() => {
     if (!workspaceId) return;
 
-    const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+    const coreId =
+      workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
     if (!coreId) {
-      chatStore.getState().loadHistory(workspaceId).catch(() => {});
+      chatStore
+        .getState()
+        .loadHistory(workspaceId)
+        .catch(() => {});
       return;
     }
 
     // Check for active stream first, then load history
-    multiCoreStore.getState().requestOnCore<{
-      active: boolean; content?: string; thinking?: string;
-    }>(coreId, 'agent', 'activeStream', { workspaceId })
+    multiCoreStore
+      .getState()
+      .requestOnCore<{
+        active: boolean;
+        content?: string;
+        thinking?: string;
+      }>(coreId, 'agent', 'activeStream', { workspaceId })
       .then((stream) => {
         // Load history first (gets the user message)
-        return chatStore.getState().loadHistory(workspaceId).then(() => stream);
+        return chatStore
+          .getState()
+          .loadHistory(workspaceId)
+          .then(() => stream);
       })
       .then((stream) => {
         if (stream.active) {
@@ -84,7 +99,10 @@ export function useWorkspace(workspaceId: string | null): UseWorkspaceReturn {
         }
       })
       .catch(() => {
-        chatStore.getState().loadHistory(workspaceId).catch(() => {});
+        chatStore
+          .getState()
+          .loadHistory(workspaceId)
+          .catch(() => {});
       });
   }, [workspaceId]);
 
@@ -117,7 +135,8 @@ export function useWorkspace(workspaceId: string | null): UseWorkspaceReturn {
     // Workspace management
     workspaces,
     fetchWorkspaces: (projectId) => workspaceStore.getState().fetchWorkspaces(projectId),
-    createWorkspace: (projectId, name, branch) => workspaceStore.getState().createWorkspace(projectId, name, branch),
+    createWorkspace: (projectId, name, branch) =>
+      workspaceStore.getState().createWorkspace(projectId, name, branch),
     enterWorkspace: (wsId) => workspaceStore.getState().enterWorkspace(wsId),
     suspendWorkspace: (wsId) => workspaceStore.getState().suspendWorkspace(wsId),
     resumeWorkspace: (wsId) => workspaceStore.getState().resumeWorkspace(wsId),

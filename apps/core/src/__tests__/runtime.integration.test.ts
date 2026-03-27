@@ -183,9 +183,18 @@ describe('CoreRuntime Integration', () => {
     await waitForOpen(ws);
 
     // Set multiple config values
-    await sendAndWait(ws, createRequest('core', 'config.set', { key: 'model.id', value: 'claude-sonnet-4-5' }));
-    await sendAndWait(ws, createRequest('core', 'config.set', { key: 'model.maxTokens', value: 4096 }));
-    await sendAndWait(ws, createRequest('core', 'config.set', { key: 'general.theme', value: 'dark' }));
+    await sendAndWait(
+      ws,
+      createRequest('core', 'config.set', { key: 'model.id', value: 'claude-sonnet-4-5' }),
+    );
+    await sendAndWait(
+      ws,
+      createRequest('core', 'config.set', { key: 'model.maxTokens', value: 4096 }),
+    );
+    await sendAndWait(
+      ws,
+      createRequest('core', 'config.set', { key: 'general.theme', value: 'dark' }),
+    );
 
     // List all
     const allReq = createRequest('core', 'config.list', {});
@@ -209,13 +218,19 @@ describe('CoreRuntime Integration', () => {
     await waitForOpen(ws);
 
     // Set an API key
-    await sendAndWait(ws, createRequest('core', 'config.set', {
-      key: 'model.apiKey',
-      value: 'sk-ant-api03-realkey1234',
-    }));
+    await sendAndWait(
+      ws,
+      createRequest('core', 'config.set', {
+        key: 'model.apiKey',
+        value: 'sk-ant-api03-realkey1234',
+      }),
+    );
 
     // Get should return masked value
-    const getRes = await sendAndWait(ws, createRequest('core', 'config.get', { key: 'model.apiKey' }));
+    const getRes = await sendAndWait(
+      ws,
+      createRequest('core', 'config.get', { key: 'model.apiKey' }),
+    );
     expect(getRes.success).toBe(true);
     const payload = getRes.payload as { key: string; value: string };
     expect(payload.value).toMatch(/^••••/);
@@ -223,7 +238,10 @@ describe('CoreRuntime Integration', () => {
     expect(payload.value).not.toContain('realkey');
 
     // List should also mask it
-    const listRes = await sendAndWait(ws, createRequest('core', 'config.list', { prefix: 'model.' }));
+    const listRes = await sendAndWait(
+      ws,
+      createRequest('core', 'config.list', { prefix: 'model.' }),
+    );
     const listPayload = listRes.payload as { settings: Record<string, unknown> };
     expect(listPayload.settings['model.apiKey']).toMatch(/^••••/);
   });

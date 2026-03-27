@@ -62,11 +62,11 @@ Clients connect to individual Cores for IDE-like interaction, and to Maestro for
 
 ## 3. Three-Layer Architecture
 
-| Layer | Responsibility | Key Characteristics |
-|-------|---------------|---------------------|
-| **Core** | Agent runtime, code execution, project/workspace state, terminal management, file system operations | Headless daemon, persistent, runs on dev machines, continues when clients disconnect |
+| Layer       | Responsibility                                                                                                  | Key Characteristics                                                                         |
+| ----------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Core**    | Agent runtime, code execution, project/workspace state, terminal management, file system operations             | Headless daemon, persistent, runs on dev machines, continues when clients disconnect        |
 | **Maestro** | Cross-core orchestration, status aggregation, proactive notifications, messaging bridge, agent-to-agent routing | Separate service, subscribes to all Cores, single conversational endpoint, always reachable |
-| **Client** | UI rendering, user input capture, real-time display of Core state (chat, files, terminals, git) | Stateless, thin, connects via WebSocket, multiple form factors (CLI/Desktop/Web/Mobile) |
+| **Client**  | UI rendering, user input capture, real-time display of Core state (chat, files, terminals, git)                 | Stateless, thin, connects via WebSocket, multiple form factors (CLI/Desktop/Web/Mobile)     |
 
 The critical insight is that data flows bidirectionally between Clients and Cores, while Maestro maintains a supervisory connection to all Cores. Clients never talk to each other directly; they synchronize through the Core they are connected to. This makes the Core the single source of truth for workspace state.
 
@@ -146,15 +146,15 @@ Each Core is configured via a `condrix.core.json` file in the user's home direct
 
 Workspaces follow a well-defined lifecycle:
 
-| State | Description | Transitions |
-|-------|-------------|-------------|
-| **CREATING** | Workspace being initialized, working directory being set up, worktree being checked out | IDLE on success, ERRORED on failure |
-| **IDLE** | Ready and waiting. Agent is loaded but not actively processing. | ACTIVE on user/agent interaction, SUSPENDED on timeout/manual |
-| **ACTIVE** | Agent is actively working: processing a prompt, running tools, executing commands. | IDLE on completion, WAITING on human-in-the-loop, ERRORED on failure |
-| **WAITING** | Agent needs human input: plan approval, clarifying question, or conflict resolution. | ACTIVE on response, IDLE on cancel |
-| **SUSPENDED** | State persisted to disk, resources freed. Can be resumed without data loss. | IDLE on resume |
-| **ERRORED** | Unrecoverable error. Logs preserved for debugging. | IDLE on retry, DESTROYED on cleanup |
-| **DESTROYED** | Terminal state. Workspace resources cleaned up. | (terminal) |
+| State         | Description                                                                             | Transitions                                                          |
+| ------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| **CREATING**  | Workspace being initialized, working directory being set up, worktree being checked out | IDLE on success, ERRORED on failure                                  |
+| **IDLE**      | Ready and waiting. Agent is loaded but not actively processing.                         | ACTIVE on user/agent interaction, SUSPENDED on timeout/manual        |
+| **ACTIVE**    | Agent is actively working: processing a prompt, running tools, executing commands.      | IDLE on completion, WAITING on human-in-the-loop, ERRORED on failure |
+| **WAITING**   | Agent needs human input: plan approval, clarifying question, or conflict resolution.    | ACTIVE on response, IDLE on cancel                                   |
+| **SUSPENDED** | State persisted to disk, resources freed. Can be resumed without data loss.             | IDLE on resume                                                       |
+| **ERRORED**   | Unrecoverable error. Logs preserved for debugging.                                      | IDLE on retry, DESTROYED on cleanup                                  |
+| **DESTROYED** | Terminal state. Workspace resources cleaned up.                                         | (terminal)                                                           |
 
 The WAITING state is critical for Maestro integration. When a workspace enters WAITING, the Core emits a `workspace:waiting` event to Maestro, which can then route the request to the developer via WhatsApp, Telegram, or push notification.
 
@@ -162,15 +162,15 @@ The WAITING state is critical for Maestro integration. When a workspace enters W
 
 The Core exposes a WebSocket-based API organized into namespaces. Each namespace groups related operations:
 
-| Namespace | Key Operations | Events Emitted |
-|-----------|---------------|----------------|
-| **core.\*** | core.info, core.health, core.config.get, core.config.set | core:connected, core:disconnected, core:error |
-| **project.\*** | project.list, project.create, project.delete, project.config | project:created, project:deleted, project:updated |
-| **workspace.\*** | workspace.create, workspace.list, workspace.enter, workspace.suspend, workspace.resume, workspace.destroy | workspace:created, workspace:stateChanged, workspace:destroyed |
-| **agent.\*** | agent.chat, agent.cancel, agent.approve, agent.reject, agent.history | agent:message, agent:toolCall, agent:thinking, agent:waiting, agent:complete |
-| **terminal.\*** | terminal.create, terminal.write, terminal.resize, terminal.close, terminal.list | terminal:output, terminal:exit, terminal:created |
-| **file.\*** | file.tree, file.read, file.write, file.search, file.watch | file:changed, file:created, file:deleted |
-| **git.\*** | git.status, git.diff, git.log, git.stage, git.commit, git.branch | git:statusChanged, git:committed |
+| Namespace        | Key Operations                                                                                            | Events Emitted                                                               |
+| ---------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **core.\***      | core.info, core.health, core.config.get, core.config.set                                                  | core:connected, core:disconnected, core:error                                |
+| **project.\***   | project.list, project.create, project.delete, project.config                                              | project:created, project:deleted, project:updated                            |
+| **workspace.\*** | workspace.create, workspace.list, workspace.enter, workspace.suspend, workspace.resume, workspace.destroy | workspace:created, workspace:stateChanged, workspace:destroyed               |
+| **agent.\***     | agent.chat, agent.cancel, agent.approve, agent.reject, agent.history                                      | agent:message, agent:toolCall, agent:thinking, agent:waiting, agent:complete |
+| **terminal.\***  | terminal.create, terminal.write, terminal.resize, terminal.close, terminal.list                           | terminal:output, terminal:exit, terminal:created                             |
+| **file.\***      | file.tree, file.read, file.write, file.search, file.watch                                                 | file:changed, file:created, file:deleted                                     |
+| **git.\***       | git.status, git.diff, git.log, git.stage, git.commit, git.branch                                          | git:statusChanged, git:committed                                             |
 
 ---
 
@@ -260,12 +260,12 @@ The developer tells Maestro: "Once the API agent finishes the auth endpoints, ha
 
 ### 5.5 Maestro State Machine
 
-| State | Description | Behavior |
-|-------|-------------|----------|
-| **INITIALIZING** | Loading state from database, connecting to Cores | Queues incoming requests until ready |
-| **ACTIVE** | Fully operational, connected to one or more Cores | Processes all requests, routes notifications |
-| **DEGRADED** | One or more Cores are unreachable | Continues with available Cores, marks missing ones, retries connection |
-| **RECOVERING** | Reconnecting to a previously lost Core | Replays missed events, reconciles state |
+| State            | Description                                       | Behavior                                                               |
+| ---------------- | ------------------------------------------------- | ---------------------------------------------------------------------- |
+| **INITIALIZING** | Loading state from database, connecting to Cores  | Queues incoming requests until ready                                   |
+| **ACTIVE**       | Fully operational, connected to one or more Cores | Processes all requests, routes notifications                           |
+| **DEGRADED**     | One or more Cores are unreachable                 | Continues with available Cores, marks missing ones, retries connection |
+| **RECOVERING**   | Reconnecting to a previously lost Core            | Replays missed events, reconciles state                                |
 
 ---
 
@@ -275,17 +275,17 @@ Clients are the developer's windows into Condrix. They are deliberately thin —
 
 ### 6.1 Client Capabilities Matrix
 
-| Feature | CLI | Desktop | Web | Mobile |
-|---------|-----|---------|-----|--------|
-| Chat with Agent | ✓ | ✓ | ✓ | ✓ |
-| File Tree Browser | ✓ (tree) | ✓ (visual) | ✓ (visual) | ✓ (visual) |
-| Code Editor | – (vim/nano) | ✓ (Monaco) | ✓ (Monaco) | ✓ (limited) |
-| Terminal Tabs | ✓ (native) | ✓ (xterm.js) | ✓ (xterm.js) | ✓ (basic) |
-| Git Diff View | ✓ (text) | ✓ (side-by-side) | ✓ (side-by-side) | ✓ (unified) |
-| Multi-Workspace | ✓ (tmux-like) | ✓ (tabs/split) | ✓ (tabs/split) | ✓ (tabs) |
-| Maestro Chat | ✓ | ✓ | ✓ | ✓ |
-| Notifications | ✓ (stdout) | ✓ (system) | ✓ (browser) | ✓ (push) |
-| Offline Viewing | – | ✓ (cached) | – | ✓ (cached) |
+| Feature           | CLI           | Desktop          | Web              | Mobile      |
+| ----------------- | ------------- | ---------------- | ---------------- | ----------- |
+| Chat with Agent   | ✓             | ✓                | ✓                | ✓           |
+| File Tree Browser | ✓ (tree)      | ✓ (visual)       | ✓ (visual)       | ✓ (visual)  |
+| Code Editor       | – (vim/nano)  | ✓ (Monaco)       | ✓ (Monaco)       | ✓ (limited) |
+| Terminal Tabs     | ✓ (native)    | ✓ (xterm.js)     | ✓ (xterm.js)     | ✓ (basic)   |
+| Git Diff View     | ✓ (text)      | ✓ (side-by-side) | ✓ (side-by-side) | ✓ (unified) |
+| Multi-Workspace   | ✓ (tmux-like) | ✓ (tabs/split)   | ✓ (tabs/split)   | ✓ (tabs)    |
+| Maestro Chat      | ✓             | ✓                | ✓                | ✓           |
+| Notifications     | ✓ (stdout)    | ✓ (system)       | ✓ (browser)      | ✓ (push)    |
+| Offline Viewing   | –             | ✓ (cached)       | –                | ✓ (cached)  |
 
 ### 6.2 Desktop Client
 
@@ -335,7 +335,7 @@ Every message in the system follows a standard envelope format:
   "namespace": "agent",
   "action": "chat",
   "workspaceId": "ws_xyz",
-  "payload": { },
+  "payload": {},
   "timestamp": "2026-03-01T12:00:00.000Z",
   "correlationId": "msg_def456"
 }
@@ -374,12 +374,12 @@ Supporting multiple Cores across different machines and networks is a key differ
 
 ### 8.1 Network Topology Options
 
-| Topology | Description | Best For |
-|----------|-------------|----------|
-| **Direct LAN** | Clients connect directly to Cores on the local network. Maestro also on LAN. | Single-location setup, home office, development lab |
-| **Tailscale Mesh** | All machines join a Tailscale VPN. Direct peer-to-peer connections even across NAT. | Multi-location, traveling developer, mixed networks |
-| **Cloud Relay** | Maestro hosted in cloud acts as a relay. Cores connect outbound to Maestro; clients connect to Maestro. | Maximum accessibility, no network config needed |
-| **Hybrid** | LAN direct when available, fallback to relay through Maestro for remote access. | Production recommendation: best of both worlds |
+| Topology           | Description                                                                                             | Best For                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **Direct LAN**     | Clients connect directly to Cores on the local network. Maestro also on LAN.                            | Single-location setup, home office, development lab |
+| **Tailscale Mesh** | All machines join a Tailscale VPN. Direct peer-to-peer connections even across NAT.                     | Multi-location, traveling developer, mixed networks |
+| **Cloud Relay**    | Maestro hosted in cloud acts as a relay. Cores connect outbound to Maestro; clients connect to Maestro. | Maximum accessibility, no network config needed     |
+| **Hybrid**         | LAN direct when available, fallback to relay through Maestro for remote access.                         | Production recommendation: best of both worlds      |
 
 ### 8.2 Recommended Approach: Hybrid
 
@@ -404,12 +404,12 @@ Condrix's agent model defines how AI coding agents are configured, managed, and 
 
 Agents are accessed through a provider abstraction that normalizes the interface across different AI backends:
 
-| Provider | Backend | Notes |
-|----------|---------|-------|
+| Provider   | Backend                                  | Notes                                                                      |
+| ---------- | ---------------------------------------- | -------------------------------------------------------------------------- |
 | **claude** | Anthropic API (Claude Opus/Sonnet/Haiku) | Primary recommended provider. Full tool use, extended thinking, streaming. |
-| **openai** | OpenAI API (GPT-4o, o1, etc.) | Alternative provider. Function calling via tools API. |
-| **local** | Ollama, llama.cpp, vLLM | For privacy-sensitive work or offline use. Limited capabilities. |
-| **custom** | Any OpenAI-compatible endpoint | For self-hosted models, proxied APIs, or experimental providers. |
+| **openai** | OpenAI API (GPT-4o, o1, etc.)            | Alternative provider. Function calling via tools API.                      |
+| **local**  | Ollama, llama.cpp, vLLM                  | For privacy-sensitive work or offline use. Limited capabilities.           |
+| **custom** | Any OpenAI-compatible endpoint           | For self-hosted models, proxied APIs, or experimental providers.           |
 
 ### 9.2 Skills Framework
 
@@ -550,25 +550,25 @@ Condrix uses a layered persistence strategy: hot state in memory, warm state in 
 
 Each Core maintains a local SQLite database with the following primary tables:
 
-| Table | Purpose | Key Fields |
-|-------|---------|------------|
-| **projects** | Project registry | id, name, path, config, created_at |
-| **workspaces** | Workspace registry and state | id, project_id, name, state, branch, worktree_path, config |
-| **conversations** | Agent chat history | id, workspace_id, messages (JSON), token_count, created_at |
-| **events** | Event log for replay | id, type, workspace_id, payload, sequence, timestamp |
-| **agent_state** | Serialized agent state for suspend/resume | workspace_id, state_blob, snapshot_at |
+| Table             | Purpose                                   | Key Fields                                                 |
+| ----------------- | ----------------------------------------- | ---------------------------------------------------------- |
+| **projects**      | Project registry                          | id, name, path, config, created_at                         |
+| **workspaces**    | Workspace registry and state              | id, project_id, name, state, branch, worktree_path, config |
+| **conversations** | Agent chat history                        | id, workspace_id, messages (JSON), token_count, created_at |
+| **events**        | Event log for replay                      | id, type, workspace_id, payload, sequence, timestamp       |
+| **agent_state**   | Serialized agent state for suspend/resume | workspace_id, state_blob, snapshot_at                      |
 
 ### 13.2 Maestro Database
 
 Maestro's database extends the model with cross-core awareness:
 
-| Table | Purpose | Key Fields |
-|-------|---------|------------|
-| **cores** | Core registry | id, display_name, host, port, status, last_heartbeat |
-| **global_workspaces** | Projected view of all workspaces | id, core_id, project_name, state, summary, last_updated |
-| **notifications** | Notification queue and history | id, workspace_id, type, status, channel, sent_at, acked_at |
-| **task_dependencies** | Cross-workspace task links | id, source_workspace, target_workspace, condition, status |
-| **maestro_conversations** | Maestro chat history | id, channel (web/whatsapp/telegram), messages, created_at |
+| Table                     | Purpose                          | Key Fields                                                 |
+| ------------------------- | -------------------------------- | ---------------------------------------------------------- |
+| **cores**                 | Core registry                    | id, display_name, host, port, status, last_heartbeat       |
+| **global_workspaces**     | Projected view of all workspaces | id, core_id, project_name, state, summary, last_updated    |
+| **notifications**         | Notification queue and history   | id, workspace_id, type, status, channel, sent_at, acked_at |
+| **task_dependencies**     | Cross-workspace task links       | id, source_workspace, target_workspace, condition, status  |
+| **maestro_conversations** | Maestro chat history             | id, channel (web/whatsapp/telegram), messages, created_at  |
 
 ---
 
@@ -578,38 +578,38 @@ Based on the requirements for real-time communication, cross-platform clients, a
 
 ### 14.1 Core
 
-| Component | Technology | Rationale |
-|-----------|-----------|-----------|
-| Language | TypeScript (Node.js) | Ecosystem alignment with Claude Code / Conductor; excellent WebSocket and PTY support; fast iteration. |
-| Runtime | Node.js 22+ with native fetch | LTS stability, native ES modules, performance improvements. |
-| WebSocket | ws (lightweight) or Socket.IO | ws for minimal overhead; Socket.IO if auto-reconnect, rooms, and namespaces are desired. |
-| Terminal | node-pty | Battle-tested PTY management. Powers VS Code terminal. |
-| Database | better-sqlite3 | Synchronous SQLite access; no external database dependency; fast for single-writer. |
-| File Watching | chokidar or @parcel/watcher | Cross-platform file system watching with debouncing. |
-| Git | simple-git + isomorphic-git | simple-git for CLI operations; isomorphic-git for programmatic diff/status. |
-| Process Manager | pm2 or systemd (Linux) | Daemon management, auto-restart, log rotation. |
+| Component       | Technology                    | Rationale                                                                                              |
+| --------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Language        | TypeScript (Node.js)          | Ecosystem alignment with Claude Code / Conductor; excellent WebSocket and PTY support; fast iteration. |
+| Runtime         | Node.js 22+ with native fetch | LTS stability, native ES modules, performance improvements.                                            |
+| WebSocket       | ws (lightweight) or Socket.IO | ws for minimal overhead; Socket.IO if auto-reconnect, rooms, and namespaces are desired.               |
+| Terminal        | node-pty                      | Battle-tested PTY management. Powers VS Code terminal.                                                 |
+| Database        | better-sqlite3                | Synchronous SQLite access; no external database dependency; fast for single-writer.                    |
+| File Watching   | chokidar or @parcel/watcher   | Cross-platform file system watching with debouncing.                                                   |
+| Git             | simple-git + isomorphic-git   | simple-git for CLI operations; isomorphic-git for programmatic diff/status.                            |
+| Process Manager | pm2 or systemd (Linux)        | Daemon management, auto-restart, log rotation.                                                         |
 
 ### 14.2 Maestro
 
-| Component | Technology | Rationale |
-|-----------|-----------|-----------|
-| Language | TypeScript (Node.js) | Same as Core for shared types/protocols/tooling. |
-| AI Backend | Anthropic SDK (Claude) | Tool use + extended thinking for complex orchestration reasoning. |
-| WhatsApp | @whiskeysockets/baileys (personal) or Meta Business API (prod) | Baileys for rapid development; Business API for reliability. |
-| Telegram | telegraf or grammy | Modern, TypeScript-native Telegram bot frameworks. |
-| Database | better-sqlite3 (local) or PostgreSQL (cloud) | SQLite for single-user; Postgres for team deployments. |
-| Event Bus | EventEmitter3 (in-process) or Redis Streams | In-process for simple; Redis for persistence and replay. |
+| Component  | Technology                                                     | Rationale                                                         |
+| ---------- | -------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Language   | TypeScript (Node.js)                                           | Same as Core for shared types/protocols/tooling.                  |
+| AI Backend | Anthropic SDK (Claude)                                         | Tool use + extended thinking for complex orchestration reasoning. |
+| WhatsApp   | @whiskeysockets/baileys (personal) or Meta Business API (prod) | Baileys for rapid development; Business API for reliability.      |
+| Telegram   | telegraf or grammy                                             | Modern, TypeScript-native Telegram bot frameworks.                |
+| Database   | better-sqlite3 (local) or PostgreSQL (cloud)                   | SQLite for single-user; Postgres for team deployments.            |
+| Event Bus  | EventEmitter3 (in-process) or Redis Streams                    | In-process for simple; Redis for persistence and replay.          |
 
 ### 14.3 Clients
 
-| Client | Technology | Rationale |
-|--------|-----------|-----------|
-| Desktop | Tauri 2.0 + React + Monaco Editor | Lighter than Electron (~10MB vs ~200MB); native performance; shared web frontend. |
-| Web | React + Vite (same codebase as Desktop webview) | Code reuse with Desktop; fast builds; modern tooling. |
-| Mobile | React Native with shared UI library | Maximum code reuse with web; native performance; push notifications. |
-| CLI | TypeScript + Ink (React for CLI) | React paradigm for TUI; rich rendering; scriptable. |
-| Terminal Renderer | xterm.js | Industry standard; full ANSI support; WebGL rendering. |
-| Code Editor | Monaco Editor | VS Code's engine; full IntelliSense; diff views; wide language support. |
+| Client            | Technology                                      | Rationale                                                                         |
+| ----------------- | ----------------------------------------------- | --------------------------------------------------------------------------------- |
+| Desktop           | Tauri 2.0 + React + Monaco Editor               | Lighter than Electron (~10MB vs ~200MB); native performance; shared web frontend. |
+| Web               | React + Vite (same codebase as Desktop webview) | Code reuse with Desktop; fast builds; modern tooling.                             |
+| Mobile            | React Native with shared UI library             | Maximum code reuse with web; native performance; push notifications.              |
+| CLI               | TypeScript + Ink (React for CLI)                | React paradigm for TUI; rich rendering; scriptable.                               |
+| Terminal Renderer | xterm.js                                        | Industry standard; full ANSI support; WebGL rendering.                            |
+| Code Editor       | Monaco Editor                                   | VS Code's engine; full IntelliSense; diff views; wide language support.           |
 
 ### 14.4 Monorepo Structure
 
@@ -686,14 +686,14 @@ The roadmap is structured into four phases, each building on the previous one an
 
 ## 16. Risk Analysis & Mitigations
 
-| Risk | Severity | Impact | Mitigation |
-|------|----------|--------|------------|
-| WebSocket scalability | Medium | High connection counts from multiple clients degrade Core | Connection pooling, message batching, lazy event subscription |
-| Security exposure | High | Remote terminal access is a high-value attack surface | TLS everywhere, token rotation, scope-based auth, audit logging |
-| WhatsApp API instability | Medium | Baileys depends on reverse-engineered protocol | Adapter abstraction; fallback to Telegram; option to upgrade to Business API |
-| Monorepo complexity | Low | Build times and dependency conflicts | Turborepo caching, strict package boundaries, CI per-package testing |
-| AI provider costs | Medium | Multiple agents running 24/7 can be expensive | Workspace suspension, context summarization, local model fallback for simple tasks |
-| State sync conflicts | Medium | Multiple clients editing the same file simultaneously | Last-write-wins with conflict notification; future OT/CRDT support |
+| Risk                     | Severity | Impact                                                    | Mitigation                                                                         |
+| ------------------------ | -------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| WebSocket scalability    | Medium   | High connection counts from multiple clients degrade Core | Connection pooling, message batching, lazy event subscription                      |
+| Security exposure        | High     | Remote terminal access is a high-value attack surface     | TLS everywhere, token rotation, scope-based auth, audit logging                    |
+| WhatsApp API instability | Medium   | Baileys depends on reverse-engineered protocol            | Adapter abstraction; fallback to Telegram; option to upgrade to Business API       |
+| Monorepo complexity      | Low      | Build times and dependency conflicts                      | Turborepo caching, strict package boundaries, CI per-package testing               |
+| AI provider costs        | Medium   | Multiple agents running 24/7 can be expensive             | Workspace suspension, context summarization, local model fallback for simple tasks |
+| State sync conflicts     | Medium   | Multiple clients editing the same file simultaneously     | Last-write-wins with conflict notification; future OT/CRDT support                 |
 
 ---
 
@@ -724,4 +724,4 @@ The roadmap is structured into four phases, each building on the previous one an
 
 ---
 
-*End of Architecture Document — Condrix v1.0 — March 2026*
+_End of Architecture Document — Condrix v1.0 — March 2026_

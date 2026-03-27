@@ -16,7 +16,13 @@ interface NodePtyModule {
   spawn: (
     file: string,
     args: string[],
-    options: { name: string; cols: number; rows: number; cwd?: string; env?: Record<string, string> },
+    options: {
+      name: string;
+      cols: number;
+      rows: number;
+      cwd?: string;
+      env?: Record<string, string>;
+    },
   ) => IPty;
 }
 
@@ -46,14 +52,21 @@ export class TerminalManager {
     }
   }
 
-  createTerminal(workspaceId: string, shell?: string, cols = 80, rows = 24, cwd?: string): TerminalInfo {
+  createTerminal(
+    workspaceId: string,
+    shell?: string,
+    cols = 80,
+    rows = 24,
+    cwd?: string,
+  ): TerminalInfo {
     if (!this.nodePty) {
       throw new Error(this.initError ?? 'TerminalManager not initialized');
     }
 
     const id = generateId('term');
     const resolvedShell =
-      shell ?? (process.platform === 'win32' ? 'powershell.exe' : process.env.SHELL ?? '/bin/bash');
+      shell ??
+      (process.platform === 'win32' ? 'powershell.exe' : (process.env.SHELL ?? '/bin/bash'));
 
     const pty = this.nodePty.spawn(resolvedShell, [], {
       name: 'xterm-256color',

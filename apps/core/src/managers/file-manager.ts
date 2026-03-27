@@ -1,4 +1,14 @@
-import { readFile, writeFile, readdir, stat, mkdir, access, rename, rm, unlink } from 'node:fs/promises';
+import {
+  readFile,
+  writeFile,
+  readdir,
+  stat,
+  mkdir,
+  access,
+  rename,
+  rm,
+  unlink,
+} from 'node:fs/promises';
 import { join, basename, relative, resolve } from 'node:path';
 import type { FileEntry, FileChange } from '@condrix/protocol';
 import type { EventEmitter } from 'node:events';
@@ -206,7 +216,11 @@ export class FileManager {
     }
   }
 
-  async searchFiles(rootPath: string, pattern: string, maxResults = 100): Promise<{ path: string }[]> {
+  async searchFiles(
+    rootPath: string,
+    pattern: string,
+    maxResults = 100,
+  ): Promise<{ path: string }[]> {
     const results: { path: string }[] = [];
     const regex = new RegExp(pattern.replace(/\*/g, '.*'), 'i');
     await this.searchDir(rootPath, rootPath, regex, results, maxResults);

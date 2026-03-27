@@ -14,38 +14,62 @@ export function FileExplorer() {
     ? tree.filter((n) => n.name.toLowerCase().includes(filter.toLowerCase()))
     : tree;
 
-  const handleRename = useCallback((path: string) => {
-    if (!workspaceId) return;
-    const name = path.split('/').pop() ?? path;
-    const newName = prompt('Rename to:', name);
-    if (!newName || newName === name) return;
-    const parentDir = path.substring(0, path.lastIndexOf('/'));
-    const newPath = parentDir ? `${parentDir}/${newName}` : newName;
-    fileStore.getState().renameFile(workspaceId, path, newPath).catch(() => {});
-  }, [workspaceId]);
+  const handleRename = useCallback(
+    (path: string) => {
+      if (!workspaceId) return;
+      const name = path.split('/').pop() ?? path;
+      const newName = prompt('Rename to:', name);
+      if (!newName || newName === name) return;
+      const parentDir = path.substring(0, path.lastIndexOf('/'));
+      const newPath = parentDir ? `${parentDir}/${newName}` : newName;
+      fileStore
+        .getState()
+        .renameFile(workspaceId, path, newPath)
+        .catch(() => {});
+    },
+    [workspaceId],
+  );
 
-  const handleDelete = useCallback((path: string) => {
-    if (!workspaceId) return;
-    const name = path.split('/').pop() ?? path;
-    if (!confirm(`Delete "${name}"?`)) return;
-    fileStore.getState().deleteFile(workspaceId, path).catch(() => {});
-  }, [workspaceId]);
+  const handleDelete = useCallback(
+    (path: string) => {
+      if (!workspaceId) return;
+      const name = path.split('/').pop() ?? path;
+      if (!confirm(`Delete "${name}"?`)) return;
+      fileStore
+        .getState()
+        .deleteFile(workspaceId, path)
+        .catch(() => {});
+    },
+    [workspaceId],
+  );
 
-  const handleNewFile = useCallback((dirPath: string) => {
-    if (!workspaceId) return;
-    const name = prompt('New file name:');
-    if (!name) return;
-    const fullPath = `${dirPath}/${name}`;
-    fileStore.getState().createFile(workspaceId, fullPath).catch(() => {});
-  }, [workspaceId]);
+  const handleNewFile = useCallback(
+    (dirPath: string) => {
+      if (!workspaceId) return;
+      const name = prompt('New file name:');
+      if (!name) return;
+      const fullPath = `${dirPath}/${name}`;
+      fileStore
+        .getState()
+        .createFile(workspaceId, fullPath)
+        .catch(() => {});
+    },
+    [workspaceId],
+  );
 
-  const handleNewFolder = useCallback((dirPath: string) => {
-    if (!workspaceId) return;
-    const name = prompt('New folder name:');
-    if (!name) return;
-    const fullPath = `${dirPath}/${name}`;
-    fileStore.getState().createDir(workspaceId, fullPath).catch(() => {});
-  }, [workspaceId]);
+  const handleNewFolder = useCallback(
+    (dirPath: string) => {
+      if (!workspaceId) return;
+      const name = prompt('New folder name:');
+      if (!name) return;
+      const fullPath = `${dirPath}/${name}`;
+      fileStore
+        .getState()
+        .createDir(workspaceId, fullPath)
+        .catch(() => {});
+    },
+    [workspaceId],
+  );
 
   const handleCopyPath = useCallback((path: string) => {
     navigator.clipboard.writeText(path).catch(() => {});
@@ -73,7 +97,9 @@ export function FileExplorer() {
 
       <div className="flex-1 overflow-y-auto py-0.5">
         {!workspaceId && (
-          <p className="px-3 py-4 text-sm text-muted-foreground text-center">No workspace selected</p>
+          <p className="px-3 py-4 text-sm text-muted-foreground text-center">
+            No workspace selected
+          </p>
         )}
         {workspaceId && filteredTree.length === 0 && !loading && (
           <p className="px-3 py-4 text-sm text-muted-foreground text-center">No files found</p>

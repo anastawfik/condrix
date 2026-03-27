@@ -8,9 +8,14 @@ import type Database from 'better-sqlite3';
 import type { AuthScope } from '@condrix/protocol';
 
 const ALL_SCOPES: AuthScope[] = [
-  'read:files', 'write:files', 'exec:terminal',
-  'admin:workspace', 'admin:project', 'admin:core',
-  'chat:agent', 'chat:maestro',
+  'read:files',
+  'write:files',
+  'exec:terminal',
+  'admin:workspace',
+  'admin:project',
+  'admin:core',
+  'chat:agent',
+  'chat:maestro',
 ];
 
 export interface AuthToken {
@@ -53,10 +58,14 @@ export class AuthManager {
     // Migration: add TOTP columns if they don't exist (for existing DBs)
     try {
       this.db.exec(`ALTER TABLE auth_tokens ADD COLUMN totp_secret TEXT`);
-    } catch { /* column already exists */ }
+    } catch {
+      /* column already exists */
+    }
     try {
       this.db.exec(`ALTER TABLE auth_tokens ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0`);
-    } catch { /* column already exists */ }
+    } catch {
+      /* column already exists */
+    }
   }
 
   generateToken(name: string, scopes?: AuthScope[]): AuthToken {
@@ -68,13 +77,20 @@ export class AuthManager {
       .prepare('INSERT INTO auth_tokens (token, name, scopes, created_at) VALUES (?, ?, ?, ?)')
       .run(token, name, JSON.stringify(tokenScopes), now);
 
-    return { token, name, scopes: tokenScopes, createdAt: now, expiresAt: null, totpEnabled: false };
+    return {
+      token,
+      name,
+      scopes: tokenScopes,
+      createdAt: now,
+      expiresAt: null,
+      totpEnabled: false,
+    };
   }
 
   validateToken(token: string): { valid: boolean; scopes: AuthScope[]; totpEnabled: boolean } {
-    const row = this.db
-      .prepare('SELECT * FROM auth_tokens WHERE token = ?')
-      .get(token) as AuthTokenRow | undefined;
+    const row = this.db.prepare('SELECT * FROM auth_tokens WHERE token = ?').get(token) as
+      | AuthTokenRow
+      | undefined;
 
     if (!row) return { valid: false, scopes: [], totpEnabled: false };
 
@@ -94,9 +110,9 @@ export class AuthManager {
    * TOTP is not enabled until `enableTotp()` is called with a valid code.
    */
   setupTotp(tokenName: string): { secret: string; otpauthUri: string } | null {
-    const row = this.db
-      .prepare('SELECT * FROM auth_tokens WHERE name = ?')
-      .get(tokenName) as AuthTokenRow | undefined;
+    const row = this.db.prepare('SELECT * FROM auth_tokens WHERE name = ?').get(tokenName) as
+      | AuthTokenRow
+      | undefined;
     if (!row) return null;
 
     const secret = randomBytes(20).toString('hex');
@@ -114,15 +130,13 @@ export class AuthManager {
    * Verify a TOTP code and enable 2FA for the token if correct.
    */
   enableTotp(tokenName: string, code: string): boolean {
-    const row = this.db
-      .prepare('SELECT * FROM auth_tokens WHERE name = ?')
-      .get(tokenName) as AuthTokenRow | undefined;
+    const row = this.db.prepare('SELECT * FROM auth_tokens WHERE name = ?').get(tokenName) as
+      | AuthTokenRow
+      | undefined;
     if (!row || !row.totp_secret) return false;
 
     if (this.verifyTotpCode(row.totp_secret, code)) {
-      this.db
-        .prepare('UPDATE auth_tokens SET totp_enabled = 1 WHERE name = ?')
-        .run(tokenName);
+      this.db.prepare('UPDATE auth_tokens SET totp_enabled = 1 WHERE name = ?').run(tokenName);
       return true;
     }
     return false;
@@ -178,16 +192,14 @@ export class AuthManager {
   }
 
   revokeToken(token: string): boolean {
-    const result = this.db
-      .prepare('DELETE FROM auth_tokens WHERE token = ?')
-      .run(token);
+    const result = this.db.prepare('DELETE FROM auth_tokens WHERE token = ?').run(token);
     return result.changes > 0;
   }
 
   hasTokens(): boolean {
-    const row = this.db
-      .prepare('SELECT COUNT(*) as count FROM auth_tokens')
-      .get() as { count: number };
+    const row = this.db.prepare('SELECT COUNT(*) as count FROM auth_tokens').get() as {
+      count: number;
+    };
     return row.count > 0;
   }
 

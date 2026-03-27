@@ -4,19 +4,18 @@ import { Dialog as RadixDialog } from 'radix-ui';
 import { Search } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 
-const Command = forwardRef<
-  HTMLDivElement,
-  ComponentPropsWithoutRef<typeof CommandPrimitive>
->(({ className, ...props }, ref) => (
-  <CommandPrimitive
-    ref={ref}
-    className={cn(
-      'flex h-full w-full flex-col overflow-hidden rounded-md bg-[var(--bg-secondary)] text-[var(--text-primary)]',
-      className,
-    )}
-    {...props}
-  />
-));
+const Command = forwardRef<HTMLDivElement, ComponentPropsWithoutRef<typeof CommandPrimitive>>(
+  ({ className, ...props }, ref) => (
+    <CommandPrimitive
+      ref={ref}
+      className={cn(
+        'flex h-full w-full flex-col overflow-hidden rounded-md bg-[var(--bg-secondary)] text-[var(--text-primary)]',
+        className,
+      )}
+      {...props}
+    />
+  ),
+);
 Command.displayName = 'Command';
 
 interface CommandDialogProps extends RadixDialog.DialogProps {}
@@ -41,7 +40,10 @@ const CommandInput = forwardRef<
   HTMLInputElement,
   ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
 >(({ className, ...props }, ref) => (
-  <div className="flex items-center border-b border-[var(--border-color)] px-3" cmdk-input-wrapper="">
+  <div
+    className="flex items-center border-b border-[var(--border-color)] px-3"
+    cmdk-input-wrapper=""
+  >
     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
     <CommandPrimitive.Input
       ref={ref}
@@ -61,10 +63,7 @@ const CommandList = forwardRef<
 >(({ className, ...props }, ref) => (
   <CommandPrimitive.List
     ref={ref}
-    className={cn(
-      'max-h-[300px] overflow-y-auto overflow-x-hidden',
-      className,
-    )}
+    className={cn('max-h-[300px] overflow-y-auto overflow-x-hidden', className)}
     {...props}
   />
 ));
@@ -124,16 +123,10 @@ const CommandItem = forwardRef<
 ));
 CommandItem.displayName = 'CommandItem';
 
-function CommandShortcut({
-  className,
-  ...props
-}: HTMLAttributes<HTMLSpanElement>) {
+function CommandShortcut({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {
   return (
     <span
-      className={cn(
-        'ml-auto text-xs tracking-widest text-[var(--text-muted)]',
-        className,
-      )}
+      className={cn('ml-auto text-xs tracking-widest text-[var(--text-muted)]', className)}
       {...props}
     />
   );

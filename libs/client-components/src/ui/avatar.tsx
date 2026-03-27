@@ -2,19 +2,15 @@ import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 import { Avatar as RadixAvatar } from 'radix-ui';
 import { cn } from '../lib/utils.js';
 
-const Avatar = forwardRef<
-  HTMLSpanElement,
-  ComponentPropsWithoutRef<typeof RadixAvatar.Root>
->(({ className, ...props }, ref) => (
-  <RadixAvatar.Root
-    ref={ref}
-    className={cn(
-      'relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full',
-      className,
-    )}
-    {...props}
-  />
-));
+const Avatar = forwardRef<HTMLSpanElement, ComponentPropsWithoutRef<typeof RadixAvatar.Root>>(
+  ({ className, ...props }, ref) => (
+    <RadixAvatar.Root
+      ref={ref}
+      className={cn('relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full', className)}
+      {...props}
+    />
+  ),
+);
 Avatar.displayName = 'Avatar';
 
 const AvatarImage = forwardRef<

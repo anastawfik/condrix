@@ -60,7 +60,12 @@ export class MessageRelay {
     // Relay to Core — need targetCoreId
     const targetCoreId = (msg as MessageEnvelope & { targetCoreId?: string }).targetCoreId;
     if (!targetCoreId) {
-      this.sendErrorToClient(clientId, msg.id, 'MISSING_TARGET', 'targetCoreId required for Core-bound messages');
+      this.sendErrorToClient(
+        clientId,
+        msg.id,
+        'MISSING_TARGET',
+        'targetCoreId required for Core-bound messages',
+      );
       return;
     }
 
@@ -223,13 +228,23 @@ export class MessageRelay {
         this.handleCoresDisconnect(clientId, msg);
         break;
       default:
-        this.sendErrorToClient(clientId, msg.id, 'UNKNOWN_ACTION', `Unknown maestro action: ${msg.action}`);
+        this.sendErrorToClient(
+          clientId,
+          msg.id,
+          'UNKNOWN_ACTION',
+          `Unknown maestro action: ${msg.action}`,
+        );
     }
   }
 
   private async handleChat(clientId: string, msg: MessageEnvelope): Promise<void> {
     if (!this.conversationEngine) {
-      this.sendErrorToClient(clientId, msg.id, 'NOT_CONFIGURED', 'Conversation engine not available');
+      this.sendErrorToClient(
+        clientId,
+        msg.id,
+        'NOT_CONFIGURED',
+        'Conversation engine not available',
+      );
       return;
     }
 
@@ -255,7 +270,12 @@ export class MessageRelay {
 
   private handleCoresConnect(clientId: string, msg: MessageEnvelope): void {
     if (!this.outboundConnector) {
-      this.sendErrorToClient(clientId, msg.id, 'NOT_CONFIGURED', 'Outbound connector not available');
+      this.sendErrorToClient(
+        clientId,
+        msg.id,
+        'NOT_CONFIGURED',
+        'Outbound connector not available',
+      );
       return;
     }
     const payload = msg.payload as { id?: string };
@@ -278,7 +298,12 @@ export class MessageRelay {
 
   private handleCoresDisconnect(clientId: string, msg: MessageEnvelope): void {
     if (!this.outboundConnector) {
-      this.sendErrorToClient(clientId, msg.id, 'NOT_CONFIGURED', 'Outbound connector not available');
+      this.sendErrorToClient(
+        clientId,
+        msg.id,
+        'NOT_CONFIGURED',
+        'Outbound connector not available',
+      );
       return;
     }
     const payload = msg.payload as { id?: string };
@@ -304,7 +329,10 @@ export class MessageRelay {
       id: c.id,
       coreId: c.core_id,
       displayName: c.display_name,
-      status: (this.coreManager.isCoreOnline(c.id) || this.outboundConnector?.isConnected(c.id)) ? 'online' as const : 'offline' as const,
+      status:
+        this.coreManager.isCoreOnline(c.id) || this.outboundConnector?.isConnected(c.id)
+          ? ('online' as const)
+          : ('offline' as const),
       tunnelUrl: c.tunnel_url ?? undefined,
       connectionMode: c.connection_mode,
     }));
@@ -320,7 +348,12 @@ export class MessageRelay {
 
     const payload = msg.payload as { coreId?: string; displayName?: string; accessToken?: string };
     if (!payload.coreId || !payload.displayName || !payload.accessToken) {
-      this.sendErrorToClient(clientId, msg.id, 'INVALID_PAYLOAD', 'coreId, displayName, and accessToken required');
+      this.sendErrorToClient(
+        clientId,
+        msg.id,
+        'INVALID_PAYLOAD',
+        'coreId, displayName, and accessToken required',
+      );
       return;
     }
 
@@ -477,15 +510,29 @@ export class MessageRelay {
 
     const payload = msg.payload as { oldPassword?: string; newPassword?: string };
     if (!payload.oldPassword || !payload.newPassword) {
-      this.sendErrorToClient(clientId, msg.id, 'INVALID_PAYLOAD', 'oldPassword and newPassword required');
+      this.sendErrorToClient(
+        clientId,
+        msg.id,
+        'INVALID_PAYLOAD',
+        'oldPassword and newPassword required',
+      );
       return;
     }
 
-    const result = this.authManager.changePassword(userId, payload.oldPassword, payload.newPassword);
+    const result = this.authManager.changePassword(
+      userId,
+      payload.oldPassword,
+      payload.newPassword,
+    );
     if (result.success) {
       this.sendResponse(clientId, msg, { changed: true });
     } else {
-      this.sendErrorToClient(clientId, msg.id, 'PASSWORD_ERROR', result.error ?? 'Failed to change password');
+      this.sendErrorToClient(
+        clientId,
+        msg.id,
+        'PASSWORD_ERROR',
+        result.error ?? 'Failed to change password',
+      );
     }
   }
 
@@ -549,7 +596,12 @@ export class MessageRelay {
     if (result.success) {
       this.sendResponse(clientId, msg, { disabled: true });
     } else {
-      this.sendErrorToClient(clientId, msg.id, 'TOTP_ERROR', result.error ?? 'Failed to disable TOTP');
+      this.sendErrorToClient(
+        clientId,
+        msg.id,
+        'TOTP_ERROR',
+        result.error ?? 'Failed to disable TOTP',
+      );
     }
   }
 
@@ -569,7 +621,12 @@ export class MessageRelay {
     this.clientManager.sendToClient(clientId, response);
   }
 
-  private sendErrorToClient(clientId: string, correlationId: string, code: string, message: string): void {
+  private sendErrorToClient(
+    clientId: string,
+    correlationId: string,
+    code: string,
+    message: string,
+  ): void {
     const response = {
       id: generateMessageId(),
       type: 'response' as const,

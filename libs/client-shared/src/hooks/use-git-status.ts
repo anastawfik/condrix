@@ -40,7 +40,12 @@ export function useGitStatus(workspaceId: string | null): UseGitStatusReturn {
 
   useEffect(() => {
     if (workspaceId) {
-      gitStore.getState().fetchStatus(workspaceId).catch(() => { /* ignore */ });
+      gitStore
+        .getState()
+        .fetchStatus(workspaceId)
+        .catch(() => {
+          /* ignore */
+        });
     }
   }, [workspaceId]);
 
@@ -48,7 +53,8 @@ export function useGitStatus(workspaceId: string | null): UseGitStatusReturn {
   useEffect(() => {
     if (!workspaceId) return;
 
-    const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+    const coreId =
+      workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
     if (!coreId) return;
 
     const unsub = multiCoreStore.getState().subscribeOnCore(coreId, 'file:changed', (event) => {
@@ -58,7 +64,12 @@ export function useGitStatus(workspaceId: string | null): UseGitStatusReturn {
       // Debounce 1500ms — git status is expensive, longer debounce than tree refresh
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        gitStore.getState().fetchStatus(workspaceId).catch(() => { /* ignore */ });
+        gitStore
+          .getState()
+          .fetchStatus(workspaceId)
+          .catch(() => {
+            /* ignore */
+          });
       }, 1500);
     });
 

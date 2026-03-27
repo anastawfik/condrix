@@ -7,8 +7,14 @@ import { ChangedFileList } from './changed-file-list.js';
 export function GitPanel() {
   const workspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);
   const {
-    branch, staged, unstaged,
-    loading, refresh, stageFiles, unstageFiles, commit,
+    branch,
+    staged,
+    unstaged,
+    loading,
+    refresh,
+    stageFiles,
+    unstageFiles,
+    commit,
     openDiffTab,
   } = useGitStatus(workspaceId);
 

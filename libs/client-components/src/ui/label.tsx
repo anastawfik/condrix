@@ -9,14 +9,9 @@ const labelVariants = cva(
 
 const Label = forwardRef<
   HTMLLabelElement,
-  ComponentPropsWithoutRef<typeof RadixLabel.Root> &
-    VariantProps<typeof labelVariants>
+  ComponentPropsWithoutRef<typeof RadixLabel.Root> & VariantProps<typeof labelVariants>
 >(({ className, ...props }, ref) => (
-  <RadixLabel.Root
-    ref={ref}
-    className={cn(labelVariants(), className)}
-    {...props}
-  />
+  <RadixLabel.Root ref={ref} className={cn(labelVariants(), className)} {...props} />
 ));
 Label.displayName = 'Label';
 

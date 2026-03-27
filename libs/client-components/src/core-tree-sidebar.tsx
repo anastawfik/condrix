@@ -1,7 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useStore } from 'zustand';
-import { ChevronDown, ChevronRight, FolderOpen, Plus, Server, Layers, Trash2, RotateCw } from 'lucide-react';
-import { multiCoreStore, workspaceStore, coreRegistryStore, maestroStore } from '@condrix/client-shared';
+import {
+  ChevronDown,
+  ChevronRight,
+  FolderOpen,
+  Plus,
+  Server,
+  Layers,
+  Trash2,
+  RotateCw,
+} from 'lucide-react';
+import {
+  multiCoreStore,
+  workspaceStore,
+  coreRegistryStore,
+  maestroStore,
+} from '@condrix/client-shared';
 import type { MaestroConnectionState } from '@condrix/client-shared';
 import type { ProjectInfo, WorkspaceInfo } from '@condrix/protocol';
 import { cn } from './lib/utils.js';
@@ -83,7 +97,13 @@ function MaestroSidebarTree({ onWorkspaceSelected }: { onWorkspaceSelected?: () 
 
 /* ─── Shared Sidebar Tree ──────────────────────────────────────────────── */
 
-function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onWorkspaceSelected?: () => void }) {
+function SidebarTree({
+  cores,
+  onWorkspaceSelected,
+}: {
+  cores: SidebarCore[];
+  onWorkspaceSelected?: () => void;
+}) {
   const currentWorkspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);
 
   const [expandedCores, setExpandedCores] = useState<Set<string>>(new Set());
@@ -104,27 +124,30 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
 
   const fetchProjects = useCallback(async (coreId: string) => {
     try {
-      const result = await multiCoreStore.getState().requestOnCore<{ projects: ProjectInfo[] }>(
-        coreId, 'project', 'list', {},
-      );
+      const result = await multiCoreStore
+        .getState()
+        .requestOnCore<{ projects: ProjectInfo[] }>(coreId, 'project', 'list', {});
       setCoreProjects((prev) => new Map(prev).set(coreId, result.projects));
     } catch {
       // failed to fetch
     }
   }, []);
 
-  const toggleCore = useCallback((coreId: string) => {
-    setExpandedCores((prev) => {
-      const next = new Set(prev);
-      if (next.has(coreId)) {
-        next.delete(coreId);
-      } else {
-        next.add(coreId);
-        fetchProjects(coreId);
-      }
-      return next;
-    });
-  }, [fetchProjects]);
+  const toggleCore = useCallback(
+    (coreId: string) => {
+      setExpandedCores((prev) => {
+        const next = new Set(prev);
+        if (next.has(coreId)) {
+          next.delete(coreId);
+        } else {
+          next.add(coreId);
+          fetchProjects(coreId);
+        }
+        return next;
+      });
+    },
+    [fetchProjects],
+  );
 
   const toggleProject = useCallback((projectId: string) => {
     setExpandedProjects((prev) => {
@@ -146,7 +169,10 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
       // Suspend current workspace if switching
       const { currentWorkspaceId: curWs } = workspaceStore.getState();
       if (curWs && curWs !== ws.id) {
-        await workspaceStore.getState().suspendWorkspace(curWs, coreId).catch(() => {});
+        await workspaceStore
+          .getState()
+          .suspendWorkspace(curWs, coreId)
+          .catch(() => {});
       }
 
       // Resume if suspended, then enter; if already active just select it
@@ -175,7 +201,9 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
     setCreatingWorkspace(true);
     setWsError(null);
     try {
-      const ws = await workspaceStore.getState().createWorkspace(projectId, wsName.trim(), undefined, coreId);
+      const ws = await workspaceStore
+        .getState()
+        .createWorkspace(projectId, wsName.trim(), undefined, coreId);
 
       // Check if the workspace was created in ERRORED state (clone failure)
       if (ws.state === 'ERRORED') {
@@ -270,7 +298,12 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                 )}
               >
                 {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                <span className={cn('w-2 h-2 rounded-full shrink-0', CONN_DOT[core.status] ?? CONN_DOT.disconnected)} />
+                <span
+                  className={cn(
+                    'w-2 h-2 rounded-full shrink-0',
+                    CONN_DOT[core.status] ?? CONN_DOT.disconnected,
+                  )}
+                />
                 <Server size={12} className="text-[var(--text-secondary)]" />
                 <span className="truncate font-medium text-[var(--text-primary)]">{core.name}</span>
               </button>
@@ -289,9 +322,15 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                             onClick={() => toggleProject(project.id)}
                             className="flex items-center gap-1.5 flex-1 min-w-0"
                           >
-                            {projectExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                            {projectExpanded ? (
+                              <ChevronDown size={10} />
+                            ) : (
+                              <ChevronRight size={10} />
+                            )}
                             <FolderOpen size={12} className="text-[var(--accent-blue)] shrink-0" />
-                            <span className="truncate text-[var(--text-primary)]">{project.name}</span>
+                            <span className="truncate text-[var(--text-primary)]">
+                              {project.name}
+                            </span>
                           </button>
                           <button
                             onClick={() => handleDeleteProject(project.id, core.coreId)}
@@ -307,7 +346,8 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                           <>
                             {workspaces.map((ws) => {
                               const isActive = ws.id === currentWorkspaceId;
-                              const dotColor = STATE_DOT_COLOR[ws.state] ?? 'bg-[var(--text-muted)]';
+                              const dotColor =
+                                STATE_DOT_COLOR[ws.state] ?? 'bg-[var(--text-muted)]';
                               const canEnter = ws.state !== 'DESTROYED' && ws.state !== 'CREATING';
 
                               return (
@@ -323,14 +363,28 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                                   )}
                                 >
                                   <button
-                                    onClick={canEnter ? () => handleSelectWorkspace(ws, core.coreId) : undefined}
+                                    onClick={
+                                      canEnter
+                                        ? () => handleSelectWorkspace(ws, core.coreId)
+                                        : undefined
+                                    }
                                     disabled={loading || !canEnter}
                                     className="flex items-center gap-2 flex-1 min-w-0 text-left"
                                   >
-                                    <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dotColor)} />
+                                    <span
+                                      className={cn('w-1.5 h-1.5 rounded-full shrink-0', dotColor)}
+                                    />
                                     <span className="truncate">{ws.name}</span>
-                                    {ws.state === 'CREATING' && <span className="text-[9px] text-[var(--accent-blue)]">creating...</span>}
-                                    {ws.state === 'ERRORED' && <span className="text-[9px] text-[var(--accent-red)]">error</span>}
+                                    {ws.state === 'CREATING' && (
+                                      <span className="text-[9px] text-[var(--accent-blue)]">
+                                        creating...
+                                      </span>
+                                    )}
+                                    {ws.state === 'ERRORED' && (
+                                      <span className="text-[9px] text-[var(--accent-red)]">
+                                        error
+                                      </span>
+                                    )}
                                   </button>
                                   <div className="hidden group-hover/ws:flex items-center gap-0.5 shrink-0">
                                     {ws.state === 'ERRORED' && (
@@ -366,7 +420,10 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                                   inputSize="sm"
                                   autoFocus
                                   disabled={creatingWorkspace}
-                                  onKeyDown={(e) => { if (e.key === 'Enter' && !creatingWorkspace) handleCreateWorkspace(project.id, core.coreId); }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !creatingWorkspace)
+                                      handleCreateWorkspace(project.id, core.coreId);
+                                  }}
                                 />
                                 {wsError && (
                                   <p className="text-[10px] text-[var(--accent-red)]">{wsError}</p>
@@ -374,18 +431,38 @@ function SidebarTree({ cores, onWorkspaceSelected }: { cores: SidebarCore[]; onW
                                 {creatingWorkspace ? (
                                   <div className="flex items-center gap-2 py-1">
                                     <span className="w-3 h-3 border-2 border-[var(--accent-blue)] border-t-transparent rounded-full animate-spin" />
-                                    <span className="text-[10px] text-[var(--text-muted)]">Cloning repository...</span>
+                                    <span className="text-[10px] text-[var(--text-muted)]">
+                                      Cloning repository...
+                                    </span>
                                   </div>
                                 ) : (
                                   <div className="flex gap-1.5 justify-end">
-                                    <Button variant="ghost" size="sm" onClick={() => { setAddingWorkspaceFor(null); setWsError(null); }}>Cancel</Button>
-                                    <Button size="sm" onClick={() => handleCreateWorkspace(project.id, core.coreId)} disabled={!wsName.trim()}>Create</Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setAddingWorkspaceFor(null);
+                                        setWsError(null);
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleCreateWorkspace(project.id, core.coreId)}
+                                      disabled={!wsName.trim()}
+                                    >
+                                      Create
+                                    </Button>
                                   </div>
                                 )}
                               </div>
                             ) : (
                               <button
-                                onClick={() => { setAddingWorkspaceFor(project.id); setWsName(''); }}
+                                onClick={() => {
+                                  setAddingWorkspaceFor(project.id);
+                                  setWsName('');
+                                }}
                                 className="flex items-center gap-1.5 w-full pl-12 pr-2 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
                               >
                                 <Plus size={10} />

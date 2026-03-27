@@ -162,16 +162,10 @@ const DropdownMenuSeparator = forwardRef<
 ));
 DropdownMenuSeparator.displayName = 'DropdownMenuSeparator';
 
-function DropdownMenuShortcut({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLSpanElement>) {
+function DropdownMenuShortcut({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) {
   return (
     <span
-      className={cn(
-        'ml-auto text-xs tracking-widest text-[var(--text-muted)]',
-        className,
-      )}
+      className={cn('ml-auto text-xs tracking-widest text-[var(--text-muted)]', className)}
       {...props}
     />
   );

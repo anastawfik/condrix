@@ -185,11 +185,13 @@ export class ClientConnectionManager {
       action: 'login',
       payload: {
         authenticated: success,
-        ...(session ? {
-          sessionToken: session.token,
-          expiresAt: session.expiresAt,
-          user: { username: session.username, role: session.role },
-        } : {}),
+        ...(session
+          ? {
+              sessionToken: session.token,
+              expiresAt: session.expiresAt,
+              user: { username: session.username, role: session.role },
+            }
+          : {}),
         ...(requiresTotp ? { requiresTotp: true } : {}),
       },
       timestamp: new Date().toISOString(),
@@ -200,7 +202,12 @@ export class ClientConnectionManager {
     ws.send(JSON.stringify(response));
   }
 
-  private sendAuthResponse(ws: WebSocket, correlationId: string, success: boolean, session?: SessionInfo): void {
+  private sendAuthResponse(
+    ws: WebSocket,
+    correlationId: string,
+    success: boolean,
+    session?: SessionInfo,
+  ): void {
     const response = {
       id: generateMessageId(),
       type: 'response' as const,

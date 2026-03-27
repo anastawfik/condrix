@@ -26,7 +26,8 @@ export class ClaudeAuthManager {
   private lastState: ClaudeAuthState | null = null;
 
   constructor(private emitter: EventEmitter) {
-    this.refreshBuffer = Number(process.env.CONDRIX_OAUTH_REFRESH_BUFFER_MS) || DEFAULT_REFRESH_BUFFER_MS;
+    this.refreshBuffer =
+      Number(process.env.CONDRIX_OAUTH_REFRESH_BUFFER_MS) || DEFAULT_REFRESH_BUFFER_MS;
   }
 
   /** Start monitoring token expiry. */
@@ -82,7 +83,9 @@ export class ClaudeAuthManager {
           };
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     return { authenticated: false, method: 'none', claudeInstalled };
   }
@@ -110,7 +113,9 @@ export class ClaudeAuthManager {
 
     // If within refresh buffer, attempt refresh
     if (timeUntilExpiry < this.refreshBuffer && timeUntilExpiry > 0) {
-      console.log(`[ClaudeAuth] Token expires in ${Math.round(timeUntilExpiry / 60000)}min, refreshing...`);
+      console.log(
+        `[ClaudeAuth] Token expires in ${Math.round(timeUntilExpiry / 60000)}min, refreshing...`,
+      );
       this.refreshToken();
     } else if (timeUntilExpiry <= 0) {
       console.warn('[ClaudeAuth] Token already expired, attempting refresh...');

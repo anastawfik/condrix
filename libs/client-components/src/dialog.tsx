@@ -13,7 +13,12 @@ export interface DialogProps {
 
 export function Dialog({ open, onClose, title, children, className }: DialogProps) {
   return (
-    <RadixDialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <RadixDialog.Root
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
         <RadixDialog.Content

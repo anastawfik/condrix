@@ -25,9 +25,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           size={14}
           className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"
         />
-        {error && (
-          <p className="mt-1 text-[10px] text-[var(--accent-red)]">{error}</p>
-        )}
+        {error && <p className="mt-1 text-[10px] text-[var(--accent-red)]">{error}</p>}
       </div>
     );
   },

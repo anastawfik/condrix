@@ -83,10 +83,16 @@ export class TunnelManager {
         // Extract using system tar
         await new Promise<void>((resolve, reject) => {
           const tar = spawn('tar', ['-xzf', tgzPath, '-C', binDir]);
-          tar.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`tar exited with ${code}`))));
+          tar.on('close', (code) =>
+            code === 0 ? resolve() : reject(new Error(`tar exited with ${code}`)),
+          );
           tar.on('error', reject);
         });
-        try { unlinkSync(tgzPath); } catch { /* ignore */ }
+        try {
+          unlinkSync(tgzPath);
+        } catch {
+          /* ignore */
+        }
         await chmod(destPath, 0o755);
       } else {
         // Windows and Linux: direct binary downloads
@@ -235,7 +241,11 @@ export class TunnelManager {
       this.process.kill('SIGTERM');
       const proc = this.process;
       setTimeout(() => {
-        try { proc.kill('SIGKILL'); } catch { /* already dead */ }
+        try {
+          proc.kill('SIGKILL');
+        } catch {
+          /* already dead */
+        }
       }, 5000);
     }
 

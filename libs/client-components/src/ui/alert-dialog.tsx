@@ -42,32 +42,17 @@ const AlertDialogContent = forwardRef<
 ));
 AlertDialogContent.displayName = 'AlertDialogContent';
 
-function AlertDialogHeader({
-  className,
-  ...props
-}: HTMLAttributes<HTMLDivElement>) {
+function AlertDialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div
-      className={cn(
-        'flex flex-col space-y-2 text-center sm:text-left',
-        className,
-      )}
-      {...props}
-    />
+    <div className={cn('flex flex-col space-y-2 text-center sm:text-left', className)} {...props} />
   );
 }
 AlertDialogHeader.displayName = 'AlertDialogHeader';
 
-function AlertDialogFooter({
-  className,
-  ...props
-}: HTMLAttributes<HTMLDivElement>) {
+function AlertDialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn(
-        'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2',
-        className,
-      )}
+      className={cn('flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2', className)}
       {...props}
     />
   );
@@ -80,10 +65,7 @@ const AlertDialogTitle = forwardRef<
 >(({ className, ...props }, ref) => (
   <RadixAlertDialog.Title
     ref={ref}
-    className={cn(
-      'text-lg font-semibold text-[var(--text-primary)]',
-      className,
-    )}
+    className={cn('text-lg font-semibold text-[var(--text-primary)]', className)}
     {...props}
   />
 ));
@@ -105,11 +87,7 @@ const AlertDialogAction = forwardRef<
   HTMLButtonElement,
   ComponentPropsWithoutRef<typeof RadixAlertDialog.Action>
 >(({ className, ...props }, ref) => (
-  <RadixAlertDialog.Action
-    ref={ref}
-    className={cn(buttonVariants(), className)}
-    {...props}
-  />
+  <RadixAlertDialog.Action ref={ref} className={cn(buttonVariants(), className)} {...props} />
 ));
 AlertDialogAction.displayName = 'AlertDialogAction';
 
@@ -119,11 +97,7 @@ const AlertDialogCancel = forwardRef<
 >(({ className, ...props }, ref) => (
   <RadixAlertDialog.Cancel
     ref={ref}
-    className={cn(
-      buttonVariants({ variant: 'outline' }),
-      'mt-2 sm:mt-0',
-      className,
-    )}
+    className={cn(buttonVariants({ variant: 'outline' }), 'mt-2 sm:mt-0', className)}
     {...props}
   />
 ));

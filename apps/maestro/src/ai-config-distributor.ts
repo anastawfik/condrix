@@ -12,9 +12,7 @@ interface AiConfig {
   oauthRefreshToken?: string;
 }
 
-const AI_CONFIG_KEYS = [
-  'method', 'apiKey', 'oauthAccessToken', 'oauthRefreshToken',
-] as const;
+const AI_CONFIG_KEYS = ['method', 'apiKey', 'oauthAccessToken', 'oauthRefreshToken'] as const;
 
 export class AiConfigDistributor {
   private coreManager: CoreConnectionManager | null = null;

@@ -22,7 +22,9 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
 
   // Also scroll when streaming message content changes
   const lastMessage = messages[messages.length - 1];
-  const streamingContent = lastMessage?.isStreaming ? (lastMessage.content?.length ?? 0) + (lastMessage.thinking?.length ?? 0) : 0;
+  const streamingContent = lastMessage?.isStreaming
+    ? (lastMessage.content?.length ?? 0) + (lastMessage.thinking?.length ?? 0)
+    : 0;
   useEffect(() => {
     if (streamingContent > 0) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -38,7 +40,9 @@ export function MessageList({ messages, isStreaming }: MessageListProps) {
           </div>
           <div className="text-center">
             <p className="text-sm font-medium text-muted-foreground">No messages yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Send a message to start a conversation</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Send a message to start a conversation
+            </p>
           </div>
         </div>
       )}

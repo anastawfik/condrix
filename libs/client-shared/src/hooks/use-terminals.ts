@@ -36,12 +36,14 @@ export function useTerminals(workspaceId: string | null): UseTerminalsReturn {
   );
 
   const writeToTerminal = useCallback(
-    (terminalId: string, data: string) => terminalStore.getState().writeToTerminal(terminalId, data),
+    (terminalId: string, data: string) =>
+      terminalStore.getState().writeToTerminal(terminalId, data),
     [],
   );
 
   const resizeTerminal = useCallback(
-    (terminalId: string, cols: number, rows: number) => terminalStore.getState().resizeTerminal(terminalId, cols, rows),
+    (terminalId: string, cols: number, rows: number) =>
+      terminalStore.getState().resizeTerminal(terminalId, cols, rows),
     [],
   );
 
@@ -51,7 +53,8 @@ export function useTerminals(workspaceId: string | null): UseTerminalsReturn {
   );
 
   const onTerminalOutput = useCallback(
-    (terminalId: string, listener: (data: string) => void) => terminalStore.getState().onTerminalOutput(terminalId, listener),
+    (terminalId: string, listener: (data: string) => void) =>
+      terminalStore.getState().onTerminalOutput(terminalId, listener),
     [],
   );
 

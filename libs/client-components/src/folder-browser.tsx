@@ -83,24 +83,27 @@ export function FolderBrowser({ coreId, open, onClose, onSelect }: FolderBrowser
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const browse = useCallback(async (path?: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await multiCoreStore.getState().requestOnCore<{
-        path: string;
-        entries: FileEntry[];
-      }>(coreId, 'core', 'browse', path !== undefined ? { path } : {});
-      setCurrentPath(result.path);
-      setPathInput(result.path);
-      setEntries(result.entries);
-    } catch (err) {
-      setEntries([]);
-      setError(err instanceof Error ? err.message : 'Failed to browse directory');
-    } finally {
-      setLoading(false);
-    }
-  }, [coreId]);
+  const browse = useCallback(
+    async (path?: string) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await multiCoreStore.getState().requestOnCore<{
+          path: string;
+          entries: FileEntry[];
+        }>(coreId, 'core', 'browse', path !== undefined ? { path } : {});
+        setCurrentPath(result.path);
+        setPathInput(result.path);
+        setEntries(result.entries);
+      } catch (err) {
+        setEntries([]);
+        setError(err instanceof Error ? err.message : 'Failed to browse directory');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [coreId],
+  );
 
   useEffect(() => {
     if (open) {
@@ -142,12 +145,16 @@ export function FolderBrowser({ coreId, open, onClose, onSelect }: FolderBrowser
           <Input
             value={pathInput}
             onChange={(e) => setPathInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handlePathSubmit(); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handlePathSubmit();
+            }}
             placeholder={atDrivesRoot ? 'Type a path...' : undefined}
             inputSize="sm"
             className="flex-1"
           />
-          <Button size="sm" variant="ghost" onClick={handlePathSubmit}>Go</Button>
+          <Button size="sm" variant="ghost" onClick={handlePathSubmit}>
+            Go
+          </Button>
         </div>
 
         {/* Breadcrumbs */}
@@ -239,8 +246,12 @@ export function FolderBrowser({ coreId, open, onClose, onSelect }: FolderBrowser
             {currentPath || 'Select a drive'}
           </span>
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-            <Button size="sm" onClick={handleSelect} disabled={atDrivesRoot}>Select Folder</Button>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSelect} disabled={atDrivesRoot}>
+              Select Folder
+            </Button>
           </div>
         </div>
       </div>

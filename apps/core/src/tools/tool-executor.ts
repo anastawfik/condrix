@@ -25,7 +25,11 @@ export class ToolExecutor {
         case 'file_write':
           return await this.fileWrite(input.path as string, input.content as string);
         case 'file_edit':
-          return await this.fileEdit(input.path as string, input.old_string as string, input.new_string as string);
+          return await this.fileEdit(
+            input.path as string,
+            input.old_string as string,
+            input.new_string as string,
+          );
         case 'list_directory':
           return await this.listDirectory(input.path as string);
         case 'terminal_exec':
@@ -73,12 +77,18 @@ export class ToolExecutor {
     const content = await readFile(fullPath, 'utf-8');
     const index = content.indexOf(oldString);
     if (index === -1) {
-      return { content: 'old_string not found in file. Make sure it matches exactly.', isError: true };
+      return {
+        content: 'old_string not found in file. Make sure it matches exactly.',
+        isError: true,
+      };
     }
     // Check for multiple matches
     const secondIndex = content.indexOf(oldString, index + 1);
     if (secondIndex !== -1) {
-      return { content: 'old_string matches multiple locations. Provide more context to make it unique.', isError: true };
+      return {
+        content: 'old_string matches multiple locations. Provide more context to make it unique.',
+        isError: true,
+      };
     }
     const updated = content.slice(0, index) + newString + content.slice(index + oldString.length);
     await writeFile(fullPath, updated, 'utf-8');
@@ -101,21 +111,25 @@ export class ToolExecutor {
 
   private async terminalExec(command: string): Promise<ToolResult> {
     return new Promise((resolve) => {
-      exec(command, { cwd: this.workspacePath, timeout: EXEC_TIMEOUT_MS, maxBuffer: 5 * 1024 * 1024 }, (err, stdout, stderr) => {
-        let output = '';
-        if (stdout) output += stdout;
-        if (stderr) output += (output ? '\n' : '') + stderr;
-        if (err && !output) output = err.message;
+      exec(
+        command,
+        { cwd: this.workspacePath, timeout: EXEC_TIMEOUT_MS, maxBuffer: 5 * 1024 * 1024 },
+        (err, stdout, stderr) => {
+          let output = '';
+          if (stdout) output += stdout;
+          if (stderr) output += (output ? '\n' : '') + stderr;
+          if (err && !output) output = err.message;
 
-        if (output.length > MAX_OUTPUT_CHARS) {
-          output = output.slice(0, MAX_OUTPUT_CHARS) + '\n\n[... truncated]';
-        }
+          if (output.length > MAX_OUTPUT_CHARS) {
+            output = output.slice(0, MAX_OUTPUT_CHARS) + '\n\n[... truncated]';
+          }
 
-        resolve({
-          content: output || '(no output)',
-          isError: err ? true : undefined,
-        });
-      });
+          resolve({
+            content: output || '(no output)',
+            isError: err ? true : undefined,
+          });
+        },
+      );
     });
   }
 
@@ -125,7 +139,12 @@ export class ToolExecutor {
     return { content: results.length > 0 ? results.join('\n') : 'No matching files found' };
   }
 
-  private async walkForSearch(dir: string, pattern: string, results: string[], max: number): Promise<void> {
+  private async walkForSearch(
+    dir: string,
+    pattern: string,
+    results: string[],
+    max: number,
+  ): Promise<void> {
     if (results.length >= max) return;
     const items = await readdir(dir, { withFileTypes: true });
     const regex = new RegExp(pattern.replace(/\*/g, '.*').replace(/\?/g, '.'), 'i');

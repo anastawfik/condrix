@@ -3,7 +3,14 @@ import { Group, Panel, Separator } from 'react-resizable-panels';
 import { AppLayout, MaestroLoginDialog } from '@condrix/client-components';
 import { TitleBar } from './components/title-bar.js';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { maestroStore, multiCoreStore, workspaceStore, fileStore, terminalStore, getSavedUIState } from '@condrix/client-shared';
+import {
+  maestroStore,
+  multiCoreStore,
+  workspaceStore,
+  fileStore,
+  terminalStore,
+  getSavedUIState,
+} from '@condrix/client-shared';
 import type { MaestroConnectionState } from '@condrix/client-shared';
 import { Sidebar } from './components/sidebar.js';
 import { EditorTabs } from './components/editor/editor-tabs.js';
@@ -69,10 +76,14 @@ export function App() {
         workspaceStore.getState().setCurrentProject(projectId);
       }
 
-      workspaceStore.getState().enterWorkspace(workspaceId, coreId)
+      workspaceStore
+        .getState()
+        .enterWorkspace(workspaceId, coreId)
         .then(() => fileStore.getState().restoreUIState(workspaceId))
         .then(() => terminalStore.getState().restoreTerminals(workspaceId))
-        .catch(() => { /* workspace may no longer exist */ });
+        .catch(() => {
+          /* workspace may no longer exist */
+        });
     };
 
     // Check if Core is already connected
@@ -95,24 +106,31 @@ export function App() {
     });
 
     // Give up after 10s
-    const timer = setTimeout(() => { cleaned = true; unsub(); }, 10_000);
-    return () => { cleaned = true; unsub(); clearTimeout(timer); };
+    const timer = setTimeout(() => {
+      cleaned = true;
+      unsub();
+    }, 10_000);
+    return () => {
+      cleaned = true;
+      unsub();
+      clearTimeout(timer);
+    };
   }, []);
 
   return (
     <TooltipProvider delayDuration={300}>
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
       <div onContextMenu={(e) => e.preventDefault()} className="contents">
-      <AppLayout
-        renderTitleBar={() => <WebTitleBar />}
-        renderCenter={(wsId) => CenterPanel(wsId)}
-        renderRight={(wsId) => RightPanel(wsId)}
-      />
-      <MaestroLoginDialog
-        open={showLogin}
-        onClose={() => setShowLogin(false)}
-        onDirectConnect={() => setShowLogin(false)}
-      />
+        <AppLayout
+          renderTitleBar={() => <WebTitleBar />}
+          renderCenter={(wsId) => CenterPanel(wsId)}
+          renderRight={(wsId) => RightPanel(wsId)}
+        />
+        <MaestroLoginDialog
+          open={showLogin}
+          onClose={() => setShowLogin(false)}
+          onDirectConnect={() => setShowLogin(false)}
+        />
       </div>
     </TooltipProvider>
   );

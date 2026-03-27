@@ -24,13 +24,16 @@ export const createSettingsStore = () =>
     error: null,
 
     loadSettings: async (prefix?: string) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
       set({ loading: true, error: null });
       try {
-        const result = await multiCoreStore.getState().requestOnCore<{ settings: Record<string, unknown> }>(
-          coreId, 'core', 'config.list', prefix ? { prefix } : {},
-        );
+        const result = await multiCoreStore
+          .getState()
+          .requestOnCore<{
+            settings: Record<string, unknown>;
+          }>(coreId, 'core', 'config.list', prefix ? { prefix } : {});
         set((state) => ({
           settings: { ...state.settings, ...result.settings },
           loading: false,
@@ -45,12 +48,16 @@ export const createSettingsStore = () =>
     },
 
     setSetting: async (key: string, value: unknown) => {
-      const coreId = workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
+      const coreId =
+        workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) throw new Error('No active Core connection');
       try {
-        const result = await multiCoreStore.getState().requestOnCore<{ key: string; value: unknown }>(
-          coreId, 'core', 'config.set', { key, value },
-        );
+        const result = await multiCoreStore
+          .getState()
+          .requestOnCore<{
+            key: string;
+            value: unknown;
+          }>(coreId, 'core', 'config.set', { key, value });
         set((state) => ({
           settings: { ...state.settings, [result.key]: result.value },
           error: null,

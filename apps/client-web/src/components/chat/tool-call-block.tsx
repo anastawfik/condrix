@@ -36,27 +36,37 @@ export function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-2 w-full px-3 py-2 hover:bg-[var(--bg-hover)] transition-colors"
       >
-        <span className="text-[var(--text-muted)] transition-transform duration-150" style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(0deg)' }}>
+        <span
+          className="text-[var(--text-muted)] transition-transform duration-150"
+          style={{ transform: expanded ? 'rotate(0deg)' : 'rotate(0deg)' }}
+        >
           {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </span>
         <Wrench size={12} className="text-[var(--accent-blue)]" />
         <span className="font-mono font-medium text-[var(--text-primary)]">{toolCall.name}</span>
         <span className="ml-auto" />
         <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full ${statusBg}`}>
-          <StatusIcon size={10} className={`${statusColor} ${toolCall.status === 'pending' ? 'animate-spin' : ''}`} />
+          <StatusIcon
+            size={10}
+            className={`${statusColor} ${toolCall.status === 'pending' ? 'animate-spin' : ''}`}
+          />
           <span className={`${statusColor} capitalize text-[10px]`}>{toolCall.status}</span>
         </span>
       </button>
 
       {expanded && (
         <div className="px-3 py-2.5 border-t border-[var(--border-color)] bg-[var(--bg-primary)]">
-          <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5 font-medium">Arguments</p>
+          <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5 font-medium">
+            Arguments
+          </p>
           <div className="font-mono text-[var(--text-secondary)] whitespace-pre-wrap break-all bg-[var(--bg-secondary)] rounded-md p-2 border border-[var(--border-color)]">
             {JSON.stringify(toolCall.args, null, 2)}
           </div>
           {toolCall.result && (
             <div className="mt-2.5">
-              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5 font-medium">Result</p>
+              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5 font-medium">
+                Result
+              </p>
               <div className="text-[var(--text-secondary)] bg-[var(--bg-secondary)] rounded-md p-2 border border-[var(--border-color)] whitespace-pre-wrap break-all">
                 {toolCall.result}
               </div>

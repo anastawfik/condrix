@@ -18,16 +18,24 @@ export function TerminalPanel() {
   } = useTerminals(workspaceId);
 
   const handleCreate = useCallback(() => {
-    createTerminal().catch(() => { /* ignore */ });
+    createTerminal().catch(() => {
+      /* ignore */
+    });
   }, [createTerminal]);
 
-  const handleData = useCallback((terminalId: string, data: string) => {
-    writeToTerminal(terminalId, data);
-  }, [writeToTerminal]);
+  const handleData = useCallback(
+    (terminalId: string, data: string) => {
+      writeToTerminal(terminalId, data);
+    },
+    [writeToTerminal],
+  );
 
-  const handleResize = useCallback((terminalId: string, cols: number, rows: number) => {
-    resizeTerminal(terminalId, cols, rows);
-  }, [resizeTerminal]);
+  const handleResize = useCallback(
+    (terminalId: string, cols: number, rows: number) => {
+      resizeTerminal(terminalId, cols, rows);
+    },
+    [resizeTerminal],
+  );
 
   const handleOutput = useCallback((terminalId: string, listener: (data: string) => void) => {
     return terminalStore.getState().onTerminalOutput(terminalId, listener);

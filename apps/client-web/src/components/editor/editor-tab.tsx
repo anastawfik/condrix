@@ -1,7 +1,11 @@
 import { X } from 'lucide-react';
 import type { OpenFile } from '@condrix/client-shared';
 import {
-  ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator,
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
 } from '@/components/ui/context-menu';
 
 interface EditorTabProps {
@@ -14,7 +18,15 @@ interface EditorTabProps {
   onCopyPath?: () => void;
 }
 
-export function EditorTab({ file, isActive, onSelect, onClose, onCloseOthers, onCloseAll, onCopyPath }: EditorTabProps) {
+export function EditorTab({
+  file,
+  isActive,
+  onSelect,
+  onClose,
+  onCloseOthers,
+  onCloseAll,
+  onCopyPath,
+}: EditorTabProps) {
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -31,7 +43,10 @@ export function EditorTab({ file, isActive, onSelect, onClose, onCloseOthers, on
           {file.dirty && <span className="w-2 h-2 rounded-full bg-foreground shrink-0" />}
           <span className="truncate max-w-[120px]">{file.name}</span>
           <button
-            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
             aria-label={`Close ${file.name}`}
             className="p-0.5 rounded hover:bg-accent opacity-0 group-hover:opacity-100 shrink-0"
           >

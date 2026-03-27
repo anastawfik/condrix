@@ -126,7 +126,9 @@ export class NotificationRouter {
         case 'push':
           // External channels require adapter integration
           // For now, log and mark as pending for future adapter implementation
-          console.log(`[NotificationRouter] ${notification.channel} adapter not configured, notification logged: ${notification.message}`);
+          console.log(
+            `[NotificationRouter] ${notification.channel} adapter not configured, notification logged: ${notification.message}`,
+          );
           break;
       }
 

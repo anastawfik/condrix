@@ -65,12 +65,7 @@ export function createResponse<
 export function createEvent<
   N extends keyof NamespaceEventMap,
   E extends keyof NamespaceEventMap[N] & string,
->(
-  namespace: N,
-  event: E,
-  payload: EventPayload<N, E>,
-  options?: { workspaceId?: string },
-) {
+>(namespace: N, event: E, payload: EventPayload<N, E>, options?: { workspaceId?: string }) {
   return {
     id: generateMessageId(),
     type: 'event' as const,

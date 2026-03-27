@@ -1,7 +1,10 @@
 import { Plus, X } from 'lucide-react';
 import type { TerminalSession } from '@condrix/client-shared';
 import {
-  ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
 } from '@/components/ui/context-menu';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
@@ -13,7 +16,13 @@ interface TerminalTabBarProps {
   onClose: (id: string) => void;
 }
 
-export function TerminalTabBar({ terminals, activeTerminalId, onSelect, onCreate, onClose }: TerminalTabBarProps) {
+export function TerminalTabBar({
+  terminals,
+  activeTerminalId,
+  onSelect,
+  onCreate,
+  onClose,
+}: TerminalTabBarProps) {
   return (
     <div className="flex items-center h-9 bg-secondary border-b border-border shrink-0 select-none">
       <span className="px-2 text-sm uppercase tracking-wider font-semibold text-muted-foreground whitespace-nowrap">
@@ -40,11 +49,16 @@ export function TerminalTabBar({ terminals, activeTerminalId, onSelect, onCreate
                   <span
                     role="button"
                     tabIndex={-1}
-                    onClick={(e) => { e.stopPropagation(); onClose(term.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClose(term.id);
+                    }}
                     className={[
                       'inline-flex items-center justify-center w-5 h-5 rounded-sm ml-0.5',
                       'hover:bg-muted transition-opacity duration-75',
-                      isActive ? 'opacity-60 hover:opacity-100' : 'opacity-0 group-hover:opacity-60 hover:!opacity-100',
+                      isActive
+                        ? 'opacity-60 hover:opacity-100'
+                        : 'opacity-0 group-hover:opacity-60 hover:!opacity-100',
                     ].join(' ')}
                   >
                     <X size={14} />

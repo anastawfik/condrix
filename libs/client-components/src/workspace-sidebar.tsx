@@ -35,7 +35,10 @@ export function WorkspaceSidebar({ onWorkspaceEntered }: WorkspaceSidebarProps) 
   const [wsBranch, setWsBranch] = useState('');
 
   useEffect(() => {
-    workspaceStore.getState().fetchProjects().catch(() => {});
+    workspaceStore
+      .getState()
+      .fetchProjects()
+      .catch(() => {});
   }, []);
 
   const toggleProject = useCallback((projectId: string) => {
@@ -45,7 +48,10 @@ export function WorkspaceSidebar({ onWorkspaceEntered }: WorkspaceSidebarProps) 
         next.delete(projectId);
       } else {
         next.add(projectId);
-        workspaceStore.getState().fetchWorkspaces(projectId).catch(() => {});
+        workspaceStore
+          .getState()
+          .fetchWorkspaces(projectId)
+          .catch(() => {});
       }
       return next;
     });
@@ -75,7 +81,9 @@ export function WorkspaceSidebar({ onWorkspaceEntered }: WorkspaceSidebarProps) 
     if (!wsName.trim()) return;
     setLoading(true);
     try {
-      const ws = await workspaceStore.getState().createWorkspace(projectId, wsName.trim(), wsBranch.trim() || undefined);
+      const ws = await workspaceStore
+        .getState()
+        .createWorkspace(projectId, wsName.trim(), wsBranch.trim() || undefined);
       await workspaceStore.getState().enterWorkspace(ws.id);
       setWsName('');
       setWsBranch('');
@@ -106,7 +114,11 @@ export function WorkspaceSidebar({ onWorkspaceEntered }: WorkspaceSidebarProps) 
             currentWorkspaceId={currentWorkspaceId}
             onEnterWorkspace={handleEnterWorkspace}
             addingWorkspace={addingWorkspaceFor === project.id}
-            onStartAddWorkspace={() => { setAddingWorkspaceFor(project.id); setWsName(''); setWsBranch(''); }}
+            onStartAddWorkspace={() => {
+              setAddingWorkspaceFor(project.id);
+              setWsName('');
+              setWsBranch('');
+            }}
             wsName={wsName}
             onWsNameChange={setWsName}
             wsBranch={wsBranch}
@@ -141,9 +153,19 @@ interface ProjectNodeProps {
 }
 
 function ProjectNode({
-  project, expanded, onToggle, currentWorkspaceId, onEnterWorkspace,
-  addingWorkspace, onStartAddWorkspace,
-  wsName, onWsNameChange, wsBranch, onWsBranchChange, onCreateWorkspace, onCancelAddWorkspace,
+  project,
+  expanded,
+  onToggle,
+  currentWorkspaceId,
+  onEnterWorkspace,
+  addingWorkspace,
+  onStartAddWorkspace,
+  wsName,
+  onWsNameChange,
+  wsBranch,
+  onWsBranchChange,
+  onCreateWorkspace,
+  onCancelAddWorkspace,
   loading,
 }: ProjectNodeProps) {
   const workspaces = project.workspaces.filter((w) => w.state !== 'DESTROYED');
@@ -188,8 +210,12 @@ function ProjectNode({
                 inputSize="sm"
               />
               <div className="flex gap-1.5 justify-end">
-                <Button variant="ghost" size="sm" onClick={onCancelAddWorkspace}>Cancel</Button>
-                <Button size="sm" onClick={onCreateWorkspace} disabled={loading || !wsName.trim()}>Create</Button>
+                <Button variant="ghost" size="sm" onClick={onCancelAddWorkspace}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={onCreateWorkspace} disabled={loading || !wsName.trim()}>
+                  Create
+                </Button>
               </div>
             </div>
           ) : (

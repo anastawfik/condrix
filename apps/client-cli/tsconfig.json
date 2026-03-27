@@ -5,9 +5,7 @@
     "rootDir": "./src",
     "jsx": "react-jsx"
   },
-  "references": [
-    { "path": "../../libs/protocol" }
-  ],
+  "references": [{ "path": "../../libs/protocol" }],
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["dist", "node_modules", "**/*.test.ts"]
 }

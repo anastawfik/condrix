@@ -366,17 +366,15 @@ export const createChatStore = () =>
       const coreId =
         workspaceStore.getState().currentCoreId ?? multiCoreStore.getState().activeCoreId;
       if (!coreId) return;
-      const result = await multiCoreStore
-        .getState()
-        .requestOnCore<{
-          messages: Array<{
-            role: string;
-            content: string;
-            timestamp: string;
-            metadata?: Record<string, unknown>;
-          }>;
-          hasMore: boolean;
-        }>(coreId, 'agent', 'history', { workspaceId, limit });
+      const result = await multiCoreStore.getState().requestOnCore<{
+        messages: Array<{
+          role: string;
+          content: string;
+          timestamp: string;
+          metadata?: Record<string, unknown>;
+        }>;
+        hasMore: boolean;
+      }>(coreId, 'agent', 'history', { workspaceId, limit });
       const mapped: ChatMessage[] = result.messages.map((m, i) => ({
         id: `hist_${i}`,
         role: m.role as ChatMessage['role'],

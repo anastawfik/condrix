@@ -40,7 +40,12 @@ export interface ConnectionStore {
   connect: (config: ConnectionConfig) => void;
   disconnect: () => void;
   send: (message: unknown) => void;
-  request: <T = unknown>(namespace: string, action: string, payload: unknown, timeout?: number) => Promise<T>;
+  request: <T = unknown>(
+    namespace: string,
+    action: string,
+    payload: unknown,
+    timeout?: number,
+  ) => Promise<T>;
   subscribe: (pattern: string, listener: (event: MessageEnvelope) => void) => () => void;
 }
 
@@ -103,7 +108,11 @@ export const createConnectionStore = () =>
 
         // Handle auth response
         if (msg.namespace === 'core' && msg.action === 'auth' && msg.type === 'response') {
-          const payload = msg.payload as { authenticated?: boolean; scopes?: AuthScope[]; sessionId?: string };
+          const payload = msg.payload as {
+            authenticated?: boolean;
+            scopes?: AuthScope[];
+            sessionId?: string;
+          };
           const resp = msg as MessageEnvelope & { success?: boolean; error?: { message: string } };
           if (resp.success && payload.authenticated) {
             set({
@@ -112,9 +121,14 @@ export const createConnectionStore = () =>
               scopes: payload.scopes ?? [],
             });
             // Fetch core info
-            get().request<CoreInfo>('core', 'info', {}).then((info) => {
-              set({ coreInfo: info });
-            }).catch(() => { /* non-critical */ });
+            get()
+              .request<CoreInfo>('core', 'info', {})
+              .then((info) => {
+                set({ coreInfo: info });
+              })
+              .catch(() => {
+                /* non-critical */
+              });
             // Start heartbeat
             startHeartbeat(get, set);
           } else {
@@ -133,7 +147,10 @@ export const createConnectionStore = () =>
           if (pending) {
             clearTimeout(pending.timer);
             get()._pending.delete(msg.correlationId);
-            const resp = msg as MessageEnvelope & { success?: boolean; error?: { code: string; message: string } };
+            const resp = msg as MessageEnvelope & {
+              success?: boolean;
+              error?: { code: string; message: string };
+            };
             if (resp.success) {
               pending.resolve(msg.payload);
             } else {
