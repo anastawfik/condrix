@@ -408,6 +408,7 @@ export const createChatStore = () =>
           content: string;
           timestamp: string;
           metadata?: Record<string, unknown>;
+          thinking?: string;
         }>;
         hasMore: boolean;
       }>(coreId, 'agent', 'history', { workspaceId, limit });
@@ -415,6 +416,7 @@ export const createChatStore = () =>
         id: `hist_${i}`,
         role: m.role as ChatMessage['role'],
         content: m.content,
+        thinking: m.thinking,
         timestamp: m.timestamp,
         metadata: m.metadata,
       }));

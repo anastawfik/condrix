@@ -147,9 +147,9 @@ export class ClaudeProvider implements AgentProviderAdapter {
     if (this.lastSessionId) {
       args.push('--resume', this.lastSessionId);
     }
-    // Permission mode
+    // Permission mode (Claude CLI accepts: plan, auto, acceptEdits, bypassPermissions, default, dontAsk)
     if (this.permissionMode) {
-      const modeMap = { plan: 'plan', autoaccept: 'auto-accept', auto: 'auto' } as const;
+      const modeMap = { plan: 'plan', autoaccept: 'acceptEdits', auto: 'auto' } as const;
       args.push('--permission-mode', modeMap[this.permissionMode]);
     }
 
@@ -190,8 +190,11 @@ export class ClaudeProvider implements AgentProviderAdapter {
           else if (event.type === 'system' && event.permission_mode) {
             const modeReverseMap: Record<string, string> = {
               plan: 'plan',
-              'auto-accept': 'autoaccept',
+              acceptEdits: 'autoaccept',
               auto: 'auto',
+              bypassPermissions: 'auto',
+              dontAsk: 'auto',
+              default: 'plan',
             };
             const normalized = modeReverseMap[event.permission_mode] ?? event.permission_mode;
             if (normalized !== this.permissionMode) {

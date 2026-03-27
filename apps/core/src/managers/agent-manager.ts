@@ -336,6 +336,8 @@ export class AgentManager {
       'assistant',
       result.content,
       assistantTimestamp,
+      undefined,
+      result.thinking,
     );
 
     this.emitter.emit('agent:message', {
@@ -357,10 +359,11 @@ export class AgentManager {
     const fetchLimit = (limit ?? 50) + 1;
     const rows = this.db.getConversationHistory(workspaceId, fetchLimit, before);
     const hasMore = rows.length > (limit ?? 50);
-    const messages: AgentMessage[] = rows.slice(0, limit ?? 50).map((r) => ({
+    const messages = rows.slice(0, limit ?? 50).map((r) => ({
       role: r.role as 'user' | 'assistant' | 'system',
       content: r.content,
       timestamp: r.timestamp,
+      thinking: r.thinking,
     }));
     return { messages, hasMore };
   }

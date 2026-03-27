@@ -50,7 +50,8 @@ export class CoreDatabase {
         role          TEXT NOT NULL,
         content       TEXT NOT NULL,
         timestamp     TEXT NOT NULL,
-        metadata      TEXT
+        metadata      TEXT,
+        thinking      TEXT
       );
 
       CREATE TABLE IF NOT EXISTS events (
@@ -88,6 +89,7 @@ export class CoreDatabase {
     this.migrateAddColumn('projects', 'url', 'TEXT');
     this.migrateAddColumn('projects', 'path', "TEXT NOT NULL DEFAULT ''");
     this.migrateAddColumn('workspaces', 'work_dir', 'TEXT');
+    this.migrateAddColumn('conversations', 'thinking', 'TEXT');
   }
 
   private migrateAddColumn(table: string, column: string, type: string): void {
@@ -237,12 +239,21 @@ export class CoreDatabase {
     content: string,
     timestamp: string,
     metadata?: Record<string, unknown>,
+    thinking?: string,
   ): void {
     this.db
       .prepare(
-        'INSERT INTO conversations (id, workspace_id, role, content, timestamp, metadata) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO conversations (id, workspace_id, role, content, timestamp, metadata, thinking) VALUES (?, ?, ?, ?, ?, ?, ?)',
       )
-      .run(id, workspaceId, role, content, timestamp, metadata ? JSON.stringify(metadata) : null);
+      .run(
+        id,
+        workspaceId,
+        role,
+        content,
+        timestamp,
+        metadata ? JSON.stringify(metadata) : null,
+        thinking ?? null,
+      );
   }
 
   getConversationHistory(
@@ -255,6 +266,7 @@ export class CoreDatabase {
     content: string;
     timestamp: string;
     metadata?: Record<string, unknown>;
+    thinking?: string;
   }[] {
     let sql = 'SELECT * FROM conversations WHERE workspace_id = ?';
     const params: unknown[] = [workspaceId];
@@ -274,6 +286,7 @@ export class CoreDatabase {
       content: string;
       timestamp: string;
       metadata: string | null;
+      thinking: string | null;
     }[];
     return rows.reverse().map((row) => ({
       id: row.id,
@@ -281,6 +294,7 @@ export class CoreDatabase {
       content: row.content,
       timestamp: row.timestamp,
       metadata: row.metadata ? (JSON.parse(row.metadata) as Record<string, unknown>) : undefined,
+      thinking: row.thinking ?? undefined,
     }));
   }
 

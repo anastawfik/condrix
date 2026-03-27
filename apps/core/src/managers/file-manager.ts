@@ -58,6 +58,9 @@ export class FileManager {
       ignored: IGNORE_PATTERNS,
       persistent: true,
       ignoreInitial: true,
+      // Windows: avoid EPERM on transient lock files (.git/index.lock etc.)
+      ignorePermissionErrors: true,
+      awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
     });
 
     watcher.on('add', (filePath: unknown) => {
@@ -79,6 +82,9 @@ export class FileManager {
     watcher.on('unlinkDir', (filePath: unknown) => {
       const change: FileChange = { path: String(filePath), type: 'deleted' };
       this.notifyChange(change, workspaceId);
+    });
+    watcher.on('error', (err: Error) => {
+      console.warn(`[FileManager] Watcher error (${dirPath}): ${err.message}`);
     });
 
     this.watchers.set(dirPath, watcher);
