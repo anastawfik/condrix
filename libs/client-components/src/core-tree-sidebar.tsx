@@ -7,7 +7,6 @@ import {
   Plus,
   Server,
   Layers,
-  Trash2,
   RotateCw,
   AlertCircle,
   Loader2,
@@ -26,18 +25,7 @@ import type { ProjectInfo, WorkspaceInfo } from '@condrix/protocol';
 import { cn } from './lib/utils.js';
 import { Button } from './button.js';
 import { Input } from './input.js';
-import { Checkbox } from './checkbox.js';
 import { AddProjectDialog } from './add-project-dialog.js';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from './ui/alert-dialog.js';
 
 /** Maps workspace state to a meaningful icon with color and optional animation. */
 function WorkspaceStateIcon({ state }: { state: string }) {
@@ -152,21 +140,6 @@ function SidebarTree({
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
 
-  // Delete workspace modal state
-  const [deleteTarget, setDeleteTarget] = useState<{
-    wsId: string;
-    wsName: string;
-    coreId: string;
-  } | null>(null);
-  const [deleteFiles, setDeleteFiles] = useState(false);
-
-  // Delete project modal state
-  const [deleteProjectTarget, setDeleteProjectTarget] = useState<{
-    projectId: string;
-    projectName: string;
-    coreId: string;
-  } | null>(null);
-
   const isOnline = useCallback((status: string) => {
     return status === 'connected' || status === 'online';
   }, []);
@@ -277,21 +250,6 @@ function SidebarTree({
     }
   };
 
-  const confirmDestroyWorkspace = async () => {
-    if (!deleteTarget) return;
-    try {
-      await workspaceStore
-        .getState()
-        .destroyWorkspace(deleteTarget.wsId, deleteTarget.coreId, deleteFiles);
-      fetchProjects(deleteTarget.coreId);
-    } catch {
-      // error
-    } finally {
-      setDeleteTarget(null);
-      setDeleteFiles(false);
-    }
-  };
-
   const handleRetryWorkspace = async (ws: WorkspaceInfo, coreId: string) => {
     try {
       // Resume transitions ERRORED → IDLE
@@ -300,30 +258,6 @@ function SidebarTree({
       fetchProjects(coreId);
     } catch (err) {
       console.error('[Sidebar] Failed to retry workspace:', err);
-    }
-  };
-
-  const confirmDeleteProject = async () => {
-    if (!deleteProjectTarget) return;
-    try {
-      await multiCoreStore
-        .getState()
-        .requestOnCore(deleteProjectTarget.coreId, 'project', 'delete', {
-          projectId: deleteProjectTarget.projectId,
-        });
-      setCoreProjects((prev) => {
-        const next = new Map(prev);
-        const projects =
-          next
-            .get(deleteProjectTarget.coreId)
-            ?.filter((p) => p.id !== deleteProjectTarget.projectId) ?? [];
-        next.set(deleteProjectTarget.coreId, projects);
-        return next;
-      });
-    } catch {
-      // error
-    } finally {
-      setDeleteProjectTarget(null);
     }
   };
 
@@ -397,20 +331,6 @@ function SidebarTree({
                               {project.name}
                             </span>
                           </button>
-                          <button
-                            onClick={() =>
-                              setDeleteProjectTarget({
-                                projectId: project.id,
-                                projectName: project.name,
-                                coreId: core.coreId,
-                              })
-                            }
-                            className="hidden group-hover:flex p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--accent-red)] shrink-0"
-                            title="Delete project"
-                            aria-label="Delete project"
-                          >
-                            <Trash2 size={11} />
-                          </button>
                         </div>
 
                         {projectExpanded && (
@@ -464,20 +384,6 @@ function SidebarTree({
                                         <RotateCw size={11} />
                                       </button>
                                     )}
-                                    <button
-                                      onClick={() =>
-                                        setDeleteTarget({
-                                          wsId: ws.id,
-                                          wsName: ws.name,
-                                          coreId: core.coreId,
-                                        })
-                                      }
-                                      className="p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--accent-red)]"
-                                      title="Delete workspace"
-                                      aria-label="Delete workspace"
-                                    >
-                                      <Trash2 size={11} />
-                                    </button>
                                   </div>
                                 </div>
                               );
@@ -579,92 +485,6 @@ function SidebarTree({
           onCreated={() => fetchProjects(addProjectCoreId)}
         />
       )}
-
-      {/* Delete workspace confirmation */}
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
-            setDeleteFiles(false);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-[var(--accent-red)]">
-              Delete workspace{deleteTarget ? ` "${deleteTarget.wsName}"` : ''}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove the workspace and its entire conversation history. The agent session
-              and all settings will be permanently lost.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="space-y-3 py-2">
-            <Checkbox
-              checked={deleteFiles}
-              onChange={(e) => setDeleteFiles(e.target.checked)}
-              label="Also delete workspace files from disk"
-            />
-
-            {deleteFiles && (
-              <div
-                className="ml-6 p-3 rounded-md border text-xs text-[var(--accent-red)]"
-                style={{
-                  backgroundColor: 'color-mix(in srgb, var(--accent-red) 10%, transparent)',
-                  borderColor: 'color-mix(in srgb, var(--accent-red) 30%, transparent)',
-                }}
-              >
-                <strong>This cannot be undone.</strong> All files, uncommitted changes, and cloned
-                repository data in this workspace folder will be permanently deleted.
-              </div>
-            )}
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDestroyWorkspace}
-              className="bg-[var(--accent-red)] text-white hover:opacity-90"
-            >
-              Delete workspace
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete project confirmation */}
-      <AlertDialog
-        open={!!deleteProjectTarget}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteProjectTarget(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-[var(--accent-red)]">
-              Delete project{deleteProjectTarget ? ` "${deleteProjectTarget.projectName}"` : ''}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This will delete the project and all workspaces within it. Conversation history and
-              agent sessions for every workspace in this project will be permanently lost.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteProject}
-              className="bg-[var(--accent-red)] text-white hover:opacity-90"
-            >
-              Delete project
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { multiCoreStore, workspaceStore } from '@condrix/client-shared';
+import { multiCoreStore, workspaceStore, maestroStore } from '@condrix/client-shared';
 import type { ProjectInfo, WorkspaceInfo, WorkspaceState } from '@condrix/protocol';
 import { Badge } from '@/components/ui/badge.js';
 import { Button } from '@/components/ui/button.js';
@@ -56,15 +56,36 @@ export function ProjectsSettings() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const fetchAllProjects = useCallback(async () => {
-    const { connections } = multiCoreStore.getState();
     const entries: CoreProjects[] = [];
 
+    // Maestro mode: cores registered via Maestro
+    const { state: maestroState, maestroCores } = maestroStore.getState();
+    if (maestroState === 'connected' && maestroCores.length > 0) {
+      for (const mc of maestroCores) {
+        if (mc.status !== 'online') continue;
+        entries.push({
+          coreId: mc.id,
+          coreName: mc.displayName,
+          projects: [],
+          loading: true,
+          error: null,
+        });
+      }
+    }
+
+    // Direct mode: cores connected via WebSocket
+    const { connections } = multiCoreStore.getState();
     for (const [coreId, conn] of connections) {
       if (conn.connState !== 'connected') continue;
-
-      const coreName = conn.coreInfo?.displayName ?? coreId.slice(0, 8);
-      const entry: CoreProjects = { coreId, coreName, projects: [], loading: true, error: null };
-      entries.push(entry);
+      // Skip if already added from Maestro
+      if (entries.some((e) => e.coreId === coreId)) continue;
+      entries.push({
+        coreId,
+        coreName: conn.coreInfo?.displayName ?? coreId.slice(0, 8),
+        projects: [],
+        loading: true,
+        error: null,
+      });
     }
 
     setCoreProjects(entries.map((e) => ({ ...e })));
