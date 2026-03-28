@@ -336,33 +336,39 @@ function CoreSection({
             className="ml-4 rounded border border-[var(--border-color)] bg-[var(--bg-primary)]"
           >
             {/* Project header */}
-            <div className="flex items-center justify-between px-3 py-2">
-              <button
-                className="flex-1 flex items-center gap-2 text-left"
-                onClick={() => onToggleProject(project.id)}
-              >
-                <span className="text-xs text-[var(--text-muted)] select-none">
-                  {isExpanded ? '\u25BC' : '\u25B6'}
-                </span>
-                <span className="text-sm font-medium text-[var(--text-primary)]">
-                  {project.name}
-                </span>
-                <span className="text-xs text-[var(--text-muted)]">
-                  ({project.workspaces.length} workspace{project.workspaces.length !== 1 ? 's' : ''}
-                  )
-                </span>
-              </button>
-              <div className="flex items-center gap-2">
-                <span
-                  className="text-xs text-[var(--text-muted)] font-mono truncate max-w-[200px]"
-                  title={project.url ?? project.path}
+            <div className="px-3 py-2 space-y-1">
+              <div className="flex items-center justify-between">
+                <button
+                  className="flex items-center gap-2 text-left min-w-0"
+                  onClick={() => onToggleProject(project.id)}
                 >
-                  {project.url ?? project.path}
-                </span>
-                <Button variant="destructive" size="sm" onClick={() => onDeleteProject(project)}>
+                  <span className="text-xs text-[var(--text-muted)] select-none shrink-0">
+                    {isExpanded ? '\u25BC' : '\u25B6'}
+                  </span>
+                  <span className="text-sm font-medium text-[var(--text-primary)] truncate">
+                    {project.name}
+                  </span>
+                  <span className="text-xs text-[var(--text-muted)] shrink-0">
+                    ({project.workspaces.length})
+                  </span>
+                </button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="shrink-0 text-xs h-7 px-2"
+                  onClick={() => onDeleteProject(project)}
+                >
                   Delete
                 </Button>
               </div>
+              {(project.url || project.path) && (
+                <div
+                  className="text-xs text-[var(--text-muted)] font-mono truncate pl-5"
+                  title={project.url ?? project.path}
+                >
+                  {project.url ?? project.path}
+                </div>
+              )}
             </div>
 
             {/* Expanded workspaces */}
@@ -371,23 +377,30 @@ function CoreSection({
                 {project.workspaces.map((ws) => (
                   <div
                     key={ws.id}
-                    className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)] last:border-b-0"
+                    className="flex items-center justify-between gap-2 px-3 py-2 border-b border-[var(--border-color)] last:border-b-0"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-sm text-[var(--text-primary)] truncate">{ws.name}</span>
-                      <Badge variant={STATE_VARIANT[ws.state]}>{ws.state}</Badge>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-[var(--text-primary)] truncate">
+                          {ws.name}
+                        </span>
+                        <Badge variant={STATE_VARIANT[ws.state]} className="text-[10px] shrink-0">
+                          {ws.state}
+                        </Badge>
+                      </div>
                       {ws.workDir && (
-                        <span
-                          className="text-xs text-[var(--text-muted)] font-mono truncate max-w-[180px]"
+                        <div
+                          className="text-[11px] text-[var(--text-muted)] font-mono truncate mt-0.5"
                           title={ws.workDir}
                         >
                           {ws.workDir}
-                        </span>
+                        </div>
                       )}
                     </div>
                     <Button
                       variant="destructive"
                       size="sm"
+                      className="shrink-0 text-xs h-7 px-2"
                       onClick={() => onDeleteWorkspace(ws, project.name)}
                     >
                       Delete

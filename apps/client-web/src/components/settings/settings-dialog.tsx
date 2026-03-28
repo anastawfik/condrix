@@ -114,7 +114,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         aria-modal="true"
         aria-label="Settings"
         tabIndex={-1}
-        className="flex w-[640px] max-w-[95vw] h-[480px] max-h-[90vh] rounded-lg overflow-hidden bg-card border border-border shadow-2xl focus:outline-none"
+        className="flex w-[800px] max-w-[95vw] h-[560px] max-h-[90vh] rounded-lg overflow-hidden bg-card border border-border shadow-2xl focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-44 shrink-0 border-r border-border bg-background py-3">

@@ -35,7 +35,9 @@ function WorkspaceStateIcon({ state }: { state: string }) {
     case 'IDLE':
       return <Circle className="text-[var(--text-muted)] shrink-0" fill="currentColor" size={10} />;
     case 'ACTIVE':
-      return <Loader2 className="animate-spin text-[var(--accent-green)] shrink-0" size={14} />;
+      return (
+        <Circle className="text-[var(--accent-green)] shrink-0" fill="currentColor" size={10} />
+      );
     case 'WAITING':
       return <HelpCircle className="text-[var(--accent-yellow)] shrink-0" size={14} />;
     case 'SUSPENDED':
@@ -127,6 +129,8 @@ function SidebarTree({
   onWorkspaceSelected?: () => void;
 }) {
   const currentWorkspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);
+  // Track workspace count to detect deletions from Settings
+  const wsStoreCount = useStore(workspaceStore, (s) => s.workspaces.length);
 
   const [expandedCores, setExpandedCores] = useState<Set<string>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
@@ -270,6 +274,29 @@ function SidebarTree({
       }
     }
   }, [cores, fetchProjects, isOnline]);
+
+  // Subscribe to workspace/project events so sidebar stays in sync
+  // (handles CREATING→IDLE transitions, deletes from Settings, etc.)
+  useEffect(() => {
+    const unsubs: Array<() => void> = [];
+    for (const core of cores) {
+      if (!isOnline(core.status)) continue;
+      const sub = (pattern: string, handler: () => void) =>
+        multiCoreStore.getState().subscribeOnCore(core.coreId, pattern, handler);
+      unsubs.push(sub('workspace:stateChanged', () => fetchProjects(core.coreId)));
+      unsubs.push(sub('workspace:created', () => fetchProjects(core.coreId)));
+      unsubs.push(sub('workspace:destroyed', () => fetchProjects(core.coreId)));
+      unsubs.push(sub('project:deleted', () => fetchProjects(core.coreId)));
+    }
+    return () => unsubs.forEach((u) => u());
+  }, [cores, fetchProjects, isOnline]);
+
+  // Re-fetch projects when workspace store changes (e.g., deleted from Settings)
+  useEffect(() => {
+    for (const core of cores) {
+      if (isOnline(core.status)) fetchProjects(core.coreId);
+    }
+  }, [wsStoreCount, cores, fetchProjects, isOnline]);
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-secondary)] text-xs select-none">
