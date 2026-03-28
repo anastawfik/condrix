@@ -29,7 +29,7 @@ const PERMISSION_MODES: { id: PermissionMode; label: string }[] = [
   { id: 'auto', label: 'Full Auto' },
 ];
 
-const DEFAULT_PERMISSION_MODE: PermissionMode = 'plan';
+const DEFAULT_PERMISSION_MODE: PermissionMode = 'auto';
 
 export function ChatHeader() {
   const workspaceId = useStore(workspaceStore, (s) => s.currentWorkspaceId);

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { GeneralSettings } from './general-settings.js';
 import { ThemeSettings } from './theme-settings.js';
 import { NotificationSettings } from './notification-settings.js';
+import { ProjectsSettings } from './projects-settings.js';
 import {
   CoresSettingsTab,
   AiSettingsTab,
@@ -21,6 +22,7 @@ interface TabDefinition {
 
 const STATIC_TABS: TabDefinition[] = [
   { id: 'cores', label: 'Cores', icon: '\u26A1', component: CoresSettingsTab },
+  { id: 'projects', label: 'Projects', icon: '\uD83D\uDCC2', component: ProjectsSettings },
   { id: 'auth', label: 'Authentication', icon: '\uD83D\uDD11', component: AiSettingsTab },
   { id: 'theme', label: 'Theme', icon: '\u263E', component: ThemeSettings },
   { id: 'notifications', label: 'Notifications', icon: '\u266A', component: NotificationSettings },

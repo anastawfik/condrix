@@ -1,10 +1,41 @@
 import type { AgentMessage } from '@condrix/protocol';
 import { generateId } from '@condrix/protocol';
 import type { EventEmitter } from 'node:events';
+import { appendFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 
 import type { CoreDatabase } from '../database.js';
 import type { ToolResult } from '../tools/tool-executor.js';
 import { ToolExecutor } from '../tools/tool-executor.js';
+
+/** Dev-mode event log file path (null if not in dev mode). */
+const devEventLog = (() => {
+  if (process.env.CONDRIX_CORE_DEV_MODE === 'false') return null;
+  const dir = join(homedir(), '.condrix');
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return join(dir, 'claude-events.log');
+})();
+
+function logEvent(workspaceId: string, event: Record<string, unknown>): void {
+  if (!devEventLog) return;
+  const ts = new Date().toISOString();
+  const type = event.type as string;
+  const summary: Record<string, unknown> = { type };
+  if (type === 'thinking' || type === 'text') {
+    summary.deltaLen = (event.delta as string)?.length ?? 0;
+    summary.blockIndex = event.blockIndex;
+  } else if (type === 'toolUse') {
+    summary.toolName = event.toolName;
+    summary.toolId = (event.toolId as string)?.slice(0, 12);
+  } else if (type === 'toolResult') {
+    summary.toolId = (event.toolId as string)?.slice(0, 12);
+    summary.contentLen = (event.content as string)?.length ?? 0;
+  } else {
+    summary.delta = (event.delta as string)?.slice(0, 50);
+  }
+  appendFileSync(devEventLog, `${ts} [${workspaceId.slice(0, 12)}] ${JSON.stringify(summary)}\n`);
+}
 
 /** Callback for streaming responses from an agent provider. */
 export type StreamEvent =
@@ -229,8 +260,13 @@ export class AgentManager {
       }
     };
 
+    // Reset dev event log for this request
+    if (devEventLog)
+      writeFileSync(devEventLog, `--- Request at ${timestamp} workspace=${workspaceId} ---\n`);
+
     // Stream callback: emit events for real-time UI updates + accumulate in buffer
     const onStream: StreamCallback = (event) => {
+      logEvent(workspaceId, event as unknown as Record<string, unknown>);
       if (event.type === 'modeChanged') {
         this.db.setWorkspaceConfig(workspaceId, 'permissionMode', event.delta);
         this.emitter.emit('agent:modeChanged', { workspaceId, permissionMode: event.delta });

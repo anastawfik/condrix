@@ -37,7 +37,7 @@ export interface ClaudeProviderConfig {
   sessionId?: string;
 }
 
-const DEFAULT_MODEL = 'claude-sonnet-4-5-20250514';
+const DEFAULT_MODEL = 'claude-sonnet-4-6';
 const DEFAULT_MAX_TOKENS = 16000;
 const DEFAULT_THINKING_BUDGET = 10000;
 const MAX_TOOL_TURNS = 25;
@@ -172,19 +172,23 @@ export class ClaudeProvider implements AgentProviderAdapter {
         ...(this.workDir ? { cwd: this.workDir } : {}),
       });
 
-      // Log raw NDJSON to file for debugging
-      const logDir = join(homedir(), '.condrix');
-      if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true });
-      const logFile = join(logDir, 'claude-ndjson.log');
-      writeFileSync(
-        logFile,
-        `--- Request at ${new Date().toISOString()} | model=${this.model} cwd=${this.workDir ?? 'inherited'} ---\n`,
-      );
+      // Log raw NDJSON to file in dev mode
+      const devMode = process.env.CONDRIX_CORE_DEV_MODE !== 'false';
+      let logFile: string | null = null;
+      if (devMode) {
+        const logDir = join(homedir(), '.condrix');
+        if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true });
+        logFile = join(logDir, 'claude-ndjson.log');
+        writeFileSync(
+          logFile,
+          `--- Request at ${new Date().toISOString()} | model=${this.model} cwd=${this.workDir ?? 'inherited'} ---\n`,
+        );
+      }
 
       const rl = createInterface({ input: child.stdout });
       rl.on('line', (line) => {
         if (!line.trim()) return;
-        appendFileSync(logFile, line + '\n');
+        if (logFile) appendFileSync(logFile, line + '\n');
         try {
           const event = JSON.parse(line);
 

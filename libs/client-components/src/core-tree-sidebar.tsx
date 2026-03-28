@@ -9,6 +9,11 @@ import {
   Layers,
   Trash2,
   RotateCw,
+  AlertCircle,
+  Loader2,
+  Circle,
+  HelpCircle,
+  PauseCircle,
 } from 'lucide-react';
 import {
   multiCoreStore,
@@ -21,17 +26,46 @@ import type { ProjectInfo, WorkspaceInfo } from '@condrix/protocol';
 import { cn } from './lib/utils.js';
 import { Button } from './button.js';
 import { Input } from './input.js';
+import { Checkbox } from './checkbox.js';
 import { AddProjectDialog } from './add-project-dialog.js';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog.js';
 
-const STATE_DOT_COLOR: Record<string, string> = {
-  CREATING: 'bg-[var(--accent-blue)]',
-  IDLE: 'bg-[var(--text-muted)]',
-  ACTIVE: 'bg-[var(--accent-green)]',
-  WAITING: 'bg-[var(--accent-yellow)]',
-  SUSPENDED: 'bg-[var(--accent-orange)]',
-  ERRORED: 'bg-[var(--accent-red)]',
-  DESTROYED: 'bg-[var(--text-muted)] opacity-40',
-};
+/** Maps workspace state to a meaningful icon with color and optional animation. */
+function WorkspaceStateIcon({ state }: { state: string }) {
+  switch (state) {
+    case 'CREATING':
+      return <Loader2 className="animate-spin text-[var(--accent-blue)] shrink-0" size={14} />;
+    case 'IDLE':
+      return <Circle className="text-[var(--text-muted)] shrink-0" fill="currentColor" size={10} />;
+    case 'ACTIVE':
+      return <Loader2 className="animate-spin text-[var(--accent-green)] shrink-0" size={14} />;
+    case 'WAITING':
+      return <HelpCircle className="text-[var(--accent-yellow)] shrink-0" size={14} />;
+    case 'SUSPENDED':
+      return <PauseCircle className="text-[var(--accent-orange)] shrink-0" size={14} />;
+    case 'ERRORED':
+      return <AlertCircle className="text-[var(--accent-red)] shrink-0" size={14} />;
+    case 'DESTROYED':
+      return (
+        <Circle
+          className="text-[var(--text-muted)] opacity-40 shrink-0"
+          fill="currentColor"
+          size={10}
+        />
+      );
+    default:
+      return <Circle className="text-[var(--text-muted)] shrink-0" fill="currentColor" size={10} />;
+  }
+}
 
 const CONN_DOT: Record<string, string> = {
   connected: 'bg-[var(--accent-green)]',
@@ -117,6 +151,21 @@ function SidebarTree({
   const [wsName, setWsName] = useState('');
   const [creatingWorkspace, setCreatingWorkspace] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
+
+  // Delete workspace modal state
+  const [deleteTarget, setDeleteTarget] = useState<{
+    wsId: string;
+    wsName: string;
+    coreId: string;
+  } | null>(null);
+  const [deleteFiles, setDeleteFiles] = useState(false);
+
+  // Delete project modal state
+  const [deleteProjectTarget, setDeleteProjectTarget] = useState<{
+    projectId: string;
+    projectName: string;
+    coreId: string;
+  } | null>(null);
 
   const isOnline = useCallback((status: string) => {
     return status === 'connected' || status === 'online';
@@ -228,12 +277,18 @@ function SidebarTree({
     }
   };
 
-  const handleDestroyWorkspace = async (wsId: string, coreId: string) => {
+  const confirmDestroyWorkspace = async () => {
+    if (!deleteTarget) return;
     try {
-      await workspaceStore.getState().destroyWorkspace(wsId, coreId);
-      fetchProjects(coreId);
+      await workspaceStore
+        .getState()
+        .destroyWorkspace(deleteTarget.wsId, deleteTarget.coreId, deleteFiles);
+      fetchProjects(deleteTarget.coreId);
     } catch {
       // error
+    } finally {
+      setDeleteTarget(null);
+      setDeleteFiles(false);
     }
   };
 
@@ -248,17 +303,27 @@ function SidebarTree({
     }
   };
 
-  const handleDeleteProject = async (projectId: string, coreId: string) => {
+  const confirmDeleteProject = async () => {
+    if (!deleteProjectTarget) return;
     try {
-      await multiCoreStore.getState().requestOnCore(coreId, 'project', 'delete', { projectId });
+      await multiCoreStore
+        .getState()
+        .requestOnCore(deleteProjectTarget.coreId, 'project', 'delete', {
+          projectId: deleteProjectTarget.projectId,
+        });
       setCoreProjects((prev) => {
         const next = new Map(prev);
-        const projects = next.get(coreId)?.filter((p) => p.id !== projectId) ?? [];
-        next.set(coreId, projects);
+        const projects =
+          next
+            .get(deleteProjectTarget.coreId)
+            ?.filter((p) => p.id !== deleteProjectTarget.projectId) ?? [];
+        next.set(deleteProjectTarget.coreId, projects);
         return next;
       });
     } catch {
       // error
+    } finally {
+      setDeleteProjectTarget(null);
     }
   };
 
@@ -333,7 +398,13 @@ function SidebarTree({
                             </span>
                           </button>
                           <button
-                            onClick={() => handleDeleteProject(project.id, core.coreId)}
+                            onClick={() =>
+                              setDeleteProjectTarget({
+                                projectId: project.id,
+                                projectName: project.name,
+                                coreId: core.coreId,
+                              })
+                            }
                             className="hidden group-hover:flex p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--accent-red)] shrink-0"
                             title="Delete project"
                             aria-label="Delete project"
@@ -346,8 +417,6 @@ function SidebarTree({
                           <>
                             {workspaces.map((ws) => {
                               const isActive = ws.id === currentWorkspaceId;
-                              const dotColor =
-                                STATE_DOT_COLOR[ws.state] ?? 'bg-[var(--text-muted)]';
                               const canEnter = ws.state !== 'DESTROYED' && ws.state !== 'CREATING';
 
                               return (
@@ -371,9 +440,7 @@ function SidebarTree({
                                     disabled={loading || !canEnter}
                                     className="flex items-center gap-2 flex-1 min-w-0 text-left"
                                   >
-                                    <span
-                                      className={cn('w-1.5 h-1.5 rounded-full shrink-0', dotColor)}
-                                    />
+                                    <WorkspaceStateIcon state={ws.state} />
                                     <span className="truncate">{ws.name}</span>
                                     {ws.state === 'CREATING' && (
                                       <span className="text-[9px] text-[var(--accent-blue)]">
@@ -398,7 +465,13 @@ function SidebarTree({
                                       </button>
                                     )}
                                     <button
-                                      onClick={() => handleDestroyWorkspace(ws.id, core.coreId)}
+                                      onClick={() =>
+                                        setDeleteTarget({
+                                          wsId: ws.id,
+                                          wsName: ws.name,
+                                          coreId: core.coreId,
+                                        })
+                                      }
                                       className="p-0.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-muted)] hover:text-[var(--accent-red)]"
                                       title="Delete workspace"
                                       aria-label="Delete workspace"
@@ -506,6 +579,92 @@ function SidebarTree({
           onCreated={() => fetchProjects(addProjectCoreId)}
         />
       )}
+
+      {/* Delete workspace confirmation */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteFiles(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[var(--accent-red)]">
+              Delete workspace{deleteTarget ? ` "${deleteTarget.wsName}"` : ''}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the workspace and its entire conversation history. The agent session
+              and all settings will be permanently lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-3 py-2">
+            <Checkbox
+              checked={deleteFiles}
+              onChange={(e) => setDeleteFiles(e.target.checked)}
+              label="Also delete workspace files from disk"
+            />
+
+            {deleteFiles && (
+              <div
+                className="ml-6 p-3 rounded-md border text-xs text-[var(--accent-red)]"
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--accent-red) 10%, transparent)',
+                  borderColor: 'color-mix(in srgb, var(--accent-red) 30%, transparent)',
+                }}
+              >
+                <strong>This cannot be undone.</strong> All files, uncommitted changes, and cloned
+                repository data in this workspace folder will be permanently deleted.
+              </div>
+            )}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDestroyWorkspace}
+              className="bg-[var(--accent-red)] text-white hover:opacity-90"
+            >
+              Delete workspace
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete project confirmation */}
+      <AlertDialog
+        open={!!deleteProjectTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteProjectTarget(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[var(--accent-red)]">
+              Delete project{deleteProjectTarget ? ` "${deleteProjectTarget.projectName}"` : ''}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete the project and all workspaces within it. Conversation history and
+              agent sessions for every workspace in this project will be permanently lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteProject}
+              className="bg-[var(--accent-red)] text-white hover:opacity-90"
+            >
+              Delete project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
